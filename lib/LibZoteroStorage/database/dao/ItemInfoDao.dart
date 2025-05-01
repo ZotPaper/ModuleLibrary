@@ -1,0 +1,58 @@
+import '../../entity/ItemInfo.dart';
+import '../ZoteroDatabase.dart';
+
+class ItemInfoDao {
+  final ZoteroDatabase dbHelper;
+
+  ItemInfoDao(this.dbHelper);
+
+  Future<int> insertItem(ItemInfo item) async {
+    final db = await dbHelper.database;
+    final map =  item.toJson();
+    map.remove('id');
+    map['deleted']= item.deleted  ? 1 : 0;
+    return await db.insert('ItemInfo',  map);
+  }
+
+  Future<ItemInfo?> getItemByKey(String itemKey) async {
+    final db = await dbHelper.database;
+    final maps = await db.query(
+      'ItemInfo',
+      where: 'itemKey = ?',
+      whereArgs: [itemKey],
+    );
+    if (maps.isNotEmpty)  {
+      return ItemInfo.fromJson(maps.first);
+    }
+    return null;
+  }
+
+  Future<List<ItemInfo>> getItemsByGroup(int groupId) async {
+    final db = await dbHelper.database;
+    final maps = await db.query(
+      'ItemInfo',
+      where: 'groupId = ?',
+      whereArgs: [groupId],
+    );
+    return maps.map((map)  => ItemInfo.fromJson(map)).toList();
+  }
+
+  Future<int> updateItem(ItemInfo item) async {
+    final db = await dbHelper.database;
+    return await db.update(
+      'ItemInfo',
+      item.toJson(),
+      where: 'itemKey = ? AND groupId = ?',
+      whereArgs: [item.itemKey, item.groupId],
+    );
+  }
+
+  Future<int> deleteItem(String itemKey, int groupId) async {
+    final db = await dbHelper.database;
+    return await db.delete(
+      'ItemInfo',
+      where: 'itemKey = ? AND groupId = ?',
+      whereArgs: [itemKey, groupId],
+    );
+  }
+}
