@@ -13,7 +13,11 @@ class ItemInfoDao {
     map['deleted']= item.deleted  ? 1 : 0;
     return await db.insert('ItemInfo',  map);
   }
-
+  Future<List<ItemInfo>> getItemInfos() async{
+    final db = await dbHelper.database;
+    final result = await db.query('ItemInfo');
+    return result.map((json)  => ItemInfo.fromJson(json)).toList();
+  }
   Future<ItemInfo?> getItemByKey(String itemKey) async {
     final db = await dbHelper.database;
     final maps = await db.query(

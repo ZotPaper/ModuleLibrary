@@ -2,6 +2,7 @@ import 'package:module/LibZoteroStorage/database/ZoteroDatabase.dart';
 import 'package:module/LibZoteroStorage/database/dao/CollectionsDao.dart';
 import 'package:module/LibZoteroStorage/database/dao/GroupInfoDao.dart';
 import 'package:module/LibZoteroStorage/entity/Collection.dart';
+import 'package:module/LibZoteroStorage/entity/ItemCollection.dart';
 import 'package:sqflite/sqflite.dart';
 import '../../LibZoteroStorage/database/dao/AttachmentInfoDao.dart';
 import '../../LibZoteroStorage/database/dao/ItemCollectionDao.dart';
@@ -52,7 +53,7 @@ class ZoteroDataSql {
         itemTagsDao.insertItemTag(itemTag);
       }
       for(var collection in item.collections){
-        // collectionsDao.insertCollection(Collection(key: key, version: version, name: name, parentCollection: parentCollection))
+        itemCollectionDao.insertItemCollection(ItemCollection(collectionKey: collection, itemKey: item.itemInfo.itemKey));
       }
       for(var attachment in item.attachments){
         // attachmentInfoDao.insertAttachment(attachment);
@@ -64,6 +65,23 @@ class ZoteroDataSql {
   }
   Future<List<Item>> getItems() async {
     List<Item> items = [];
+    var itemInfos = await itemInfoDao.getItemInfos();
+
+    for (var itemInfo in itemInfos) {
+      var itemDatas = await itemDataDao.getItemDataForParent(itemInfo.itemKey);
+      var creators = await itemCreatorDao.getCreatorsForParent(itemInfo.itemKey);
+      var itemTags = await itemTagsDao.getTagsForParent(itemInfo.itemKey);
+      var itemCollections = await itemCollectionDao.getItemsInCollection(itemInfo.itemKey);
+      var collections = itemCollections.map((data){return data.collectionKey;}).toList();
+      var attachmentInfos = await attachmentInfoDao.getAttachment(itemInfo.itemKey,-1);
+      var item = Item(
+          itemInfo: itemInfo,
+          itemData: itemDatas,
+          creators: creators,
+          tags: itemTags,
+          collections: collections);
+      items.add(item);
+    }
     return items;
   }
 

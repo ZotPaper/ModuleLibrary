@@ -12,7 +12,15 @@ class ItemCollectionDao {
     map.remove('id');
     return await db.insert('ItemCollection',  map);
   }
-
+  Future<List<ItemCollection>> getItemCollection(String itemKey) async {
+    final db = await dbHelper.database;
+    final maps = await db.query(
+      'ItemCollection',
+      where: 'itemKey = ?',
+      whereArgs: [itemKey],
+    );
+    return maps.map((map)  => ItemCollection.fromJson(map)).toList();
+  }
   Future<List<ItemCollection>> getItemsInCollection(String collectionKey) async {
     final db = await dbHelper.database;
     final maps = await db.query(

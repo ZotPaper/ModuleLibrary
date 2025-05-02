@@ -1,3 +1,5 @@
+import 'dart:convert';
+
 import 'package:module/LibZoteroStorage/entity/Collection.dart';
 import 'package:module/LibZoteroStorage/entity/Creator.dart';
 import 'package:module/LibZoteroStorage/entity/Item.dart';
@@ -5,27 +7,25 @@ import 'package:module/LibZoteroStorage/entity/ItemData.dart';
 import 'package:module/LibZoteroStorage/entity/ItemInfo.dart';
 import 'package:module/LibZoteroStorage/entity/ItemTag.dart';
 
+import '../../LibZoteroApi/ZoteroAPI.dart';
 import '../../LibZoteroApi/ZoteroAPIService.dart';
 
 class ZoteroDataHttp{
   final String apiKey;
 
-  late ZoteroAPIService service;
+  late ZoteroAPI service;
   ZoteroDataHttp({required this.apiKey}){
-    service = ZoteroAPIService(api:apiKey);
+    service = ZoteroAPI(apiKey:apiKey);
   }
   Future<List<Item>> getItems(String userId) async {
-    final itemRes = await service.getItems(0, userId, 0);
-    if(itemRes.statusCode!=200){
-      return [];
-    }
+    final itemRes = await service.getItems(userId);
     List<Item> items = [];
-      for (var itemJson in itemRes.data) {
+      for (var itemJson in itemRes) {
         var itemKey = getJsonValue(itemJson, "key");
         var item = Item(
             itemInfo: ItemInfo(id: 0,
-                itemKey: getJsonValue(itemJson, "key"),
-                groupId: 0,
+                itemKey: itemKey,
+                groupId: -1,
                 version: getJsonValue(itemJson, "version"), deleted: false),
             itemData: [
               // ItemData(id: 0, parent: , name: name, value: value, valueType: valueType)
@@ -36,32 +36,45 @@ class ZoteroDataHttp{
         var data = getJsonValue(itemJson, "data");
         print(data);
         List<Creator> creators  =[];
-        print(getJsonValue(data, "creators"));
-        for(var creatorJson in convertDynamicToList(getJsonValue(data, "creators"),defaultValue: []) ){
-          int order = 0;
-          var creator = Creator(id: 0,
-              parent:itemKey,
-              firstName: getJsonValue(creatorJson,"firstName"),
-              lastName: getJsonValue(creatorJson,"lastName"),
-              creatorType: getJsonValue(creatorJson,"creatorType"),
-              order: order++);
-          creators.add(creator);
-        }
         List<ItemTag> itemTags = [];
-        for(var tagJson in convertDynamicToList(getJsonValue(data, "tags"),defaultValue: [])){
-          var tag = ItemTag(id: 0,
-              parent: itemKey,
-              tag: getJsonValue(tagJson,"tag"));
-          itemTags.add(tag);
-        }
         List<String> collections = [];
-        for(var collectionJson in convertDynamicToList(getJsonValue(data, "collections"),defaultValue: [])){
-          int order = 0;
-          collections.add(collectionJson);
+        List<ItemData> itemDatas = [];
+        // Map<String, dynamic> jsonMap = json.decode(data);
+        for(var key in data.keys){
+          if(key == "creators"){
+            for(var creatorJson in convertDynamicToList(getJsonValue(data, "creators"),defaultValue: []) ){
+              int order = 0;
+              var creator = Creator(id: 0,
+                  parent:itemKey,
+                  firstName: getJsonValue(creatorJson,"firstName"),
+                  lastName: getJsonValue(creatorJson,"lastName"),
+                  creatorType: getJsonValue(creatorJson,"creatorType"),
+                  order: order++);
+              creators.add(creator);
+            }
+          }else if (key == "tags"){
+            for(var tagJson in convertDynamicToList(getJsonValue(data, "tags"),defaultValue: [])){
+              var tag = ItemTag(id: 0,
+                  parent: itemKey,
+                  tag: getJsonValue(tagJson,"tag"));
+              itemTags.add(tag);
+            }
+          }else if(key == "collections"){
+            for(var collectionJson in convertDynamicToList(getJsonValue(data, "collections"),defaultValue: [])){
+              int order = 0;
+              collections.add(collectionJson);
+            }
+          }else{
+            print("$key  ${data[key]}");
+            var itemData = ItemData(id: 0, parent: itemKey, name: key, value: data[key].toString(), valueType: data[key].runtimeType.toString());
+            itemDatas.add(itemData);
+
+          }
         }
         item.creators = creators;
         item.tags = itemTags;
         item.collections = collections;
+        item.itemData = itemDatas;
         items.add(item);
       }
       for(var item in items){
@@ -71,6 +84,15 @@ class ZoteroDataHttp{
         print(item.collections.toString());
       }
     return items;
+  }
+  List<Map<String, dynamic>> prepareData(Map<String, dynamic> jsonMap) {
+    return jsonMap.entries.map((entry)  {
+      return {
+        'key': entry.key,
+        'value': entry.value.toString(),  // 统一转为字符串存储
+        'type': entry.value.runtimeType.toString(),  // 可选：记录原始类型
+      };
+    }).toList();
   }
   /// 安全获取嵌套 JSON 值
   ///

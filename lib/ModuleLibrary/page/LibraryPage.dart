@@ -64,6 +64,7 @@ class _LibraryPageState extends State<LibraryPage> {
 
   }
   void init() async{
+    ZoteroDataSql zoteroDataSql = ZoteroDataSql();
     await SharedPref.init();
     bool isFirstStart = SharedPref.getBool(PrefString.isFirst,true);
     if(isFirstStart){
@@ -73,13 +74,10 @@ class _LibraryPageState extends State<LibraryPage> {
       setState(() {
         showItems.addAll(items);
       });
-
-      ZoteroDataSql zoteroDataSql = ZoteroDataSql();
       zoteroDataSql.saveItems(items);
       await SharedPref.setBool(PrefString.isFirst, false);
     }else{
-      var zoteroData = ZoteroDataHttp( apiKey: "KsmSAwR7P4fXjh6QNjRETcqy",);
-      var items = await zoteroData.getItems('16082509');
+      var items = await zoteroDataSql.getItems();
       setState(() {
         showItems.addAll(items);
       });
@@ -108,7 +106,7 @@ class _LibraryPageState extends State<LibraryPage> {
       }),
       body: Column(children: [
         searchLine(),
-        Expanded(child: Container(width: double.infinity,child:
+        Expanded(child: Container(color: ResColor.bgColor,width: double.infinity,child:
         ListView.builder(itemCount: showItems.length,  // 列表项数量
           itemBuilder: (context, index) {
             final item = showItems[index]; // 获取当前项数据
@@ -149,8 +147,9 @@ class _LibraryPageState extends State<LibraryPage> {
       ),
       Container(width: 5,),
       Expanded(child: Column(children: [
-        Text(item.getTitle(),maxLines: 2,),
-        Text(item.getAuthor(),maxLines: 1,style: TextStyle(color: Colors.grey),),
+        Container(width: double.infinity,child: Text(item.getTitle(),maxLines: 2,),),
+        Container(width: double.infinity,child: Text(item.getAuthor(),maxLines: 1,style: TextStyle(color: Colors.grey),),),
+
       ],),
       ),
       Material(child: Ink(child: InkWell(
