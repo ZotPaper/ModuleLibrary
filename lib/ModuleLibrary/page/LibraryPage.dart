@@ -1,5 +1,8 @@
 import 'package:flutter/cupertino.dart';
 import 'package:flutter/material.dart';
+import 'package:module/LibZoteroStorage/entity/Collection.dart';
+import 'package:module/LibZoteroStorage/entity/ItemData.dart';
+import 'package:module/LibZoteroStorage/entity/ItemInfo.dart';
 import 'package:module/ModuleLibrary/api/ZoteroDataHttp.dart';
 import 'package:module/ModuleLibrary/api/ZoteroDataSql.dart';
 import 'package:module/ModuleLibrary/res/ResColor.dart';
@@ -29,34 +32,67 @@ class LibraryPage extends StatefulWidget {
 
 class _LibraryPageState extends State<LibraryPage> {
   final GlobalKey<ScaffoldState> _scaffoldKey = GlobalKey<ScaffoldState>();
-  final List<Item> showItems = [];
+  late List<Item> _items = [];
+  final List<Item> _showItems = [];
+  final List<Collection> _collections = [];
   void _handleDrawerItemTap(DrawerBtn drawerBtn) {
     // 在这里处理侧边栏项的点击事件
     switch(drawerBtn){
       case DrawerBtn.home:
-        // TODO: Handle this case.
+        _showItems.clear();
+        for(var collection in _collections){
+          _showItems.add(Item(itemInfo: ItemInfo(id: 0, itemKey: collection.key, groupId: collection.groupId, version: collection.version, deleted: false),
+              itemData: [ItemData(id:0,parent: collection.key,name: 'title',value: collection.name,valueType: "String")], creators: [], tags: [], collections: []));
+        }
+        setState(() {
+
+          _showItems.addAll(_items);
+        });
       case DrawerBtn.favourites:
         // TODO: Handle this case.
       case DrawerBtn.library:
-        // TODO: Handle this case.
-      case DrawerBtn.firstLevel:
-        // TODO: Handle this case.
-      case DrawerBtn.variousTypes:
-        // TODO: Handle this case.
-      case DrawerBtn.thirdLevel:
-        // TODO: Handle this case.
-      case DrawerBtn.attachment:
-        // TODO: Handle this case.
+        setState(() {
+          _showItems.clear();
+          _showItems.addAll(_items);
+        });
       case DrawerBtn.unfiled:
-        // TODO: Handle this case.
+        List<Item> tempItems = [];
+        _showItems.clear();
+        for(var item in _items){
+          print(item.collections);
+          if(item.collections.isEmpty){
+            tempItems.add(item);
+          }
+        }
+        setState(() {
+          _showItems.addAll(tempItems);
+        });
       case DrawerBtn.publications:
-        // TODO: Handle this case.
+      List<Item> tempItems = [];
+        _showItems.clear();
+        for(var item in _items){
+          if(item.data.keys.contains("inPublications")){
+            if(item.data["inPublications"]=="true"){
+              tempItems.add(item);
+            }
+          }
+        }
+        setState(() {
+          _showItems.addAll(tempItems);
+        });
       case DrawerBtn.trash:
         // TODO: Handle this case.
     }
     // 你可以在这里添加导航、状态更新等逻辑
   }
-
+  void _handleCollectionTap(Collection collection) async{
+    ZoteroDataSql zoteroDataSql = ZoteroDataSql();
+    var items = await zoteroDataSql.getItemsInCollection(collection.key);
+    setState(() {
+      _showItems.clear();
+      _showItems.addAll(items);
+    });
+  }
   @override
   void initState(){
     super.initState();
@@ -70,16 +106,39 @@ class _LibraryPageState extends State<LibraryPage> {
     if(isFirstStart){
       print("isFirstStart");
       var zoteroData = ZoteroDataHttp( apiKey: "KsmSAwR7P4fXjh6QNjRETcqy",);
-      var items = await zoteroData.getItems('16082509');
+      var collections = await zoteroData.getCollections(0,'16082509',0);
+      zoteroDataSql.saveCollections(collections);
       setState(() {
-        showItems.addAll(items);
+        _collections.addAll(collections);
       });
-      zoteroDataSql.saveItems(items);
-      await SharedPref.setBool(PrefString.isFirst, false);
-    }else{
-      var items = await zoteroDataSql.getItems();
+      for(var collection in collections){
+
+        _showItems.add(Item(itemInfo: ItemInfo(id: 0, itemKey: collection.key, groupId: collection.groupId, version: collection.version, deleted: false),
+            itemData: [ItemData(id:0,parent: collection.key,name: 'title',value: collection.name,valueType: "String")], creators: [], tags: [], collections: []));
+      }
+      _items = await zoteroData.getItems('16082509');
       setState(() {
-        showItems.addAll(items);
+        _showItems.addAll(_items);
+      });
+      zoteroDataSql.saveItems(_items);
+      await SharedPref.setBool(PrefString.isFirst, false);
+      
+    }else{
+      _items = await zoteroDataSql.getItems();
+
+      var collections = await zoteroDataSql.getCollections();
+      for(var col in collections){
+        print(col.name);
+      }
+      for(var collection in collections){
+        _showItems.add(Item(itemInfo: ItemInfo(id: 0, itemKey: collection.key, groupId: collection.groupId, version: collection.version, deleted: false),
+            itemData: [ItemData(id:0,parent: collection.key,name: "title",value: collection.name,valueType: "String")], creators: [], tags: [], collections: []));
+      }
+      setState(() {
+        _showItems.addAll(_items);
+      });
+      setState(() {
+        _collections.addAll(collections);
       });
     }
 
@@ -96,7 +155,7 @@ class _LibraryPageState extends State<LibraryPage> {
       backgroundColor: ResColor.bgColor,
       key: _scaffoldKey,
       drawerEnableOpenDragGesture : false,
-      drawer: CustomDrawer(onItemTap: _handleDrawerItemTap),
+      drawer: CustomDrawer(collections: _collections,onItemTap: _handleDrawerItemTap,onCollectionTap: _handleCollectionTap,),
       appBar: pageAppBar(leadingIconTap: (){
         _scaffoldKey.currentState?.openDrawer();
         },filterMenuTap: (){
@@ -107,9 +166,9 @@ class _LibraryPageState extends State<LibraryPage> {
       body: Column(children: [
         searchLine(),
         Expanded(child: Container(color: ResColor.bgColor,width: double.infinity,child:
-        ListView.builder(itemCount: showItems.length,  // 列表项数量
+        ListView.builder(itemCount: _showItems.length,  // 列表项数量
           itemBuilder: (context, index) {
-            final item = showItems[index]; // 获取当前项数据
+            final item = _showItems[index]; // 获取当前项数据
             return fileOneLine(item);
           },),)),
 

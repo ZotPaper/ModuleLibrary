@@ -61,7 +61,6 @@ class ZoteroDataHttp{
             }
           }else if(key == "collections"){
             for(var collectionJson in convertDynamicToList(getJsonValue(data, "collections"),defaultValue: [])){
-              int order = 0;
               collections.add(collectionJson);
             }
           }else{
@@ -85,6 +84,17 @@ class ZoteroDataHttp{
       }
     return items;
   }
+
+  Future<List<Collection>> getCollections(int ifModifiedSinceVersion, String userId, int index) async {
+    final itemRes = await service.getCollections(ifModifiedSinceVersion, userId, index);
+    List<Collection> collections = [];
+    for (var collectionPOJO in itemRes) {
+      collections.add( Collection(key: collectionPOJO.key,version: collectionPOJO.version,parentCollection: collectionPOJO.collectionData.parentCollection,groupId: NO_GROUP_ID, name: collectionPOJO.collectionData.name)
+          );
+    }
+    return collections;
+  }
+
   List<Map<String, dynamic>> prepareData(Map<String, dynamic> jsonMap) {
     return jsonMap.entries.map((entry)  {
       return {

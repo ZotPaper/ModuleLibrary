@@ -1,5 +1,6 @@
 import 'package:flutter/cupertino.dart';
 import 'package:flutter/material.dart';
+import 'package:module/LibZoteroStorage/entity/Collection.dart';
 
 import '../../res/ResColor.dart';
 
@@ -7,8 +8,10 @@ typedef DrawerItemTapCallback = void Function(DrawerBtn DrawerBtn);
 
 class CustomDrawer extends StatefulWidget {
   final DrawerItemTapCallback onItemTap;
+  final List<Collection> collections;
+  final Function onCollectionTap;
 
-  const CustomDrawer({super.key, required this.onItemTap});
+  const CustomDrawer({super.key, required this.onItemTap,required this.collections,required this.onCollectionTap});
 
   @override
   State<CustomDrawer> createState() => _CustomDrawerState();
@@ -17,15 +20,9 @@ enum DrawerBtn {
   home,
   favourites,
   library,
-  firstLevel,
-  variousTypes,
-  thirdLevel,
-  attachment,
   unfiled,
   publications,
   trash
-
-
 }
 class _CustomDrawerState extends State<CustomDrawer> {
   String _selectDrawerTitle = '';
@@ -93,29 +90,14 @@ class _CustomDrawerState extends State<CustomDrawer> {
   }
 
   List<Widget> secondGroup() {
-    return [
-      drawerButtonLine(
-        icon: const Icon(Icons.folder_open_rounded),
-        text: "一级分类",
-        onTap: () {
-          widget.onItemTap(DrawerBtn.firstLevel);
-        },
-      ),
-      drawerButtonLine(
-        icon: const Icon(Icons.folder_open_rounded),
-        text: "各种类型条目",
-        onTap: () {
-          widget.onItemTap(DrawerBtn.variousTypes);
-        },
-      ),
-      drawerButtonLine(
-        icon: const Icon(Icons.folder_open_rounded),
-        text: "纯附件内容",
-        onTap: () {
-          widget.onItemTap(DrawerBtn.attachment);
-        },
-      ),
-    ];
+    return widget.collections.map((item)  =>
+        drawerButtonLine(icon: const Icon(Icons.folder_copy_outlined),
+            text: item.name,
+            onTap: (){
+              widget.onCollectionTap(item);
+            })
+    ).toList();
+
   }
 
   List<Widget> thirdGroup() {

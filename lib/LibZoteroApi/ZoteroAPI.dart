@@ -132,8 +132,13 @@ class ZoteroAPI{
       throw Exception('请求失败，状态码: ${itemRes.statusCode}');
     }else if(itemRes.statusCode==200){
       final List<dynamic> data = itemRes.data;
-      final List<CollectionPOJO> collections =
-      data.map((json) => CollectionPOJO.fromJson(json)).toList();
+      final List<CollectionPOJO> collections = [];
+      for(var one in data){
+        var inData = getJsonValue(one, 'data');
+        collections.add(CollectionPOJO(key: getJsonValue(one, 'key'),version: getJsonValue(one, 'version'),
+            collectionData: CollectionData(name: getJsonValue(inData, 'name'), parentCollection: getJsonValue(inData, 'parentCollection').toString()) )
+        );
+      }
       return collections;
     }
     return [];
@@ -232,5 +237,37 @@ class ZoteroAPI{
       return ZoteroSettingsResponse.fromJson(itemRes.data);
     }
     return ZoteroSettingsResponse();
+  }
+  /// 安全获取嵌套 JSON 值
+  ///
+  /// [json] - 要提取值的 JSON 对象
+  /// [path] - 路径字符串，用点号分隔（如 'user.address.city' ）
+  /// [defaultValue] - 当路径不存在时返回的默认值
+  dynamic getJsonValue(dynamic json, String path, {dynamic defaultValue}) {
+    if (json == null || path.isEmpty)  return defaultValue;
+
+    try {
+      var keys = path.split('.');
+      dynamic current = json;
+
+      for (var key in keys) {
+        if (current is Map && current.containsKey(key))  {
+          current = current[key];
+        } else if (current is List && int.tryParse(key)  != null) {
+          int index = int.parse(key);
+          if (index >= 0 && index < current.length)  {
+            current = current[index];
+          } else {
+            return defaultValue;
+          }
+        } else {
+          return defaultValue;
+        }
+      }
+
+      return current ?? defaultValue;
+    } catch (e) {
+      return defaultValue;
+    }
   }
 }

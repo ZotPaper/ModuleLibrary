@@ -63,6 +63,16 @@ class ZoteroDataSql {
       }
     }
   }
+  Future<void> saveCollections(List<Collection> collections) async {
+    // This would be implemented as a transaction for data integrity
+    for (var collection in collections) {
+      collectionsDao.insertCollection(collection);
+    }
+  }
+  Future<List<Collection>> getCollections() async {
+    var collections = await collectionsDao.getAllCollections();
+    return collections;
+  }
   Future<List<Item>> getItems() async {
     List<Item> items = [];
     var itemInfos = await itemInfoDao.getItemInfos();
@@ -126,28 +136,7 @@ class ZoteroDataSql {
 
   /// Gets a complete item with all its related data
   Future<Item?> getItem(String itemKey) async {
-    // final itemInfo = await itemInfoDao.getItemByKey(itemKey);
-    // if (itemInfo == null) return null;
-    //
-    // final data = await itemDataDao.getItemDataForParent(itemKey);
-    // final creators = await itemCreatorDao.getCreatorsForParent(itemKey);
-    // final tags = await itemTagsDao.getTagsForParent(itemKey);
-    //
-    // // Get collection relationships
-    // final collections = await itemCollectionDao.getItemsInCollection(itemKey);
-    // final collectionKeys = collections.map((c)  => c.collectionKey).toList();
-    //
-    // // Get attachment info if exists
-    // final attachmentInfo = await attachmentInfoDao.getAttachment(itemKey,  itemInfo.groupId);
-    //
-    // return Item(
-    //   info: itemInfo,
-    //   data: data,
-    //   creators: creators,
-    //   tags: tags,
-    //   collectionKeys: collectionKeys,
-    //   attachmentInfo: attachmentInfo,
-    // );
+
   }
 
   /// Gets all items in a specific collection
@@ -156,19 +145,30 @@ class ZoteroDataSql {
     final itemCollections = await itemCollectionDao.getItemsInCollection(collectionKey);
 
     for (final ic in itemCollections) {
-      final item = await getItem(ic.itemKey);
-      if (item != null) {
-        items.add(item);
+      final itemInfo = await itemInfoDao.getItemInfoByKey(ic.itemKey);
+      if(itemInfo!=null){
+          var itemDatas = await itemDataDao.getItemDataForParent(itemInfo.itemKey);
+          var creators = await itemCreatorDao.getCreatorsForParent(itemInfo.itemKey);
+          var itemTags = await itemTagsDao.getTagsForParent(itemInfo.itemKey);
+          var itemCollections = await itemCollectionDao.getItemsInCollection(itemInfo.itemKey);
+          var collections = itemCollections.map((data){return data.collectionKey;}).toList();
+          var attachmentInfos = await attachmentInfoDao.getAttachment(itemInfo.itemKey,-1);
+          var item = Item(
+              itemInfo: itemInfo,
+              itemData: itemDatas,
+              creators: creators,
+              tags: itemTags,
+              collections: collections);
+          items.add(item);
       }
     }
-
     return items;
   }
 
   /// Gets all items in a specific group
   Future<List<Item>> getItemsInGroup(int groupId) async {
     final items = <Item>[];
-    final itemInfos = await itemInfoDao.getItemsByGroup(groupId);
+    final itemInfos = await itemInfoDao.getItemInfosByGroup(groupId);
 
     for (final info in itemInfos) {
       final item = await getItem(info.itemKey);
