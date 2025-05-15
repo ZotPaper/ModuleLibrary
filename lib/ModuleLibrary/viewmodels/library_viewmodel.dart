@@ -41,6 +41,8 @@ class LibraryViewModel with ChangeNotifier {
       debugPrint("=============isFirstStart");
       // 初次启动，从网络获取数据并保存到数据库
       await _performCompleteSync();
+      // todo 切换到同步页面
+
     } else {
       // 从数据库加载数据
       await _loadDataFromLocalDatabase();
@@ -102,6 +104,7 @@ class LibraryViewModel with ChangeNotifier {
 
   /// 首次运行，完整同步数据，从服务器
   Future<void> _performCompleteSync() async {
+    // todo 考虑原子性
     // 获取所有集合
     await _loadAllCollections();
     // 获取所有条目
@@ -150,7 +153,18 @@ class LibraryViewModel with ChangeNotifier {
   }
 
   Future<void> _loadAllItems() async {
-    _items = await zoteroData.getItems(_userId);
+    _items = await zoteroData.getItems(_userId,
+      onProgress: (progress, total) {
+        debugPrint("加载Item进度：$progress/$total");
+      },
+      onFinish: (items) {
+        debugPrint("加载Item完成：${items.length}");
+      },
+      onError: (errorCode, msg) {
+        debugPrint("加载错误：$msg");
+      },
+    );
+
     _showItems.addAll(_items);
     await zoteroDataSql.saveItems(_items);
     await SharedPref.setBool(PrefString.isFirst, false);

@@ -1,6 +1,7 @@
 
 // 定义一些辅助类型
 import 'package:dio/dio.dart';
+import 'package:module/LibZoteroApi/Model/zotero_items_response.dart';
 import 'package:module/LibZoteroApi/NetworkConstants.dart';
 
 import 'Model/CollectionPojo.dart';
@@ -29,7 +30,7 @@ class ZoteroAPIService {
     },));
   }
 
-  Future<Response<dynamic>> getItems(int ifModifiedSinceVersion, String user, int index) async {
+  Future<ZoteroAPIItemsResponse> getItems(int ifModifiedSinceVersion, String user, int index) async {
     try {
       final headers = {
         'If-Modified-Since-Version': ifModifiedSinceVersion.toString()
@@ -41,7 +42,14 @@ class ZoteroAPIService {
           options: Options(headers: headers),
           queryParameters: queryParameters);
       final List<dynamic> data = response.data;
-      return Response(data,  response.statusCode!);
+
+      final isCache = response.statusCode == 304;
+      // final int LastModifiedVersion = response.headers.map['zotero-schema-version'] == null ? 0 : int.parse(response.headers.map['zotero-schema-version']!.first);
+      final int LastModifiedVersion = int.tryParse(response.headers.value("zotero-schema-version") ?? "-1") ?? -1;
+      final totalRes = int.tryParse(response.headers.value("total-results") ?? "-1") ?? -1;
+
+      return ZoteroAPIItemsResponse(data,  response.statusCode!, totalRes, LastModifiedVersion, isCache);
+      // return Response(data,  response.statusCode!);
     } catch (e) {
       throw Exception('请求发生错误: $e');
     }
