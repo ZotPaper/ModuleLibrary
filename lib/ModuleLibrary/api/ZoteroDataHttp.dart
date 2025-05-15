@@ -1,5 +1,6 @@
 import 'dart:convert';
 
+import 'package:flutter/cupertino.dart';
 import 'package:module/LibZoteroStorage/entity/Collection.dart';
 import 'package:module/LibZoteroStorage/entity/Creator.dart';
 import 'package:module/LibZoteroStorage/entity/Item.dart';
@@ -34,7 +35,7 @@ class ZoteroDataHttp{
             tags: [],
             collections: []);
         var data = getJsonValue(itemJson, "data");
-        print(data);
+        debugPrint(data);
         List<Creator> creators  =[];
         List<ItemTag> itemTags = [];
         List<String> collections = [];
@@ -64,7 +65,7 @@ class ZoteroDataHttp{
               collections.add(collectionJson);
             }
           }else{
-            print("$key  ${data[key]}");
+            debugPrint("$key  ${data[key]}");
             var itemData = ItemData(id: 0, parent: itemKey, name: key, value: data[key].toString(), valueType: data[key].runtimeType.toString());
             itemDatas.add(itemData);
 
@@ -77,10 +78,10 @@ class ZoteroDataHttp{
         items.add(item);
       }
       for(var item in items){
-        print(item.itemInfo.toString());
-        print(item.creators.toString());
-        print(item.tags.toString());
-        print(item.collections.toString());
+        debugPrint(item.itemInfo.toString());
+        debugPrint(item.creators.toString());
+        debugPrint(item.tags.toString());
+        debugPrint(item.collections.toString());
       }
     return items;
   }
