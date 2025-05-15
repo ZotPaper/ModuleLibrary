@@ -16,75 +16,65 @@ import 'LibraryUI/drawer.dart';
 
 class LibraryPage extends StatefulWidget {
   const LibraryPage({super.key});
-
-  // This widget is the home page of your application. It is stateful, meaning
-  // that it has a State object (defined below) that contains fields that affect
-  // how it looks.
-
-  // This class is the configuration for the state. It holds the values (in this
-  // case the title) provided by the parent (in this case the App widget) and
-  // used by the build method of the State. Fields in a Widget subclass are
-  // always marked "final".
-
+  
   @override
   State<LibraryPage> createState() => _LibraryPageState();
 }
 
 class _LibraryPageState extends State<LibraryPage> {
+  final _userId = "16082509";
+  final _apiKey = "KsmSAwR7P4fXjh6QNjRETcqy";
+  
   final GlobalKey<ScaffoldState> _scaffoldKey = GlobalKey<ScaffoldState>();
   late List<Item> _items = [];
   final List<Item> _showItems = [];
   final List<Collection> _collections = [];
+
   void _handleDrawerItemTap(DrawerBtn drawerBtn) {
     // 在这里处理侧边栏项的点击事件
-    switch(drawerBtn){
+    switch (drawerBtn) {
       case DrawerBtn.home:
-        _showItems.clear();
-        for(var collection in _collections){
-          _showItems.add(Item(itemInfo: ItemInfo(id: 0, itemKey: collection.key, groupId: collection.groupId, version: collection.version, deleted: false),
-              itemData: [ItemData(id:0,parent: collection.key,name: 'title',value: collection.name,valueType: "String")], creators: [], tags: [], collections: []));
+        _resetShowItems();
+        for (var collection in _collections) {
+          _showItems.add(Item(
+            itemInfo: ItemInfo(id: 0, itemKey: collection.key, groupId: collection.groupId,
+              version: collection.version, deleted: false),
+            itemData: [ItemData(id: 0, parent: collection.key, name: 'title', value: collection.name, valueType: "String")],
+            creators: [],
+            tags: [],
+            collections: [],
+          ));
         }
-        setState(() {
-
-          _showItems.addAll(_items);
-        });
+        _showItems.addAll(_items);
+        break;
       case DrawerBtn.favourites:
         // TODO: Handle this case.
       case DrawerBtn.library:
-        setState(() {
-          _showItems.clear();
-          _showItems.addAll(_items);
-        });
+        _resetShowItems();
+        _showItems.addAll(_items);
+        break;
       case DrawerBtn.unfiled:
-        List<Item> tempItems = [];
-        _showItems.clear();
-        for(var item in _items){
-          print(item.collections);
-          if(item.collections.isEmpty){
-            tempItems.add(item);
-          }
-        }
-        setState(() {
-          _showItems.addAll(tempItems);
-        });
+        _resetShowItems();
+        final tempItems = _items.where((item) => item.collections.isEmpty).toList();
+        _showItems.addAll(tempItems);
+        break;
       case DrawerBtn.publications:
-      List<Item> tempItems = [];
-        _showItems.clear();
-        for(var item in _items){
-          if(item.data.keys.contains("inPublications")){
-            if(item.data["inPublications"]=="true"){
-              tempItems.add(item);
-            }
-          }
-        }
-        setState(() {
-          _showItems.addAll(tempItems);
-        });
+        _resetShowItems();
+        final tempItems = _items.where((item) {
+          return item.data.containsKey("inPublications") && item.data["inPublications"] == "true";
+        }).toList();
+        _showItems.addAll(tempItems);
+        break;
       case DrawerBtn.trash:
         // TODO: Handle this case.
     }
-    // 你可以在这里添加导航、状态更新等逻辑
+    setState(() {});
   }
+
+  void _resetShowItems() {
+    _showItems.clear();
+  }
+
   void _handleCollectionTap(Collection collection) async{
     ZoteroDataSql zoteroDataSql = ZoteroDataSql();
     var items = await zoteroDataSql.getItemsInCollection(collection.key);
@@ -99,49 +89,56 @@ class _LibraryPageState extends State<LibraryPage> {
     init();
 
   }
-  void init() async{
+  void init() async {
     ZoteroDataSql zoteroDataSql = ZoteroDataSql();
     await SharedPref.init();
-    bool isFirstStart = SharedPref.getBool(PrefString.isFirst,true);
-    if(isFirstStart){
+    bool isFirstStart = SharedPref.getBool(PrefString.isFirst, true);
+    if (isFirstStart) {
       print("isFirstStart");
-      var zoteroData = ZoteroDataHttp( apiKey: "KsmSAwR7P4fXjh6QNjRETcqy",);
-      var collections = await zoteroData.getCollections(0,'16082509',0);
-      zoteroDataSql.saveCollections(collections);
-      setState(() {
-        _collections.addAll(collections);
-      });
-      for(var collection in collections){
+      var zoteroData = ZoteroDataHttp(apiKey: _apiKey);
+      var collections = await zoteroData.getCollections(0, _userId, 0);
+      await zoteroDataSql.saveCollections(collections);
+      _collections.addAll(collections);
 
-        _showItems.add(Item(itemInfo: ItemInfo(id: 0, itemKey: collection.key, groupId: collection.groupId, version: collection.version, deleted: false),
-            itemData: [ItemData(id:0,parent: collection.key,name: 'title',value: collection.name,valueType: "String")], creators: [], tags: [], collections: []));
+      for (var collection in collections) {
+        _showItems.add(Item(
+          itemInfo: ItemInfo(id: 0, itemKey: collection.key, groupId: collection.groupId,
+            version: collection.version, deleted: false),
+          itemData: [ItemData(id: 0, parent: collection.key, name: 'title', value: collection.name, valueType: "String")],
+          creators: [],
+          tags: [],
+          collections: [],
+        ));
       }
-      _items = await zoteroData.getItems('16082509');
-      setState(() {
-        _showItems.addAll(_items);
-      });
-      zoteroDataSql.saveItems(_items);
-      await SharedPref.setBool(PrefString.isFirst, false);
-      
-    }else{
-      _items = await zoteroDataSql.getItems();
 
+      _items = await zoteroData.getItems(_userId);
+      _showItems.addAll(_items);
+      await zoteroDataSql.saveItems(_items);
+      await SharedPref.setBool(PrefString.isFirst, false);
+    } else {
+      _items = await zoteroDataSql.getItems();
       var collections = await zoteroDataSql.getCollections();
-      for(var col in collections){
+      for (var col in collections) {
         print(col.name);
       }
-      for(var collection in collections){
-        _showItems.add(Item(itemInfo: ItemInfo(id: 0, itemKey: collection.key, groupId: collection.groupId, version: collection.version, deleted: false),
-            itemData: [ItemData(id:0,parent: collection.key,name: "title",value: collection.name,valueType: "String")], creators: [], tags: [], collections: []));
+
+      _resetShowItems();
+      for (var collection in collections) {
+        _showItems.add(Item(
+          itemInfo: ItemInfo(id: 0, itemKey: collection.key, groupId: collection.groupId,
+            version: collection.version, deleted: false),
+          itemData: [ItemData(id: 0, parent: collection.key, name: "title", value: collection.name, valueType: "String")],
+          creators: [],
+          tags: [],
+          collections: [],
+        ));
       }
-      setState(() {
-        _showItems.addAll(_items);
-      });
-      setState(() {
-        _collections.addAll(collections);
-      });
+
+      _showItems.addAll(_items);
+      _collections.addAll(collections);
     }
 
+    setState(() {});
   }
   @override
   Widget build(BuildContext context) {
@@ -179,18 +176,18 @@ class _LibraryPageState extends State<LibraryPage> {
   final TextEditingController _searchController = TextEditingController();
   String _selectDrawerTitle = "Home";
 
-
-
+  /// 搜索框
   Widget searchLine(){
     return Container(
       color: ResColor.bgColor,
-      height: 30,width: double.infinity,child: Row(children: [
+      height: 48,
+      width: double.infinity,child: Row(children: [
       Container(width: 20,),
-      Icon(Icons.search),
+      const Icon(Icons.search),
       Expanded(child:
       TextField(
         controller: _searchController,
-        decoration: InputDecoration(
+        decoration: const InputDecoration(
           hintText: 'Search as you type',
           border: InputBorder.none,
         ),
@@ -198,35 +195,41 @@ class _LibraryPageState extends State<LibraryPage> {
       Container(width: 20,),
     ],),);
   }
+
   Widget fileOneLine(Item item){
-    return Container(padding: const EdgeInsets.all(5),width: double.infinity, child: Row(children: [
-      ClipRRect(
-        borderRadius: BorderRadius.circular(20),
-        child: Image.asset("assets/ic_round.png",width: 40,height: 40,),
-      ),
-      Container(width: 5,),
-      Expanded(child: Column(children: [
-        Container(width: double.infinity,child: Text(item.getTitle(),maxLines: 2,),),
-        Container(width: double.infinity,child: Text(item.getAuthor(),maxLines: 1,style: TextStyle(color: Colors.grey),),),
+    return InkWell(
+      onTap: () {
 
-      ],),
-      ),
-      Material(child: Ink(child: InkWell(
-        onTap: (){
-          print("pdf tap");
-        },
-        child: Container(color: ResColor.bgColor,child:
-          ClipRRect(
-            borderRadius: BorderRadius.circular(10),
-            child: Image.asset(
-              "assets/pdf.png",
-              width: 20,
-              height: 20,
-              fit: BoxFit.fitWidth,
-            ),
-      ),),),),),
-      IconButton(onPressed: (){}, icon: Icon(Icons.more_vert),),
+      },
+      child: Container(padding: const EdgeInsets.only(left: 10,right: 10,top: 10,bottom: 10),width: double.infinity, child: Row(children: [
+        ClipRRect(
+          borderRadius: BorderRadius.circular(20),
+          child: Image.asset("assets/ic_round.png",width: 40,height: 40,),
+        ),
+        Container(width: 5,),
+        Expanded(child: Column(children: [
+          Container(width: double.infinity,child: Text(item.getTitle(),maxLines: 2,),),
+          Container(width: double.infinity,child: Text(item.getAuthor(),maxLines: 1,style: TextStyle(color: Colors.grey),),),
 
-    ],),);
+        ],),
+        ),
+        Material(child: Ink(child: InkWell(
+          onTap: (){
+            print("pdf tap");
+          },
+          child: Container(color: ResColor.bgColor,child:
+            ClipRRect(
+              borderRadius: BorderRadius.circular(10),
+              child: Image.asset(
+                "assets/pdf.png",
+                width: 20,
+                height: 20,
+                fit: BoxFit.fitWidth,
+              ),
+        ),),),),),
+        IconButton(onPressed: (){}, icon: Icon(Icons.more_vert),),
+
+      ],),),
+    );
   }
 }
