@@ -1,7 +1,9 @@
 import 'package:flutter/cupertino.dart';
 import 'package:flutter/material.dart';
 import 'package:module/LibZoteroStorage/entity/Collection.dart';
+import 'package:module/ModuleLibrary/model/page_type.dart';
 import 'package:module/ModuleLibrary/page/blank_page.dart';
+import 'package:module/ModuleLibrary/page/sync_page/sync_page.dart';
 import 'package:module/ModuleLibrary/res/ResColor.dart';
 import 'package:module/ModuleLibrary/viewmodels/library_viewmodel.dart';
 
@@ -20,6 +22,8 @@ class LibraryPage extends StatefulWidget {
 class _LibraryPageState extends State<LibraryPage> {
   final LibraryViewModel _viewModel = LibraryViewModel();
   final GlobalKey<ScaffoldState> _scaffoldKey = GlobalKey<ScaffoldState>();
+
+  final TextEditingController _searchController = TextEditingController();
 
   @override
   void initState() {
@@ -45,36 +49,50 @@ class _LibraryPageState extends State<LibraryPage> {
         filterMenuTap: () {},
         tagsTap: () {},
       ),
-      body: Column(
-        children: [
-          searchLine(),
-          Expanded(
-            child: Container(
-              color: ResColor.bgColor,
-              width: double.infinity,
-              child: StreamBuilder<List<Item>>(
-                stream: _viewModel.showItemsStream,
-                builder: (context, snapshot) {
-                  if (!snapshot.hasData || snapshot.data!.isEmpty) {
-                    return const BlankPage();
-                  }
-                  return ListView.builder(
-                    itemCount: snapshot.data?.length ?? 0,
-                    itemBuilder: (context, index) {
-                      final item = snapshot.data![index];
-                      return fileOneLine(item);
-                    },
-                  );
-                },
-              ),
-            ),
-          ),
-        ],
+      body: StreamBuilder<PageType>(
+        stream: _viewModel.curPageStream,
+        builder: (context, snapshot) {
+          if (snapshot.data == PageType.sync) {
+            return const SyncPage();
+          } else if (snapshot.data == PageType.library) {
+            return libraryListPage();
+          } else {
+            return const BlankPage();
+          }
+        },
       ),
     );
   }
 
-  final TextEditingController _searchController = TextEditingController();
+  /// 文库列表页面
+  Widget libraryListPage() {
+    return Column(
+      children: [
+        searchLine(),
+        Expanded(
+          child: Container(
+            color: ResColor.bgColor,
+            width: double.infinity,
+            child: StreamBuilder<List<Item>>(
+              stream: _viewModel.showItemsStream,
+              builder: (context, snapshot) {
+                if (!snapshot.hasData || snapshot.data!.isEmpty) {
+                  return const BlankPage();
+                }
+                return ListView.builder(
+                  itemCount: snapshot.data?.length ?? 0,
+                  itemBuilder: (context, index) {
+                    final item = snapshot.data![index];
+                    return fileOneLine(item);
+                  },
+                );
+              },
+            ),
+          ),
+        ),
+      ],
+    );
+  }
 
   Widget searchLine() {
     return Container(
@@ -100,6 +118,7 @@ class _LibraryPageState extends State<LibraryPage> {
     );
   }
 
+  /// 文件
   Widget fileOneLine(Item item) {
     return Container(
       padding: const EdgeInsets.all(10),

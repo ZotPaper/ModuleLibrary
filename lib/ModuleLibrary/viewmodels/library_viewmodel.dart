@@ -1,6 +1,7 @@
 import 'dart:async';
 
 import 'package:flutter/material.dart';
+import 'package:module/ModuleLibrary/model/page_type.dart';
 import '../../LibZoteroStorage/entity/Collection.dart';
 import '../../LibZoteroStorage/entity/Item.dart';
 import '../../LibZoteroStorage/entity/ItemData.dart';
@@ -26,6 +27,9 @@ class LibraryViewModel with ChangeNotifier {
     zoteroData = ZoteroDataHttp(apiKey: _apiKey);
   }
 
+  final StreamController<PageType> _curPageController = StreamController<PageType>.broadcast();
+  Stream<PageType> get curPageStream => _curPageController.stream;
+
   final StreamController<List<Item>> _showItemsController = StreamController<List<Item>>.broadcast();
   Stream<List<Item>> get showItemsStream => _showItemsController.stream;
 
@@ -42,10 +46,13 @@ class LibraryViewModel with ChangeNotifier {
       // 初次启动，从网络获取数据并保存到数据库
       await _performCompleteSync();
       // todo 切换到同步页面
-
+      // 切换到列表页面
+      navigateToPage(PageType.sync);
     } else {
       // 从数据库加载数据
       await _loadDataFromLocalDatabase();
+      // 切换到列表页面
+      navigateToPage(PageType.library);
     }
 
     /// 通知更新列表
@@ -113,6 +120,7 @@ class LibraryViewModel with ChangeNotifier {
 
   void dispose() {
     _showItemsController.close();
+    _curPageController.close();
   }
 
   Future<void> _loadDataFromLocalDatabase() async {
@@ -159,6 +167,8 @@ class LibraryViewModel with ChangeNotifier {
       },
       onFinish: (items) {
         debugPrint("加载Item完成：${items.length}");
+        // todo 跳转到文库页面
+        navigateToPage(PageType.library);
       },
       onError: (errorCode, msg) {
         debugPrint("加载错误：$msg");
@@ -168,5 +178,9 @@ class LibraryViewModel with ChangeNotifier {
     _showItems.addAll(_items);
     await zoteroDataSql.saveItems(_items);
     await SharedPref.setBool(PrefString.isFirst, false);
+  }
+
+  void navigateToPage(PageType page) {
+    _curPageController.add(page);
   }
 }
