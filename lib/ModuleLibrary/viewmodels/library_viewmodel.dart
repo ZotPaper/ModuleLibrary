@@ -10,24 +10,21 @@ import '../api/ZoteroDataHttp.dart';
 import '../api/ZoteroDataSql.dart';
 import '../share_pref.dart';
 import '../page/LibraryUI/drawer.dart';
+import 'package:rxdart/rxdart.dart';
 
 class LibraryViewModel with ChangeNotifier {
-  final String _userId = "16082509";
-  final String _apiKey = "KsmSAwR7P4fXjh6QNjRETcqy";
-
-  late final ZoteroDataHttp zoteroData;
-
   final ZoteroDataSql zoteroDataSql = ZoteroDataSql();
+
+  PageType curPage = PageType.library;
 
   List<Item> _items = [];
   final List<Collection> _collections = [];
   late final List<Item> _showItems = [];
 
   LibraryViewModel() : super() {
-    zoteroData = ZoteroDataHttp(apiKey: _apiKey);
   }
 
-  final StreamController<PageType> _curPageController = StreamController<PageType>.broadcast();
+  final BehaviorSubject<PageType> _curPageController = BehaviorSubject<PageType>.seeded(PageType.blank);
   Stream<PageType> get curPageStream => _curPageController.stream;
 
   final StreamController<List<Item>> _showItemsController = StreamController<List<Item>>.broadcast();
@@ -44,7 +41,7 @@ class LibraryViewModel with ChangeNotifier {
     if (isFirstStart) {
       debugPrint("=============isFirstStart");
       // 初次启动，从网络获取数据并保存到数据库
-      await _performCompleteSync();
+      // await _performCompleteSync();
       // todo 切换到同步页面
       // 切换到列表页面
       navigateToPage(PageType.sync);
@@ -109,15 +106,6 @@ class LibraryViewModel with ChangeNotifier {
     notifyListeners();
   }
 
-  /// 首次运行，完整同步数据，从服务器
-  Future<void> _performCompleteSync() async {
-    // todo 考虑原子性
-    // 获取所有集合
-    await _loadAllCollections();
-    // 获取所有条目
-    await _loadAllItems();
-  }
-
   void dispose() {
     _showItemsController.close();
     _curPageController.close();
@@ -142,45 +130,12 @@ class LibraryViewModel with ChangeNotifier {
 
     _showItems.addAll(_items);
   }
-
-  Future<void> _loadAllCollections() async {
-    var collections = await zoteroData.getCollections(0, _userId, 0);
-    await zoteroDataSql.saveCollections(collections);
-    _collections.addAll(collections);
-
-    for (var collection in collections) {
-      _showItems.add(Item(
-        itemInfo: ItemInfo(id: 0, itemKey: collection.key, groupId: collection.groupId,
-            version: collection.version, deleted: false),
-        itemData: [ItemData(id: 0, parent: collection.key, name: 'title', value: collection.name, valueType: "String")],
-        creators: [],
-        tags: [],
-        collections: [],
-      ));
-    }
-  }
-
-  Future<void> _loadAllItems() async {
-    _items = await zoteroData.getItems(_userId,
-      onProgress: (progress, total) {
-        debugPrint("加载Item进度：$progress/$total");
-      },
-      onFinish: (items) {
-        debugPrint("加载Item完成：${items.length}");
-        // todo 跳转到文库页面
-        navigateToPage(PageType.library);
-      },
-      onError: (errorCode, msg) {
-        debugPrint("加载错误：$msg");
-      },
-    );
-
-    _showItems.addAll(_items);
-    await zoteroDataSql.saveItems(_items);
-    await SharedPref.setBool(PrefString.isFirst, false);
-  }
-
+  
+  // 跳转到页面
   void navigateToPage(PageType page) {
     _curPageController.add(page);
+
+    curPage = page;
+    notifyListeners();
   }
 }

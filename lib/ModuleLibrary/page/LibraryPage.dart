@@ -11,6 +11,7 @@ import '../../LibZoteroApi/ZoteroAPIService.dart';
 import '../../LibZoteroStorage/entity/Item.dart';
 import 'LibraryUI/appBar.dart';
 import 'LibraryUI/drawer.dart';
+import 'package:provider/provider.dart';
 
 class LibraryPage extends StatefulWidget {
   const LibraryPage({super.key});
@@ -33,34 +34,47 @@ class _LibraryPageState extends State<LibraryPage> {
 
   @override
   Widget build(BuildContext context) {
-    return Scaffold(
-      backgroundColor: ResColor.bgColor,
-      key: _scaffoldKey,
-      drawerEnableOpenDragGesture: false,
-      drawer: CustomDrawer(
-        collections: _viewModel.collections,
-        onItemTap: _viewModel.handleDrawerItemTap,
-        onCollectionTap: (collection) {}, // 如果有需要再实现
-      ),
-      appBar: pageAppBar(
-        leadingIconTap: () {
-          _scaffoldKey.currentState?.openDrawer();
-        },
-        filterMenuTap: () {},
-        tagsTap: () {},
-      ),
-      body: StreamBuilder<PageType>(
-        stream: _viewModel.curPageStream,
-        builder: (context, snapshot) {
-          if (snapshot.data == PageType.sync) {
-            return const SyncPage();
-          } else if (snapshot.data == PageType.library) {
-            return libraryListPage();
-          } else {
-            return const BlankPage();
-          }
-        },
-      ),
+    // WidgetsBinding.instance.addPostFrameCallback((_) => _handleNavigation());
+    return ListenableBuilder(
+      listenable: _viewModel,
+      builder: (context, snapshot) {
+        return Scaffold(
+          backgroundColor: ResColor.bgColor,
+          key: _scaffoldKey,
+          drawerEnableOpenDragGesture: false,
+          drawer: CustomDrawer(
+            collections: _viewModel.collections,
+            onItemTap: _viewModel.handleDrawerItemTap,
+            onCollectionTap: (collection) {}, // 如果有需要再实现
+          ),
+          appBar: pageAppBar(
+            leadingIconTap: () {
+              _scaffoldKey.currentState?.openDrawer();
+            },
+            filterMenuTap: () {},
+            tagsTap: () {},
+          ),
+          body: StreamBuilder<PageType>(
+            stream: _viewModel.curPageStream,
+            builder: (context, snapshot) {
+              if (!snapshot.hasData) {
+                return const BlankPage();
+              }
+
+              debugPrint("收到页面切换：pageType：${snapshot.data}");
+
+              if (snapshot.data == PageType.sync) {
+                return const SyncPageFragment();
+              } else if (snapshot.data == PageType.library) {
+                return libraryListPage();
+              } else {
+                return const BlankPage();
+              }
+
+            },
+          ),
+        );
+      }
     );
   }
 
@@ -174,4 +188,11 @@ class _LibraryPageState extends State<LibraryPage> {
       ),
     );
   }
+
+  // _handleNavigation() {
+  //   // 监听 ViewModel 中的页面跳转指令
+  //   final vm = Provider.of<LibraryViewModel>(context, listen: false);
+  //   final pageData = vm.curPage;
+  //   String routeName;
+  // }
 }

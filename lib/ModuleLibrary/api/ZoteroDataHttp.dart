@@ -9,7 +9,6 @@ import 'package:module/LibZoteroStorage/entity/ItemTag.dart';
 import '../../LibZoteroApi/ZoteroAPI.dart';
 
 class ZoteroDataHttp {
-
   final String apiKey;
 
   late ZoteroAPI service;
@@ -18,114 +17,53 @@ class ZoteroDataHttp {
     service = ZoteroAPI(apiKey: apiKey);
   }
 
-  /// 获取zotero所有的条目
-  Future<List<Item>> getItems(String userId, {
-    Function(int progress, int total)? onProgress, Function(List<Item>)? onFinish, Function(int errorCode, String msg)? onError }) async {
-    final itemRes = await service.getItems(userId);
-    if (itemRes == null) {
+  /// 获取zotero所有的条目,
+  /// 注意：是全量数据
+  Future<List<Item>> getItems(String userId,
+      {Function(int progress, int total)? onProgress,
+      Function(List<Item>)? onFinish,
+      Function(int errorCode, String msg)? onError}) async {
+    // 发送请求下载数据，注意默认返回最多为25条（依赖后端而定），所以需要分页下载
+    final response = await service.getItems(userId);
+    if (response == null) {
       return [];
     }
 
-    List<Item> items = [];
+    final items = <Item>[];
+    final total = response.totalResults;
+    int downloadedCount = 0;
 
-    int total = itemRes.totalResults;
+    // 处理第一页数据
+    await _processPage(response.data, items, total, downloadedCount, onProgress, onFinish);
 
-    for (int i = 0; i < itemRes.data.length; i++) {
-      var itemJson = itemRes.data[i];
-
-      var itemKey = getJsonValue(itemJson, "key");
-      var item = Item(
-          itemInfo: ItemInfo(
-              id: 0,
-              itemKey: itemKey,
-              groupId: -1,
-              version: getJsonValue(itemJson, "version"),
-              deleted: false),
-          itemData: [
-            // ItemData(id: 0, parent: , name: name, value: value, valueType: valueType)
-          ],
-          creators: [],
-          tags: [],
-          collections: []);
-
-      var data = getJsonValue(itemJson, "data");
-      // debugPrint(data);
-      List<Creator> creators = [];
-      List<ItemTag> itemTags = [];
-      List<String> collections = [];
-      List<ItemData> itemDatas = [];
-
-      // Map<String, dynamic> jsonMap = json.decode(data)
-      //
-
-
-      for (var key in data.keys) {
-        if (key == "creators") {
-          for (var creatorJson in convertDynamicToList(
-              getJsonValue(data, "creators"),
-              defaultValue: [])) {
-            int order = 0;
-            var creator = Creator(
-                id: 0,
-                parent: itemKey,
-                firstName: getJsonValue(creatorJson, "firstName"),
-                lastName: getJsonValue(creatorJson, "lastName"),
-                creatorType: getJsonValue(creatorJson, "creatorType"),
-                order: order++);
-            creators.add(creator);
-          }
-        } else if (key == "tags") {
-          for (var tagJson in convertDynamicToList(getJsonValue(data, "tags"),
-              defaultValue: [])) {
-            var tag = ItemTag(
-                id: 0, parent: itemKey, tag: getJsonValue(tagJson, "tag"));
-            itemTags.add(tag);
-          }
-        } else if (key == "collections") {
-          for (var collectionJson in convertDynamicToList(
-              getJsonValue(data, "collections"),
-              defaultValue: [])) {
-            collections.add(collectionJson);
-          }
-        } else {
-          debugPrint("$key  ${data[key]}");
-          var itemData = ItemData(
-              id: 0,
-              parent: itemKey,
-              name: key,
-              value: data[key].toString(),
-              valueType: data[key].runtimeType.toString());
-          itemDatas.add(itemData);
-        }
+    // 继续下载剩余页面
+    while (downloadedCount < total) {
+      final pagedResponse = await service.getItems(userId, startIndex: downloadedCount);
+      if (pagedResponse == null) {
+        continue;
       }
-      item.creators = creators;
-      item.tags = itemTags;
-      item.collections = collections;
-      item.itemData = itemDatas;
-      items.add(item);
-
-      if (i == total) {
-        onFinish?.call(items);
-      } else {
-        // 通知加载进度
-        onProgress?.call(i, total);
-      }
-      // todo 处理错误事件
+      await _processPage(pagedResponse.data, items, total, downloadedCount, onProgress, onFinish);
     }
 
-
-    // for (var itemJson in itemRes.data) {
-    //
-    // }
-
-    // // todo debug 打印数据
-    // for (var item in items) {
-    //   debugPrint(item.itemInfo.toString());
-    //   debugPrint(item.creators.toString());
-    //   debugPrint(item.tags.toString());
-    //   debugPrint(item.collections.toString());
-    // }
     return items;
+  }
+
+  Future<void> _processPage(List<dynamic> pageData, List<Item> items, int total, int downloadedCount,
+      Function(int progress, int total)? onProgress, Function(List<Item>)? onFinish) async {
+    for (int i = 0; i < pageData.length; i++) {
+      var itemJson = pageData[i] ?? "";
+      debugPrint("Moyear==== index $i itemJson: $itemJson");
+
+      Item item = organizeItem(itemJson);
+      items.add(item);
+      downloadedCount++;
+
+      if (i == total - 1) {
+        onFinish?.call(items);
+      } else {
+        onProgress?.call(downloadedCount, total);
+      }
+    }
   }
 
   Future<List<Collection>> getCollections(
@@ -198,5 +136,72 @@ class ZoteroDataHttp {
       }
     }
     return defaultValue;
+  }
+
+  /// 整理条目数据, 对原始item拆分成item、creater、tag、attachment这些信息
+  Item organizeItem(Map<String, dynamic> itemJson) {
+    var itemKey = getJsonValue(itemJson, "key") ?? "";
+    var item = Item(
+        itemInfo: ItemInfo(
+            id: 0,
+            itemKey: itemKey,
+            groupId: -1,
+            version: getJsonValue(itemJson, "version") ?? 0,
+            deleted: false),
+        itemData: [],
+        creators: [],
+        tags: [],
+        collections: []);
+
+    var data = getJsonValue(itemJson, "data") ?? {};
+    final creators = <Creator>[];
+    final itemTags = <ItemTag>[];
+    final collections = <String>[];
+    final itemDatas = <ItemData>[];
+
+    for (var key in data.keys) {
+      if (key == "creators") {
+        final creatorJsonList = convertDynamicToList<Map<String, dynamic>>(
+            getJsonValue(data, "creators"));
+        
+        int order = 0;
+        for (var creatorJson in creatorJsonList) {
+          creators.add(Creator(
+              id: 0,
+              parent: itemKey,
+              firstName: getJsonValue(creatorJson, "firstName"),
+              lastName: getJsonValue(creatorJson, "lastName"),
+              creatorType: getJsonValue(creatorJson, "creatorType"),
+              order: order++));
+        }
+      } else if (key == "tags") {
+        final tagJsonList = convertDynamicToList<Map<String, dynamic>>(
+            getJsonValue(data, "tags"));
+        
+        for (var tagJson in tagJsonList) {
+          itemTags.add(ItemTag(
+              id: 0, parent: itemKey, tag: getJsonValue(tagJson, "tag")));
+        }
+      } else if (key == "collections") {
+        final collectionList = convertDynamicToList<String>(
+            getJsonValue(data, "collections"));
+        
+        collections.addAll(collectionList);
+      } else {
+        itemDatas.add(ItemData(
+            id: 0,
+            parent: itemKey,
+            name: key,
+            value: data[key].toString(),
+            valueType: data[key].runtimeType.toString()));
+      }
+    }
+
+    item.creators = creators;
+    item.tags = itemTags;
+    item.collections = collections;
+    item.itemData = itemDatas;
+
+    return item;
   }
 }

@@ -17,8 +17,10 @@ class ZoteroAPI {
     service = ZoteroAPIService(api: apiKey);
   }
 
-  Future<ZoteroAPIItemsResponse?> getItems(String userId) async {
-    final itemRes = await service.getItems(0, userId, 0);
+  /// 获取用户所有条目信息
+  /// 注意：此接口返回的接口默认是分页的
+  Future<ZoteroAPIItemsResponse?> getItems(String userId, {int startIndex = 0}) async {
+    final itemRes = await service.getItems(0, userId, startIndex);
     if (itemRes.statusCode != 200) {
       throw Exception('请求失败，状态码: ${itemRes.statusCode}');
     } else if (itemRes.statusCode == 200) {

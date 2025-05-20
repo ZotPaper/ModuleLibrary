@@ -1,4 +1,5 @@
 import 'package:flutter/material.dart';
+import 'package:module/ModuleLibrary/page/launch_page.dart';
 
 import 'ModuleLibrary/page/LibraryPage.dart';
 import 'ModuleLibrary/share_pref.dart';
@@ -21,7 +22,10 @@ class MyApp extends StatelessWidget {
         colorScheme: ColorScheme.fromSeed(seedColor: Colors.deepPurple),
         useMaterial3: true,
       ),
-      home: const LibraryPage(),
+      home: const LaunchPage(),
+      routes: {
+        'libraryPage': (context) => const LibraryPage(),
+      },
     );
   }
 }

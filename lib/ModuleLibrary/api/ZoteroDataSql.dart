@@ -14,19 +14,15 @@ import '../../LibZoteroStorage/database/dao/RecentlyOpenedAttachmentDao.dart';
 import '../../LibZoteroStorage/entity/Item.dart';
 
 class ZoteroDataSql {
-  final ZoteroDatabase _database = ZoteroDatabase();
-  late GroupInfoDao groupInfoDao;
-  late CollectionsDao collectionsDao;
-  late ItemInfoDao itemInfoDao;
-  late ItemDataDao itemDataDao;
-  late ItemCreatorDao itemCreatorDao;
-  late ItemTagsDao itemTagsDao;
-  late ItemCollectionDao itemCollectionDao;
-  late AttachmentInfoDao attachmentInfoDao;
-  late RecentlyOpenedAttachmentDao recentlyOpenedAttachmentDao;
-
-  ZoteroDataSql() {
-    // Initialize all DAOs with the database instance
+  // 单例实例
+  static final ZoteroDataSql _instance = ZoteroDataSql._internal();
+  
+  // 工厂构造函数返回单例
+  factory ZoteroDataSql() => _instance;
+  
+  // 私有构造函数
+  ZoteroDataSql._internal() {
+    // 初始化所有DAO
     groupInfoDao = GroupInfoDao(_database);
     collectionsDao = CollectionsDao(_database);
     itemInfoDao = ItemInfoDao(_database);
@@ -37,6 +33,17 @@ class ZoteroDataSql {
     attachmentInfoDao = AttachmentInfoDao(_database);
     recentlyOpenedAttachmentDao = RecentlyOpenedAttachmentDao(_database);
   }
+
+  final ZoteroDatabase _database = ZoteroDatabase();
+  late GroupInfoDao groupInfoDao;
+  late CollectionsDao collectionsDao;
+  late ItemInfoDao itemInfoDao;
+  late ItemDataDao itemDataDao;
+  late ItemCreatorDao itemCreatorDao;
+  late ItemTagsDao itemTagsDao;
+  late ItemCollectionDao itemCollectionDao;
+  late AttachmentInfoDao attachmentInfoDao;
+  late RecentlyOpenedAttachmentDao recentlyOpenedAttachmentDao;
 
   /// Saves a list of items with all their related data (creators, tags, etc.)
   Future<void> saveItems(List<Item> items) async {
