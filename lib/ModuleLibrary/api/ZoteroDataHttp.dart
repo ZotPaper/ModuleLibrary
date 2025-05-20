@@ -31,14 +31,14 @@ class ZoteroDataHttp {
 
     final items = <Item>[];
     final total = response.totalResults;
-    int downloadedCount = 0;
+    List<int> downloadedCount = [0];
 
     // 处理第一页数据
     await _processPage(response.data, items, total, downloadedCount, onProgress, onFinish);
 
     // 继续下载剩余页面
-    while (downloadedCount < total) {
-      final pagedResponse = await service.getItems(userId, startIndex: downloadedCount);
+    while (downloadedCount[0] < total) {
+      final pagedResponse = await service.getItems(userId, startIndex: downloadedCount[0]);
       if (pagedResponse == null) {
         continue;
       }
@@ -48,7 +48,7 @@ class ZoteroDataHttp {
     return items;
   }
 
-  Future<void> _processPage(List<dynamic> pageData, List<Item> items, int total, int downloadedCount,
+  Future<void> _processPage(List<dynamic> pageData, List<Item> items, int total, List<int> downloadedCount,
       Function(int progress, int total)? onProgress, Function(List<Item>)? onFinish) async {
     for (int i = 0; i < pageData.length; i++) {
       var itemJson = pageData[i] ?? "";
@@ -56,12 +56,12 @@ class ZoteroDataHttp {
 
       Item item = organizeItem(itemJson);
       items.add(item);
-      downloadedCount++;
+      downloadedCount[0]++;
 
-      if (i == total - 1) {
+      if (downloadedCount[0] == total) {
         onFinish?.call(items);
       } else {
-        onProgress?.call(downloadedCount, total);
+        onProgress?.call(downloadedCount[0], total);
       }
     }
   }
