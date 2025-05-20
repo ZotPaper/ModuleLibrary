@@ -34,7 +34,6 @@ class _LibraryPageState extends State<LibraryPage> {
 
   @override
   Widget build(BuildContext context) {
-    // WidgetsBinding.instance.addPostFrameCallback((_) => _handleNavigation());
     return ListenableBuilder(
       listenable: _viewModel,
       builder: (context, snapshot) {
@@ -54,32 +53,30 @@ class _LibraryPageState extends State<LibraryPage> {
             filterMenuTap: () {},
             tagsTap: () {},
           ),
-          body: StreamBuilder<PageType>(
-            stream: _viewModel.curPageStream,
-            builder: (context, snapshot) {
-              if (!snapshot.hasData) {
-                return const BlankPage();
-              }
-
-              debugPrint("收到页面切换：pageType：${snapshot.data}");
-
-              if (snapshot.data == PageType.sync) {
-                return const SyncPageFragment();
-              } else if (snapshot.data == PageType.library) {
-                return libraryListPage();
-              } else {
-                return const BlankPage();
-              }
-
-            },
-          ),
+          body: _viewModel.isLoading
+              ? const Center(child: CircularProgressIndicator())
+              : _buildPageContent(),
         );
       }
     );
   }
 
+  Widget _buildPageContent() {
+    if (_viewModel.curPage == PageType.sync) {
+      return const SyncPageFragment();
+    } else if (_viewModel.curPage == PageType.library) {
+      return libraryListPage();
+    } else {
+      return const BlankPage();
+    }
+  }
+
   /// 文库列表页面
   Widget libraryListPage() {
+    if (_viewModel.items.isEmpty) {
+      return const BlankPage();
+    }
+
     return Column(
       children: [
         searchLine(),
@@ -87,19 +84,11 @@ class _LibraryPageState extends State<LibraryPage> {
           child: Container(
             color: ResColor.bgColor,
             width: double.infinity,
-            child: StreamBuilder<List<Item>>(
-              stream: _viewModel.showItemsStream,
-              builder: (context, snapshot) {
-                if (!snapshot.hasData || snapshot.data!.isEmpty) {
-                  return const BlankPage();
-                }
-                return ListView.builder(
-                  itemCount: snapshot.data?.length ?? 0,
-                  itemBuilder: (context, index) {
-                    final item = snapshot.data![index];
-                    return fileOneLine(item);
-                  },
-                );
+            child: ListView.builder(
+              itemCount: _viewModel.items.length,
+              itemBuilder: (context, index) {
+                final item = _viewModel.items[index];
+                return fileOneLine(item);
               },
             ),
           ),

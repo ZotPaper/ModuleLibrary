@@ -18,7 +18,7 @@ class LibraryViewModel with ChangeNotifier {
   PageType curPage = PageType.library;
 
   List<Item> _items = [];
-  final List<Collection> _collections = [];
+  List<Collection> _collections = [];
   late final List<Item> _showItems = [];
 
   LibraryViewModel() : super() {
@@ -34,16 +34,23 @@ class LibraryViewModel with ChangeNotifier {
   List<Collection> get collections => _collections;
   List<Item> get showItems => _showItems;
 
+  bool _isLoading = false;
+
+  bool get isLoading => _isLoading;
+
+  void setLoading(bool value) {
+    _isLoading = value;
+    notifyListeners();
+  }
+
   void init() async {
+    setLoading(true);
     await SharedPref.init();
     bool isFirstStart = SharedPref.getBool(PrefString.isFirst, true);
 
     if (isFirstStart) {
       debugPrint("=============isFirstStart");
-      // 初次启动，从网络获取数据并保存到数据库
-      // await _performCompleteSync();
       // todo 切换到同步页面
-      // 切换到列表页面
       navigateToPage(PageType.sync);
     } else {
       // 从数据库加载数据
@@ -52,8 +59,13 @@ class LibraryViewModel with ChangeNotifier {
       navigateToPage(PageType.library);
     }
 
-    /// 通知更新列表
-    _notifyShowItems();
+    setLoading(false);
+  }
+
+
+  void navigateToPage(PageType page) {
+    curPage = page;
+    notifyListeners();
   }
 
   /// 处理抽屉按钮点击事件
@@ -114,7 +126,7 @@ class LibraryViewModel with ChangeNotifier {
   Future<void> _loadDataFromLocalDatabase() async {
     _items = await zoteroDataSql.getItems();
     var collections = await zoteroDataSql.getCollections();
-    _collections.addAll(collections);
+    _collections = collections;
 
     _resetShowItems();
     for (var collection in collections) {
@@ -129,13 +141,6 @@ class LibraryViewModel with ChangeNotifier {
     }
 
     _showItems.addAll(_items);
-  }
-  
-  // 跳转到页面
-  void navigateToPage(PageType page) {
-    _curPageController.add(page);
-
-    curPage = page;
-    notifyListeners();
+    _notifyShowItems();
   }
 }
