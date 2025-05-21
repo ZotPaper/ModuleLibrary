@@ -43,7 +43,7 @@ class _LibraryPageState extends State<LibraryPage> {
           key: _scaffoldKey,
           drawerEnableOpenDragGesture: false,
           drawer: CustomDrawer(
-            collections: _viewModel.collections,
+            collections: _viewModel.displayedCollections,
             onItemTap: _viewModel.handleDrawerItemTap,
             onCollectionTap: (collection) {}, // 如果有需要再实现
           ),

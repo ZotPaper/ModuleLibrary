@@ -179,4 +179,15 @@ class ZoteroDB {
     }
   }
 
+  List<Item> getItemsFromCollection(String collection) {
+    // If itemsFromCollections is null, create the collection-item map
+    if (itemsFromCollections == null) {
+      _createCollectionItemMap();
+    }
+
+    // Return the list of items from the collection, or an empty list if not found
+    return itemsFromCollections?[collection] ?? [];
+  }
+
+
 }

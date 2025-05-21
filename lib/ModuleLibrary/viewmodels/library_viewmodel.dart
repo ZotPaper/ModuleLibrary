@@ -20,11 +20,11 @@ class LibraryViewModel with ChangeNotifier {
   PageType curPage = PageType.library;
 
   List<Item> _items = [];
-  List<Collection> _collections = [];
+  final List<Collection> _displayedCollections = [];
 
-  List<Collection> get collections => _collections;
+  List<Collection> get displayedCollections => _displayedCollections;
 
-  List<ListEntry> _listEntries = [];
+  final List<ListEntry> _listEntries = [];
   List<ListEntry> get listEntries => _listEntries;
 
   // final List<Item> _showItems = [];
@@ -97,15 +97,11 @@ class LibraryViewModel with ChangeNotifier {
         showListEntriesIn("home");
         break;
       case DrawerBtn.favourites:
-        // TODO: Handle this case.
         showListEntriesIn("favourites");
       case DrawerBtn.library:
         showListEntriesIn("library");
         break;
       case DrawerBtn.unfiled:
-        // _resetShowItems();
-        // final tempItems = _items.where((item) => item.collections.isEmpty).toList();
-        // _showItems.addAll(tempItems);
         showListEntriesIn("unfiled");
         break;
       case DrawerBtn.publications:
@@ -119,6 +115,8 @@ class LibraryViewModel with ChangeNotifier {
       case DrawerBtn.trash:
         // TODO: Handle this case.
         showListEntriesIn("publications");
+      default:
+        showListEntriesIn(drawerBtn.name);
     }
     _notifyShowItems();
   }
@@ -144,23 +142,14 @@ class LibraryViewModel with ChangeNotifier {
     zoteroDB.setItems(_items);
 
     var collections = await zoteroDataSql.getCollections();
-    _collections = collections;
     // 把collections保存到内存中
-    zoteroDB.setCollections(_collections);
+    zoteroDB.setCollections(collections);
 
-    // _resetShowItems();
-    // for (var collection in collections) {
-    //   _showItems.add(Item(
-    //     itemInfo: ItemInfo(id: 0, itemKey: collection.key, groupId: collection.groupId,
-    //         version: collection.version, deleted: false),
-    //     itemData: [ItemData(id: 0, parent: collection.key, name: "title", value: collection.name, valueType: "String")],
-    //     creators: [],
-    //     tags: [],
-    //     collections: [],
-    //   ));
-    // }
-
-    // _showItems.addAll(_items);
+    // 只显示顶级的集合
+    _displayedCollections.clear();
+    _displayedCollections.addAll(collections.where((it) {
+      return !it.hasParent();
+    }));
   }
 
   /// 显示指定位置的列表entries
@@ -173,6 +162,8 @@ class LibraryViewModel with ChangeNotifier {
       case 'unfiled':
         break;
       default:
+        list = await _getEntriesInCollection(locationKey);
+
     }
 
     _listEntries.clear();
@@ -191,4 +182,19 @@ class LibraryViewModel with ChangeNotifier {
     entries.addAll(res);
     return entries;
   }
+
+  /// 获取指定集合下面的entries
+  Future<List<ListEntry>> _getEntriesInCollection(String collectionKey) async {
+    List<ListEntry> entries = [];
+    zoteroDB.getItemsFromCollection(collectionKey);
+
+    return entries;
+  }
+
+
+
+// _resetShowItems();
+// final tempItems = _items.where((item) => item.collections.isEmpty).toList();
+// _showItems.addAll(tempItems);
+
 }
