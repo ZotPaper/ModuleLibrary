@@ -65,7 +65,7 @@ class LibraryViewModel with ChangeNotifier {
       navigateToPage(PageType.library);
 
       // 显示所有条目
-      showListEntriesIn("all");
+      showListEntriesIn("library");
     }
 
     setLoading(false);
@@ -78,26 +78,13 @@ class LibraryViewModel with ChangeNotifier {
   }
 
   /// 处理抽屉按钮点击事件
-  void handleDrawerItemTap(DrawerBtn drawerBtn) {
+  void handleDrawerItemTap(DrawerBtn drawerBtn, {String? collectionKey}) {
     switch (drawerBtn) {
       case DrawerBtn.home:
-        // _resetShowItems();
-        // for (var collection in _collections) {
-        //   _showItems.add(Item(
-        //     itemInfo: ItemInfo(id: 0, itemKey: collection.key, groupId: collection.groupId,
-        //       version: collection.version, deleted: false),
-        //     itemData: [ItemData(id: 0, parent: collection.key, name: 'title', value: collection.name, valueType: "String")],
-        //     creators: [],
-        //     tags: [],
-        //     collections: [],
-        //   ));
-        // }
-        // _showItems.addAll(_items);
-
-        showListEntriesIn("home");
+        // showListEntriesIn("home");
         break;
       case DrawerBtn.favourites:
-        showListEntriesIn("favourites");
+        // showListEntriesIn("favourites");
       case DrawerBtn.library:
         showListEntriesIn("library");
         break;
@@ -114,9 +101,8 @@ class LibraryViewModel with ChangeNotifier {
         break;
       case DrawerBtn.trash:
         // TODO: Handle this case.
-        showListEntriesIn("publications");
+        showListEntriesIn("trashes");
       default:
-        showListEntriesIn(drawerBtn.name);
     }
     _notifyShowItems();
   }
@@ -156,14 +142,14 @@ class LibraryViewModel with ChangeNotifier {
   Future<void> showListEntriesIn(String locationKey) async {
     List<ListEntry> list = [];
     switch (locationKey) {
-      case 'all':
+      case 'library':
         list = await _getMyLibraryEntries();
+        debugPrint('Moyear=== all res:${list.length}');
         break;
       case 'unfiled':
         break;
       default:
         list = await _getEntriesInCollection(locationKey);
-
     }
 
     _listEntries.clear();
@@ -186,11 +172,41 @@ class LibraryViewModel with ChangeNotifier {
   /// 获取指定集合下面的entries
   Future<List<ListEntry>> _getEntriesInCollection(String collectionKey) async {
     List<ListEntry> entries = [];
-    zoteroDB.getItemsFromCollection(collectionKey);
+    // 获取指定集合下的item
+    var res = zoteroDB.getItemsFromCollection(collectionKey).map((ele) {
+      return ListEntry(item: ele);
+    });
+    entries.addAll(res);
+    debugPrint("getEntriesInCollection: $collectionKey size: ${res.length}");
+    // todo 获取子集合
+    return entries;
+  }
+
+  Future<List<ListEntry>> _getUnfiledEntries() async {
+    List<ListEntry> entries = [];
+    zoteroDB.getUnfiledItems();
 
     return entries;
   }
 
+
+  /// 处理侧边栏合集的点击事件
+  Future<void> handleCollectionTap(Collection collection) async {
+    // var itemKey = collection.key;
+    // var entries = await _getEntriesInCollection(itemKey);
+    var res = await zoteroDataSql.getItemsInCollection(collection.key);
+    var entries = res.map((ele) {
+      return ListEntry(item: ele);
+    });
+    // debugPrint('Moyear== handleCollectionTap: $itemKey size: ${entries.length}');
+
+    _listEntries.clear();
+    _listEntries.addAll(entries);
+
+    _notifyShowItems();
+    notifyListeners();
+
+  }
 
 
 // _resetShowItems();

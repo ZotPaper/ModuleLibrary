@@ -16,6 +16,7 @@ class Item {
   late List<ItemData> itemData;
   late List<Creator> creators;
   late List<ItemTag> tags;
+  // 这一条目所属于的Collection合集
   late List<String> collections;
   late List<Item> attachments;
   late List<Note> notes;

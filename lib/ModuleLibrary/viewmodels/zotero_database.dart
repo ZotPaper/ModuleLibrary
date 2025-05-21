@@ -36,7 +36,8 @@ class ZoteroDB {
 
   // 判断是否已经加载了数据
   bool isPopulated() {
-    return !(_collections == null || _items == null);
+    return true;
+    // return !(_collections == null || _items == null);
   }
 
   // 设置条目数据
@@ -160,12 +161,12 @@ class ZoteroDB {
 
 
 
-  // 添加条目数据
+  /// 添加条目数据
   void addItem(Item item) {
     _items.add(item);
   }
 
-  // 添加合集数据
+  /// 添加合集数据
  void addCollection(Collection collection) {}
   // todo 条目以及item变化的事件监听
 
@@ -179,6 +180,7 @@ class ZoteroDB {
     }
   }
 
+  /// 获取合集下的条目
   List<Item> getItemsFromCollection(String collection) {
     // If itemsFromCollections is null, create the collection-item map
     if (itemsFromCollections == null) {
@@ -188,6 +190,19 @@ class ZoteroDB {
     // Return the list of items from the collection, or an empty list if not found
     return itemsFromCollections?[collection] ?? [];
   }
+
+
+  /// 获取未分类条目
+  List<Item> getUnfiledItems() {
+    if (items != null) {
+      var filtered = items.where((it) { return !it.hasParent();});
+      return filtered.toList();
+    } else {
+      // Log.e("zotero", "error. got request for getDisplayableItems() before items has loaded.")
+      return [];
+    }
+  }
+
 
 
 }

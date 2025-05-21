@@ -45,7 +45,9 @@ class _LibraryPageState extends State<LibraryPage> {
           drawer: CustomDrawer(
             collections: _viewModel.displayedCollections,
             onItemTap: _viewModel.handleDrawerItemTap,
-            onCollectionTap: (collection) {}, // 如果有需要再实现
+            onCollectionTap: (collection) {
+              _viewModel.handleCollectionTap(collection);
+            }, // 如果有需要再实现
           ),
           appBar: pageAppBar(
             leadingIconTap: () {
