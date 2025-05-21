@@ -1,6 +1,7 @@
 import 'package:flutter/cupertino.dart';
 import 'package:flutter/material.dart';
 import 'package:module/LibZoteroStorage/entity/Collection.dart';
+import 'package:module/ModuleLibrary/model/list_entry.dart';
 import 'package:module/ModuleLibrary/model/page_type.dart';
 import 'package:module/ModuleLibrary/page/blank_page.dart';
 import 'package:module/ModuleLibrary/page/sync_page/sync_page.dart';
@@ -73,7 +74,7 @@ class _LibraryPageState extends State<LibraryPage> {
 
   /// 文库列表页面
   Widget libraryListPage() {
-    if (_viewModel.items.isEmpty) {
+    if (_viewModel.listEntries.isEmpty) {
       return const BlankPage();
     }
 
@@ -85,10 +86,10 @@ class _LibraryPageState extends State<LibraryPage> {
             color: ResColor.bgColor,
             width: double.infinity,
             child: ListView.builder(
-              itemCount: _viewModel.items.length,
+              itemCount: _viewModel.listEntries.length,
               itemBuilder: (context, index) {
-                final item = _viewModel.items[index];
-                return fileOneLine(item);
+                final entry = _viewModel.listEntries[index];
+                return fileOneLine(entry);
               },
             ),
           ),
@@ -122,7 +123,7 @@ class _LibraryPageState extends State<LibraryPage> {
   }
 
   /// 文件
-  Widget fileOneLine(Item item) {
+  Widget fileOneLine(ListEntry entry) {
     return Container(
       padding: const EdgeInsets.all(10),
       width: double.infinity,
@@ -138,12 +139,12 @@ class _LibraryPageState extends State<LibraryPage> {
               children: [
                 Container(
                   width: double.infinity,
-                  child: Text(item.getTitle(), maxLines: 2),
+                  child: Text(entry.item!.getTitle(), maxLines: 2),
                 ),
                 Container(
                   width: double.infinity,
                   child: Text(
-                    item.getAuthor(),
+                    entry.item!.getAuthor(),
                     maxLines: 1,
                     style: const TextStyle(color: Colors.grey),
                   ),

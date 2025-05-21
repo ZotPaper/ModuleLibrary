@@ -38,4 +38,17 @@ class Collection {
       _$CollectionFromJson(json);
 
   Map<String, dynamic> toJson() => _$CollectionToJson(this);
+
+  bool hasParent() {
+    return parentCollection != "false";
+  }
+
+  List<Collection>? subCollections = [];
+
+  /// 添加子合集
+  void addSubCollection(Collection collection) {
+    if (subCollections != null && subCollections?.where((it) => it.key == collection.key).isEmpty == true) {
+      subCollections?.add(collection);
+    }
+  }
 }

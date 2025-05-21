@@ -80,26 +80,6 @@ class SyncViewModel with ChangeNotifier {
     _showItemsController.close();
   }
 
-  Future<void> _loadDataFromLocalDatabase() async {
-    _items = await zoteroDataSql.getItems();
-    var collections = await zoteroDataSql.getCollections();
-    _collections.addAll(collections);
-
-    _resetShowItems();
-    for (var collection in collections) {
-      _showItems.add(Item(
-        itemInfo: ItemInfo(id: 0, itemKey: collection.key, groupId: collection.groupId,
-            version: collection.version, deleted: false),
-        itemData: [ItemData(id: 0, parent: collection.key, name: "title", value: collection.name, valueType: "String")],
-        creators: [],
-        tags: [],
-        collections: [],
-      ));
-    }
-
-    _showItems.addAll(_items);
-  }
-
   Future<void> _loadAllCollections() async {
     var collections = await zoteroHttp.getCollections(0, _userId, 0);
     await zoteroDataSql.saveCollections(collections);

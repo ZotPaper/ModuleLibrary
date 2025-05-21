@@ -80,7 +80,13 @@ class ZoteroDataSql {
     var collections = await collectionsDao.getAllCollections();
     return collections;
   }
-  Future<List<Item>> getItems() async {
+
+  /// 从数据库中获取所有的条目item
+  /// ⚠️ 不包含笔记、附件等信息
+  Future<List<Item>> getItems({
+    Function(Item item)? onNext,
+    Function(List<Item> items)? onComplete,
+  }) async {
     List<Item> items = [];
     var itemInfos = await itemInfoDao.getItemInfos();
 
@@ -97,8 +103,12 @@ class ZoteroDataSql {
           creators: creators,
           tags: itemTags,
           collections: collections);
+
+
       items.add(item);
+      onNext?.call(item);
     }
+    onComplete?.call(items);
     return items;
   }
 
