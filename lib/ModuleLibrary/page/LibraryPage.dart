@@ -13,6 +13,7 @@ import '../../LibZoteroStorage/entity/Item.dart';
 import 'LibraryUI/appBar.dart';
 import 'LibraryUI/drawer.dart';
 import 'package:provider/provider.dart';
+import 'package:flutter_svg/flutter_svg.dart';
 
 class LibraryPage extends StatefulWidget {
   const LibraryPage({super.key});
@@ -131,11 +132,20 @@ class _LibraryPageState extends State<LibraryPage> {
       width: double.infinity,
       child: Row(
         children: [
-          ClipRRect(
-            borderRadius: BorderRadius.circular(20),
-            child: Image.asset("assets/ic_round.png", width: 40, height: 40),
+          Container(
+            height: 48,
+            width: 48,
+            padding: const EdgeInsets.all(6),
+            decoration: BoxDecoration(
+              color: Colors.grey[200],
+              borderRadius: BorderRadius.circular(26),
+            ),
+            child: ClipRRect(
+              borderRadius: BorderRadius.circular(20),
+              child: _iconWidget(entry),
+            ),
           ),
-          Container(width: 5),
+          const SizedBox(width: 12),
           Expanded(
             child: Column(
               children: [
@@ -181,10 +191,12 @@ class _LibraryPageState extends State<LibraryPage> {
     );
   }
 
-  // _handleNavigation() {
-  //   // 监听 ViewModel 中的页面跳转指令
-  //   final vm = Provider.of<LibraryViewModel>(context, listen: false);
-  //   final pageData = vm.curPage;
-  //   String routeName;
-  // }
+  Widget _iconWidget(ListEntry entry) {
+    return SvgPicture.asset(
+      'assets/items/document.svg',
+      width: 24,
+      height: 24,
+      // color: Colors.blue, // 可选颜色
+    );
+  }
 }
