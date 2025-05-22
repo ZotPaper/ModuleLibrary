@@ -59,6 +59,15 @@ dev_dependencies:
 
   flutter_svg: ^2.0.7  # svg
 
+  # Bruno UI组件库
+  #  bruno: ^3.4.3
+  bruno:
+    #    path: /Users/moyear/StudioProjects/bruno-moyear
+    git:
+      url: https://github.com/moyearzhou/bruno-moyear.git
+#      ref: v3.4.3
+
+
 # For information on the generic Dart part of this file, see the
 # following page: https://dart.dev/tools/pub/pubspec
 
