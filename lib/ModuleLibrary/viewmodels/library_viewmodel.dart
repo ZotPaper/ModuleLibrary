@@ -148,6 +148,10 @@ class LibraryViewModel with ChangeNotifier {
         list = await _getMyLibraryEntries();
         title = "我的文库";
         break;
+      case 'publications':
+        list = await _getPublicationsEntries();
+        title = "我的出版物";
+        break;
       case 'unfiled':
         list = await _getUnfiledEntries();
         debugPrint('Moyear=== unfiled res:${list.length}');
@@ -222,6 +226,16 @@ class LibraryViewModel with ChangeNotifier {
     _notifyShowItems();
     notifyListeners();
 
+  }
+
+  /// 获取我的出版物
+  Future<List<ListEntry>>_getPublicationsEntries() async {
+    List<ListEntry> entries = [];
+    var res = zoteroDB.getMyPublicationItems().map((ele) {
+      return ListEntry(item: ele);
+    });
+    entries.addAll(res);
+    return entries;
   }
 
 

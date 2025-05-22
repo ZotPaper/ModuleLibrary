@@ -152,8 +152,9 @@ class ZoteroDB {
       return;
     }
 
+    /// 处理我的出版物
     for (var item in items) {
-      if (item.data.containsKey("inPublications") && item.data["inPublications"] == "true") {
+      if (item.data.containsKey("inPublications") && item.data["inPublications"] == "true" && !item.hasParent()) {
         myPublications.add(item);
       }
     }
@@ -215,6 +216,11 @@ class ZoteroDB {
       // Log.e("zotero", "error. got request for getDisplayableItems() before items has loaded.")
       return [];
     }
+  }
+
+  /// 获取我的出版物
+  List<Item> getMyPublicationItems() {
+   return myPublications;
   }
 
 
