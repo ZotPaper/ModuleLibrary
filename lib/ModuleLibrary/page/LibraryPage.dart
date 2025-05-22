@@ -167,12 +167,16 @@ class _LibraryPageState extends State<LibraryPage> {
 
   /// Icon Widget
   Widget _iconItemWidget(ListEntry entry) {
-    return SvgPicture.asset(
-      entry.isCollection() ? 'assets/items/opened_folder.svg' : 'assets/items/document.svg',
-      width: 18,
-      height: 18,
-      // color: Colors.blue, // 可选颜色
-    );
+    if (entry.isCollection()) {
+      return SvgPicture.asset(
+        'assets/items/opened_folder.svg',
+        width: 18,
+        height: 18,
+        // color: Colors.blue, // 可选颜色
+      );
+    }
+
+    return requireItemIcon(entry.item?.itemType ?? "");
   }
 
   /// Entry Icon Widget
@@ -180,15 +184,16 @@ class _LibraryPageState extends State<LibraryPage> {
     return Container(
       height: 42,
       width: 42,
-      padding: const EdgeInsets.all(6),
+      padding: const EdgeInsets.all(8),
       decoration: BoxDecoration(
         color: Colors.grey[200],
         borderRadius: BorderRadius.circular(26),
       ),
-      child: ClipRRect(
-        borderRadius: BorderRadius.circular(20),
-        child: _iconItemWidget(entry),
-      ),
+      child: _iconItemWidget(entry),
+      // child: ClipRRect(
+      //   borderRadius: BorderRadius.circular(20),
+      //   child: _iconItemWidget(entry),
+      // ),
     );
   }
 
@@ -211,4 +216,126 @@ class _LibraryPageState extends State<LibraryPage> {
       ),
     );
   }
+
+  Widget requireItemIcon(String itemType) {
+    String iconPath;
+    // Assign SVG icon path based on itemType
+    switch (itemType) {
+      case "note":
+        iconPath = 'assets/items/ic_item_note.svg';
+        break;
+      case "book":
+        iconPath = 'assets/items/ic_book.svg';
+        break;
+      case "bookSection":
+        iconPath = 'assets/items/ic_book_section.svg';
+        break;
+      case "journalArticle":
+        iconPath = 'assets/items/journal_article.svg';
+        break;
+      case "magazineArticle":
+        iconPath = 'assets/items/magazine_article_24dp.svg';
+        break;
+      case "newspaperArticle":
+        iconPath = 'assets/items/newspaper_article_24dp.svg';
+        break;
+      case "thesis":
+        iconPath = 'assets/items/ic_thesis.svg';
+        break;
+      case "letter":
+        iconPath = 'assets/items/letter_24dp.svg';
+        break;
+      case "manuscript":
+        iconPath = 'assets/items/manuscript_24dp.svg';
+        break;
+      case "interview":
+        iconPath = 'assets/items/interview_24dp.svg';
+        break;
+      case "film":
+        iconPath = 'assets/items/film_24dp.svg';
+        break;
+      case "artwork":
+        iconPath = 'assets/items/artwork_24dp.svg';
+        break;
+      case "webpage":
+        iconPath = 'assets/items/ic_web_page.svg';
+        break;
+      case "attachment":
+        iconPath = 'assets/items/ic_treeitem_attachment.svg';
+        break;
+      case "report":
+        iconPath = 'assets/items/report_24dp.svg';
+        break;
+      case "bill":
+        iconPath = 'assets/items/bill_24dp.svg';
+        break;
+      case "case":
+        iconPath = 'assets/items/case_24dp.svg';
+        break;
+      case "hearing":
+        iconPath = 'assets/items/hearing_24dp.svg';
+        break;
+      case "patent":
+        iconPath = 'assets/items/patent_24dp.svg';
+        break;
+      case "statute":
+        iconPath = 'assets/items/statute_24dp.svg';
+        break;
+      case "email":
+        iconPath = 'assets/items/email_24dp.svg';
+        break;
+      case "map":
+        iconPath = 'assets/items/map_24dp.svg';
+        break;
+      case "blogPost":
+        iconPath = 'assets/items/blog_post_24dp.svg';
+        break;
+      case "instantMessage":
+        iconPath = 'assets/items/instant_message_24dp.svg';
+        break;
+      case "forumPost":
+        iconPath = 'assets/items/forum_post_24dp.svg';
+        break;
+      case "audioRecording":
+        iconPath = 'assets/items/audio_recording_24dp.svg';
+        break;
+      case "presentation":
+        iconPath = 'assets/items/presentation_24dp.svg';
+        break;
+      case "videoRecording":
+        iconPath = 'assets/items/video_recording_24dp.svg';
+        break;
+      case "tvBroadcast":
+        iconPath = 'assets/items/tv_broadcast_24dp.svg';
+        break;
+      case "radioBroadcast":
+        iconPath = 'assets/items/radio_broadcast_24dp.svg';
+        break;
+      case "podcast":
+        iconPath = 'assets/items/podcast_24dp.svg';
+        break;
+      case "computerProgram":
+        iconPath = 'assets/items/computer_program_24dp.svg';
+        break;
+      case "conferencePaper":
+        iconPath = 'assets/items/ic_conference_paper.svg';
+        break;
+      case "document":
+        iconPath = 'assets/items/ic_document.svg';
+        break;
+      case "encyclopediaArticle":
+        iconPath = 'assets/items/encyclopedia_article_24dp.svg';
+        break;
+      case "dictionaryEntry":
+        iconPath = 'assets/items/dictionary_entry_24dp.svg';
+        break;
+      default:
+        iconPath = 'assets/items/ic_item_known.svg';
+    }
+
+    // Return the appropriate SVG image
+    return SvgPicture.asset(iconPath, height: 14, width: 14,);
+  }
+
+
 }
