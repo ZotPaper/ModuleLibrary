@@ -19,6 +19,8 @@ class LibraryViewModel with ChangeNotifier {
 
   PageType curPage = PageType.library;
 
+  String title = '';
+
   List<Item> _items = [];
   final List<Collection> _displayedCollections = [];
 
@@ -144,9 +146,12 @@ class LibraryViewModel with ChangeNotifier {
     switch (locationKey) {
       case 'library':
         list = await _getMyLibraryEntries();
-        debugPrint('Moyear=== all res:${list.length}');
+        title = "我的文库";
         break;
       case 'unfiled':
+        list = await _getUnfiledEntries();
+        debugPrint('Moyear=== unfiled res:${list.length}');
+        title = "未分类";
         break;
       default:
         list = await _getEntriesInCollection(locationKey);
@@ -182,10 +187,13 @@ class LibraryViewModel with ChangeNotifier {
     return entries;
   }
 
+  /// 获取未分类的条目
   Future<List<ListEntry>> _getUnfiledEntries() async {
     List<ListEntry> entries = [];
-    zoteroDB.getUnfiledItems();
-
+    var res = zoteroDB.getUnfiledItems().map((ele) {
+      return ListEntry(item: ele);
+    });
+    entries.addAll(res);
     return entries;
   }
 
@@ -194,6 +202,8 @@ class LibraryViewModel with ChangeNotifier {
   Future<void> handleCollectionTap(Collection collection) async {
     // var itemKey = collection.key;
     // var entries = await _getEntriesInCollection(itemKey);
+    title = collection.name;
+
     var res = await zoteroDataSql.getItemsInCollection(collection.key);
     var entriesItems = res.map((ele) {
       return ListEntry(item: ele);

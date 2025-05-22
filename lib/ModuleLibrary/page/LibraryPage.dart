@@ -1,6 +1,5 @@
 import 'package:flutter/cupertino.dart';
 import 'package:flutter/material.dart';
-import 'package:module/LibZoteroStorage/entity/Collection.dart';
 import 'package:module/ModuleLibrary/model/list_entry.dart';
 import 'package:module/ModuleLibrary/model/page_type.dart';
 import 'package:module/ModuleLibrary/page/blank_page.dart';
@@ -8,11 +7,8 @@ import 'package:module/ModuleLibrary/page/sync_page/sync_page.dart';
 import 'package:module/ModuleLibrary/res/ResColor.dart';
 import 'package:module/ModuleLibrary/viewmodels/library_viewmodel.dart';
 
-import '../../LibZoteroApi/ZoteroAPIService.dart';
-import '../../LibZoteroStorage/entity/Item.dart';
 import 'LibraryUI/appBar.dart';
 import 'LibraryUI/drawer.dart';
-import 'package:provider/provider.dart';
 import 'package:flutter_svg/flutter_svg.dart';
 
 class LibraryPage extends StatefulWidget {
@@ -51,7 +47,7 @@ class _LibraryPageState extends State<LibraryPage> {
             }, // 如果有需要再实现
           ),
           appBar: pageAppBar(
-            title: "Home",
+            title: _viewModel.title,
             leadingIconTap: () {
               _scaffoldKey.currentState?.openDrawer();
             },

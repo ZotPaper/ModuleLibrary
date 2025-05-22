@@ -22,7 +22,7 @@ class SyncViewModel with ChangeNotifier {
 
   final ZoteroDataSql zoteroDataSql = ZoteroDataSql();
 
-  List<Item> _items = [];
+  // List<Item> _items = [];
   final List<Collection> _collections = [];
   late final List<Item> _showItems = [];
 
@@ -41,7 +41,7 @@ class SyncViewModel with ChangeNotifier {
   final StreamController<List<Item>> _showItemsController = StreamController<List<Item>>.broadcast();
   Stream<List<Item>> get showItemsStream => _showItemsController.stream;
 
-  List<Item> get items => _items;
+  // List<Item> get items => _items;
   List<Collection> get collections => _collections;
   List<Item> get showItems => _showItems;
 
@@ -99,7 +99,7 @@ class SyncViewModel with ChangeNotifier {
 
   /// 从zotero中获取所有条目
   Future<void> _loadAllItems() async {
-    _items = await zoteroHttp.getItems(_userId,
+    var _items = await zoteroHttp.getItems(_userId,
       onProgress: (progress, total) {
         debugPrint("加载Item进度：$progress/$total");
         // todo 通知下载进度

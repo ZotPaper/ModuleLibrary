@@ -208,7 +208,8 @@ class ZoteroDB {
   /// 获取未分类条目
   List<Item> getUnfiledItems() {
     if (items != null) {
-      var filtered = items.where((it) { return !it.hasParent();});
+      // var filtered = items.where((it) { return !it.hasParent();});
+      var filtered = getDisplayableItems().where((it) { return it.collections.isEmpty;});
       return filtered.toList();
     } else {
       // Log.e("zotero", "error. got request for getDisplayableItems() before items has loaded.")
