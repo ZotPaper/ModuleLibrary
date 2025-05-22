@@ -125,55 +125,48 @@ class _LibraryPageState extends State<LibraryPage> {
     );
   }
 
-  /// 文件
+  /// 条目列表
   Widget fileOneLine(ListEntry entry) {
-    return Container(
-      padding: const EdgeInsets.all(10),
-      width: double.infinity,
-      child: Row(
-        children: [
-          Container(
-            height: 48,
-            width: 48,
-            padding: const EdgeInsets.all(6),
-            decoration: BoxDecoration(
-              color: Colors.grey[200],
-              borderRadius: BorderRadius.circular(26),
-            ),
-            child: ClipRRect(
-              borderRadius: BorderRadius.circular(20),
-              child: _iconWidget(entry),
-            ),
-          ),
-          const SizedBox(width: 12),
-          Expanded(
-            child: Column(
-              children: [
-                Container(
-                  width: double.infinity,
-                  child: Text(entry.item!.getTitle(), maxLines: 2),
+    return Card(
+      elevation: 0,
+      color: ResColor.bgColor,
+      child: InkWell(
+        onTap: () {
+          debugPrint("Moyear==== item click");
+        },
+        child: Container(
+          padding: const EdgeInsets.all(10),
+          width: double.infinity,
+          child: Row(
+            children: [
+              _entryIcon(entry),
+              const SizedBox(width: 12),
+              Expanded(
+                child: Column(
+                  children: [
+                    Container(
+                      width: double.infinity,
+                      child: Text(entry.item!.getTitle(), maxLines: 2),
+                    ),
+                    Container(
+                      width: double.infinity,
+                      child: Text(
+                        entry.item!.getAuthor(),
+                        maxLines: 1,
+                        style: const TextStyle(color: Colors.grey),
+                      ),
+                    ),
+                  ],
                 ),
-                Container(
-                  width: double.infinity,
-                  child: Text(
-                    entry.item!.getAuthor(),
-                    maxLines: 1,
-                    style: const TextStyle(color: Colors.grey),
-                  ),
-                ),
-              ],
-            ),
-          ),
-          Material(
-            child: Ink(
-              child: InkWell(
+              ),
+              InkWell(
                 onTap: () {
-                  print("pdf tap");
+                  // print("pdf tap");
                 },
                 child: Container(
-                  color: ResColor.bgColor,
+                  padding: EdgeInsets.all(4),
                   child: ClipRRect(
-                    borderRadius: BorderRadius.circular(10),
+                    borderRadius: BorderRadius.circular(20),
                     child: Image.asset(
                       "assets/pdf.png",
                       width: 20,
@@ -183,20 +176,38 @@ class _LibraryPageState extends State<LibraryPage> {
                   ),
                 ),
               ),
-            ),
+              IconButton(onPressed: () {}, icon: const Icon(Icons.more_vert)),
+            ],
           ),
-          IconButton(onPressed: () {}, icon: const Icon(Icons.more_vert)),
-        ],
+        ),
       ),
     );
   }
 
-  Widget _iconWidget(ListEntry entry) {
+  /// Icon Widget
+  Widget _iconItemWidget(ListEntry entry) {
     return SvgPicture.asset(
       'assets/items/document.svg',
-      width: 24,
-      height: 24,
+      width: 18,
+      height: 18,
       // color: Colors.blue, // 可选颜色
+    );
+  }
+
+  /// Entry Icon Widget
+  Widget _entryIcon(ListEntry entry) {
+    return Container(
+      height: 42,
+      width: 42,
+      padding: const EdgeInsets.all(6),
+      decoration: BoxDecoration(
+        color: Colors.grey[200],
+        borderRadius: BorderRadius.circular(26),
+      ),
+      child: ClipRRect(
+        borderRadius: BorderRadius.circular(20),
+        child: _iconItemWidget(entry),
+      ),
     );
   }
 }
