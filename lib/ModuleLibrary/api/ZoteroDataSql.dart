@@ -182,6 +182,8 @@ class ZoteroDataSql {
     return items;
   }
 
+
+
   /// Gets all items in a specific group
   Future<List<Item>> getItemsInGroup(int groupId) async {
     final items = <Item>[];

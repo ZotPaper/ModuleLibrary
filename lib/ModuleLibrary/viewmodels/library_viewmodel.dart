@@ -195,13 +195,19 @@ class LibraryViewModel with ChangeNotifier {
     // var itemKey = collection.key;
     // var entries = await _getEntriesInCollection(itemKey);
     var res = await zoteroDataSql.getItemsInCollection(collection.key);
-    var entries = res.map((ele) {
+    var entriesItems = res.map((ele) {
       return ListEntry(item: ele);
     });
     // debugPrint('Moyear== handleCollectionTap: $itemKey size: ${entries.length}');
 
+    var subCollections = await zoteroDB.getSubCollectionsOf(collection.key);
+    var entriesCollections = subCollections.map((ele) {
+      return ListEntry(collection: ele);
+    });
+
     _listEntries.clear();
-    _listEntries.addAll(entries);
+    _listEntries.addAll(entriesCollections);
+    _listEntries.addAll(entriesItems);
 
     _notifyShowItems();
     notifyListeners();

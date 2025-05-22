@@ -180,6 +180,19 @@ class ZoteroDB {
     }
   }
 
+  /// Gets all sub collections in a specific collection
+  Future<List<Collection>> getSubCollectionsOf(String collectionKey) async {
+    List<Collection> subCollections = [];
+
+    for (var collection in collections) {
+      if (collection.parentCollection == collectionKey) {
+        subCollections.add(collection);
+      }
+    }
+
+    return subCollections;
+  }
+
   /// 获取合集下的条目
   List<Item> getItemsFromCollection(String collection) {
     // If itemsFromCollections is null, create the collection-item map

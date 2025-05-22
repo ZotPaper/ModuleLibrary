@@ -93,7 +93,7 @@ class _LibraryPageState extends State<LibraryPage> {
               itemCount: _viewModel.listEntries.length,
               itemBuilder: (context, index) {
                 final entry = _viewModel.listEntries[index];
-                return fileOneLine(entry);
+                return widgetListEntry(entry);
               },
             ),
           ),
@@ -127,7 +127,7 @@ class _LibraryPageState extends State<LibraryPage> {
   }
 
   /// 条目列表
-  Widget fileOneLine(ListEntry entry) {
+  Widget widgetListEntry(ListEntry entry) {
     return Card(
       elevation: 0,
       color: ResColor.bgColor,
@@ -147,12 +147,12 @@ class _LibraryPageState extends State<LibraryPage> {
                   children: [
                     Container(
                       width: double.infinity,
-                      child: Text(entry.item!.getTitle(), maxLines: 2),
+                      child: Text(entry.isCollection() ? entry.collection!.name : entry.item!.getTitle(), maxLines: 2),
                     ),
                     Container(
                       width: double.infinity,
                       child: Text(
-                        entry.item!.getAuthor(),
+                        entry.isItem() ? entry.item!.getAuthor() : "",
                         maxLines: 1,
                         style: const TextStyle(color: Colors.grey),
                       ),
@@ -160,23 +160,7 @@ class _LibraryPageState extends State<LibraryPage> {
                   ],
                 ),
               ),
-              InkWell(
-                onTap: () {
-                  // print("pdf tap");
-                },
-                child: Container(
-                  padding: EdgeInsets.all(4),
-                  child: ClipRRect(
-                    borderRadius: BorderRadius.circular(20),
-                    child: Image.asset(
-                      "assets/pdf.png",
-                      width: 20,
-                      height: 20,
-                      fit: BoxFit.fitWidth,
-                    ),
-                  ),
-                ),
-              ),
+              if (entry.isItem() && entry.item!.attachments.isNotEmpty) _attachmentIndicator(entry),
               IconButton(onPressed: () {}, icon: const Icon(Icons.more_vert)),
             ],
           ),
@@ -188,7 +172,7 @@ class _LibraryPageState extends State<LibraryPage> {
   /// Icon Widget
   Widget _iconItemWidget(ListEntry entry) {
     return SvgPicture.asset(
-      'assets/items/document.svg',
+      entry.isCollection() ? 'assets/items/opened_folder.svg' : 'assets/items/document.svg',
       width: 18,
       height: 18,
       // color: Colors.blue, // 可选颜色
@@ -208,6 +192,26 @@ class _LibraryPageState extends State<LibraryPage> {
       child: ClipRRect(
         borderRadius: BorderRadius.circular(20),
         child: _iconItemWidget(entry),
+      ),
+    );
+  }
+
+  Widget _attachmentIndicator(ListEntry entry) {
+    return  InkWell(
+      onTap: () {
+        // print("pdf tap");
+      },
+      child: Container(
+        padding: EdgeInsets.all(4),
+        child: ClipRRect(
+          borderRadius: BorderRadius.circular(20),
+          child: Image.asset(
+            "assets/pdf.png",
+            width: 20,
+            height: 20,
+            fit: BoxFit.fitWidth,
+          ),
+        ),
       ),
     );
   }

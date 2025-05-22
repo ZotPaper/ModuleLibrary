@@ -7,5 +7,13 @@ class ListEntry {
 
   ListEntry({this.collection, this.item});
 
+  bool isCollection() {
+    return collection != null;
+  }
+
+  bool isItem() {
+    return item != null;
+  }
+
 
 }
