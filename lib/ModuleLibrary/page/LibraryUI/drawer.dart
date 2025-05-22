@@ -46,13 +46,15 @@ class _CustomDrawerState extends State<CustomDrawer> {
               ...firstGroup(),
               Container(
                 color: ResColor.divideColor,
-                height: 2,
+                margin: const EdgeInsets.only(left: 20, right: 20),
+                height: 1,
                 width: double.infinity,
               ),
               ...secondGroup(),
               Container(
                 color: ResColor.divideColor,
-                height: 2,
+                margin: const EdgeInsets.only(left: 20, right: 20),
+                height: 1,
                 width: double.infinity,
               ),
               ...thirdGroup(),
