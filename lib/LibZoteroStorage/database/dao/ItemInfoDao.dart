@@ -59,4 +59,11 @@ class ItemInfoDao {
       whereArgs: [itemKey, groupId],
     );
   }
+
+  /// 获取所有已删除的item
+  Future<List<ItemInfo>> getDeletedItemInfos() async{
+    final db = await dbHelper.database;
+    final result = await db.query('ItemInfo', where: 'deleted = ?', whereArgs: [1]);
+    return result.map((json)  => ItemInfo.fromJson(json)).toList();
+  }
 }

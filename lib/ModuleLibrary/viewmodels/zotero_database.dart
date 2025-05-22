@@ -34,6 +34,9 @@ class ZoteroDB {
   // 笔记数据
   final Map<String, List<Item>> notes = {};
 
+  /// 回收站中的数据
+  final List<Item> trashItems  = [];
+
   // 判断是否已经加载了数据
   bool isPopulated() {
     return true;
@@ -221,6 +224,15 @@ class ZoteroDB {
   /// 获取我的出版物
   List<Item> getMyPublicationItems() {
    return myPublications;
+  }
+
+  List<Item> getTrashedItems() {
+    return trashItems;
+  }
+
+  void setTrashedItems(List<Item> items) {
+    trashItems.clear();
+    trashItems.addAll(items);
   }
 
 

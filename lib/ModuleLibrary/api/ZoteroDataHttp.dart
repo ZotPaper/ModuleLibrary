@@ -163,7 +163,7 @@ class ZoteroDataHttp {
       if (key == "creators") {
         final creatorJsonList = convertDynamicToList<Map<String, dynamic>>(
             getJsonValue(data, "creators"));
-        
+
         int order = 0;
         for (var creatorJson in creatorJsonList) {
           creators.add(Creator(
@@ -177,7 +177,7 @@ class ZoteroDataHttp {
       } else if (key == "tags") {
         final tagJsonList = convertDynamicToList<Map<String, dynamic>>(
             getJsonValue(data, "tags"));
-        
+
         for (var tagJson in tagJsonList) {
           itemTags.add(ItemTag(
               id: 0, parent: itemKey, tag: getJsonValue(tagJson, "tag")));
@@ -185,7 +185,7 @@ class ZoteroDataHttp {
       } else if (key == "collections") {
         final collectionList = convertDynamicToList<String>(
             getJsonValue(data, "collections"));
-        
+
         collections.addAll(collectionList);
       } else {
         itemDatas.add(ItemData(
@@ -204,4 +204,39 @@ class ZoteroDataHttp {
 
     return item;
   }
+
+
+  /// 获取zotero所有的条目,
+  /// 注意：是全量数据
+  Future<List<Item>> getTrashedItems(String userId,
+      {Function(int progress, int total)? onProgress,
+        Function(List<Item>)? onFinish,
+        Function(int errorCode, String msg)? onError}) async {
+    // 发送请求下载数据，注意默认返回最多为25条（依赖后端而定），所以需要分页下载
+    final response = await service.getTrashedItemsForUser(userId);
+    if (response == null) {
+      return [];
+    }
+
+    final items = <Item>[];
+    final total = response.totalResults;
+
+    List<int> downloadedCount = [0];
+
+    // 处理第一页数据
+    await _processPage(response.data, items, total, downloadedCount, onProgress, onFinish);
+
+    // 继续下载剩余页面
+    while (downloadedCount[0] < total) {
+      final pagedResponse = await service.getItems(userId, startIndex: downloadedCount[0]);
+      if (pagedResponse == null) {
+        continue;
+      }
+      await _processPage(pagedResponse.data, items, total, downloadedCount, onProgress, onFinish);
+    }
+
+    return items;
+  }
+
+
 }

@@ -74,6 +74,8 @@ class SyncViewModel with ChangeNotifier {
     await _loadAllCollections();
     // 获取所有条目
     await _loadAllItems();
+    // 获取所有已删除的条目
+    await _loadTrashedItems();
   }
 
   void dispose() {
@@ -108,7 +110,7 @@ class SyncViewModel with ChangeNotifier {
       onFinish: (items) {
         debugPrint("加载Item完成，条目数量：${items.length}");
         // todo 跳转到文库页面
-        _navigateToLibrary();
+        // _navigateToLibrary();
       },
       onError: (errorCode, msg) {
         debugPrint("加载错误：$msg");
@@ -123,6 +125,34 @@ class SyncViewModel with ChangeNotifier {
 
   void _navigateToLibrary() {
     _navigationController.add("libraryPage");
+  }
+
+  Future _loadTrashedItems() async {
+    var items = await zoteroHttp.getTrashedItems(_userId,
+      onProgress: (progress, total) {
+        debugPrint("加载回收站中的Item进度：$progress/$total");
+        // 通知下载进度
+        // onProgressCallback?.call(progress, total);
+      },
+      onFinish: (items) {
+        debugPrint("加载回收站中的Item完成，条目数量：${items.length}");
+        // todo 解决下载中断或者其他类型的错误导致无法跳转的问题
+        // 跳转到文库页面
+        _navigateToLibrary();
+      },
+      onError: (errorCode, msg) {
+        debugPrint("加载错误：$msg");
+      },
+    );
+
+    debugPrint("Moyear===== 获取到回收站条目：${items.length}");
+
+    for (var item in items) {
+      // 获取合集下的条目
+      await zoteroDataSql.moveItemToTrash(item);
+      debugPrint("Moyear===== 将条目：${item.itemKey} 放到回收站");
+    }
+
   }
 
 }

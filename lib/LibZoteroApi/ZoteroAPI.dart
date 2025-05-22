@@ -134,14 +134,18 @@ class ZoteroAPI {
         collections: [], items: [], searches: [], tags: [], settings: []);
   }
 
-  Future<dynamic> getTrashedItemsForUser(
-      int ifModifiedSinceVersion, String user, int since, int index) async {
+  Future<ZoteroAPIItemsResponse?> getTrashedItemsForUser(
+      String user, {
+        int ifModifiedSinceVersion = 0,
+        int since = 0,
+        int index = 0,
+      }) async {
     final itemRes = await service.getTrashedItemsForUser(
         ifModifiedSinceVersion, user, since, index);
     if (itemRes.statusCode != 200) {
       throw Exception('请求失败，状态码: ${itemRes.statusCode}');
     } else if (itemRes.statusCode == 200) {
-      return itemRes.data;
+      return itemRes;
     }
     return null;
   }

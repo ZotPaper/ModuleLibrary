@@ -201,7 +201,7 @@ class ZoteroAPIService {
   }
 
   // 获取用户的已删除项目
-  Future<Response<dynamic>> getTrashedItemsForUser(
+  Future<ZoteroAPIItemsResponse> getTrashedItemsForUser(
       int ifModifiedSinceVersion, String user, int since, int index) async {
     try {
       final headers = {
@@ -214,9 +214,15 @@ class ZoteroAPIService {
       final response = await _dio.get('/users/$user/items/trash',
           options: Options(headers: headers),
           queryParameters: queryParameters);
-      return Response(
-        response.data, response.statusCode!,
-      );
+
+      final List<dynamic> data = response.data;
+
+      final isCache = response.statusCode == 304;
+      // final int LastModifiedVersion = response.headers.map['zotero-schema-version'] == null ? 0 : int.parse(response.headers.map['zotero-schema-version']!.first);
+      final int LastModifiedVersion = int.tryParse(response.headers.value("zotero-schema-version") ?? "-1") ?? -1;
+      final totalRes = int.tryParse(response.headers.value("total-results") ?? "-1") ?? -1;
+
+      return ZoteroAPIItemsResponse(data,  response.statusCode!, totalRes, LastModifiedVersion, isCache);
     } catch (e) {
       throw Exception('请求发生错误: $e');
     }

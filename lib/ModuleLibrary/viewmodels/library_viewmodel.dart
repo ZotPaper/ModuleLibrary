@@ -94,15 +94,9 @@ class LibraryViewModel with ChangeNotifier {
         showListEntriesIn("unfiled");
         break;
       case DrawerBtn.publications:
-        // _resetShowItems();
-        // final tempItems = _items.where((item) {
-        //   return item.data.containsKey("inPublications") && item.data["inPublications"] == "true";
-        // }).toList();
-        // _showItems.addAll(tempItems);
         showListEntriesIn("publications");
         break;
       case DrawerBtn.trash:
-        // TODO: Handle this case.
         showListEntriesIn("trashes");
       default:
     }
@@ -125,13 +119,17 @@ class LibraryViewModel with ChangeNotifier {
 
   /// 从本地数据库中获取数据
   Future<void> _loadDataFromLocalDatabase() async {
+    var collections = await zoteroDataSql.getCollections();
+    // 把collections保存到内存中
+    zoteroDB.setCollections(collections);
+
     _items = await zoteroDataSql.getItems();
     // 把items保存到内存中
     zoteroDB.setItems(_items);
 
-    var collections = await zoteroDataSql.getCollections();
-    // 把collections保存到内存中
-    zoteroDB.setCollections(collections);
+    // 加载回收站数据
+    var deletedItems = await zoteroDataSql.getDeletedTrashes();
+    zoteroDB.setTrashedItems(deletedItems);
 
     // 只显示顶级的集合
     _displayedCollections.clear();
@@ -156,6 +154,10 @@ class LibraryViewModel with ChangeNotifier {
         list = await _getUnfiledEntries();
         debugPrint('Moyear=== unfiled res:${list.length}');
         title = "未分类条目";
+        break;
+      case "trashes":
+        list = await _getTrashEntries();
+        title = "回收站";
         break;
       default:
         list = await _getEntriesInCollection(locationKey);
@@ -232,6 +234,15 @@ class LibraryViewModel with ChangeNotifier {
   Future<List<ListEntry>>_getPublicationsEntries() async {
     List<ListEntry> entries = [];
     var res = zoteroDB.getMyPublicationItems().map((ele) {
+      return ListEntry(item: ele);
+    });
+    entries.addAll(res);
+    return entries;
+  }
+
+  Future<List<ListEntry>> _getTrashEntries() async {
+    List<ListEntry> entries = [];
+    var res = zoteroDB.getTrashedItems().map((ele) {
       return ListEntry(item: ele);
     });
     entries.addAll(res);

@@ -18,4 +18,15 @@ class ItemInfo{
       _$ItemInfoFromJson(json);
 
   Map<String, dynamic> toJson() => _$ItemInfoToJson(this);
+
+  // 添加 copyWith 方法
+  ItemInfo copyWith({bool? deleted}) {
+    return ItemInfo(
+      id: id,
+      itemKey: itemKey,
+      groupId: groupId,
+      version: version,
+      deleted: deleted ?? this.deleted,
+    );
+  }
 }
