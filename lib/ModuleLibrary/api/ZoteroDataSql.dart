@@ -94,7 +94,8 @@ class ZoteroDataSql {
       var itemDatas = await itemDataDao.getItemDataForParent(itemInfo.itemKey);
       var creators = await itemCreatorDao.getCreatorsForParent(itemInfo.itemKey);
       var itemTags = await itemTagsDao.getTagsForParent(itemInfo.itemKey);
-      var itemCollections = await itemCollectionDao.getItemsInCollection(itemInfo.itemKey);
+      //  找到这个item属于的collection集合
+      var itemCollections = await itemCollectionDao.getItemCollection(itemInfo.itemKey);
       var collections = itemCollections.map((data){return data.collectionKey;}).toList();
       var attachmentInfos = await attachmentInfoDao.getAttachment(itemInfo.itemKey,-1);
       var item = Item(

@@ -151,7 +151,7 @@ class LibraryViewModel with ChangeNotifier {
       case 'unfiled':
         list = await _getUnfiledEntries();
         debugPrint('Moyear=== unfiled res:${list.length}');
-        title = "未分类";
+        title = "未分类条目";
         break;
       default:
         list = await _getEntriesInCollection(locationKey);
