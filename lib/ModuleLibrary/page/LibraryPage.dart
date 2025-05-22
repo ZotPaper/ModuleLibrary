@@ -51,6 +51,7 @@ class _LibraryPageState extends State<LibraryPage> {
             }, // 如果有需要再实现
           ),
           appBar: pageAppBar(
+            title: "Home",
             leadingIconTap: () {
               _scaffoldKey.currentState?.openDrawer();
             },
