@@ -1,6 +1,8 @@
 import 'package:flutter/material.dart';
+import 'package:module/ModuleItemDetail/page/item_details_page.dart';
 import 'package:module/ModuleLibrary/page/launch_page.dart';
 
+import 'LibZoteroStorage/entity/Item.dart';
 import 'ModuleLibrary/page/LibraryPage.dart';
 import 'ModuleLibrary/share_pref.dart';
 
@@ -20,6 +22,7 @@ class MyApp extends StatelessWidget {
       debugShowCheckedModeBanner: false,
       theme: ThemeData(
         colorScheme: ColorScheme.fromSeed(seedColor: Colors.deepPurple),
+        scaffoldBackgroundColor: Colors.white,
         useMaterial3: true,
         textTheme: const TextTheme(
           bodyMedium: TextStyle(
@@ -32,6 +35,15 @@ class MyApp extends StatelessWidget {
       home: const LaunchPage(),
       routes: {
         'libraryPage': (context) => const LibraryPage(),
+        'itemDetailPage': (context) {
+          final arguments = ModalRoute.of(context)?.settings.arguments;
+          if (arguments is Item) {
+            return ItemDetailsPage(arguments);
+          } else {
+            // 可以抛出错误或跳转到错误页面
+            throw Exception('Invalid argument type for itemDetailPage');
+          }
+        },
       },
     );
   }

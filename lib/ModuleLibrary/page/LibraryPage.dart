@@ -1,6 +1,8 @@
 import 'package:flutter/cupertino.dart';
 import 'package:flutter/material.dart';
 import 'package:flutter/services.dart';
+import 'package:module/LibZoteroStorage/entity/Item.dart';
+import 'package:module/ModuleItemDetail/page/item_details_page.dart';
 import 'package:module/ModuleLibrary/model/list_entry.dart';
 import 'package:module/ModuleLibrary/model/page_type.dart';
 import 'package:module/ModuleLibrary/page/blank_page.dart';
@@ -184,6 +186,8 @@ class _LibraryPageState extends State<LibraryPage> {
 
           if (entry.isCollection()) {
             _viewModel.handleCollectionTap(entry.collection!);
+          } else if (entry.isItem()) {
+            _showItemInfo(context, entry.item!);
           }
 
         },
@@ -214,7 +218,7 @@ class _LibraryPageState extends State<LibraryPage> {
               ),
               if (entry.isItem() && entry.item!.attachments.isNotEmpty) _attachmentIndicator(entry),
               IconButton(onPressed: () {
-                _showEntryOperatePanel(entry);
+                _showEntryOperatePanel(context, entry);
               }, icon: const Icon(Icons.more_vert)),
             ],
           ),
@@ -259,6 +263,7 @@ class _LibraryPageState extends State<LibraryPage> {
     return  InkWell(
       onTap: () {
         // print("pdf tap");
+        _showItemInfo(context, entry.item!);
       },
       child: Container(
         padding: EdgeInsets.all(4),
@@ -396,11 +401,16 @@ class _LibraryPageState extends State<LibraryPage> {
   }
 
   /// 显示条目操作面板
-  void _showEntryOperatePanel(ListEntry entry) {
+  void _showEntryOperatePanel(BuildContext context, ListEntry entry) {
     List<BrnCommonActionSheetItem> itemActions = [];
     itemActions.add(BrnCommonActionSheetItem(
       '在线查看',
       desc: '在线查看条目的最新信息',
+      actionStyle: BrnCommonActionSheetItemStyle.normal,
+    ));
+    itemActions.add(BrnCommonActionSheetItem(
+      '查看条目信息',
+      // desc: '分享条目信息给朋友',
       actionStyle: BrnCommonActionSheetItemStyle.normal,
     ));
     // itemActions.add(BrnCommonActionSheetItem(
@@ -443,6 +453,7 @@ class _LibraryPageState extends State<LibraryPage> {
                   _viewModel.viewItemOnline(entry.item!);
                   break;
                 case 1:
+                  _showItemInfo(context, entry.item!);
                   break;
                 default:
 
@@ -450,6 +461,17 @@ class _LibraryPageState extends State<LibraryPage> {
             },
           );
         });
+  }
+
+  void _showItemInfo(BuildContext context, Item item) {
+    // BrnToast.show("item: ${item.getTitle()}", context);
+    // 跳转到详情页
+    try {
+      Navigator.of(context).pushNamed("itemDetailPage", arguments: item);
+    } catch (e) {
+      debugPrint(e.toString());
+      BrnToast.show("跳转详情页失败", context);
+    }
   }
 
 
