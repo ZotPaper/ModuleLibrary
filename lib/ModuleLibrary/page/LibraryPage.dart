@@ -100,7 +100,9 @@ class _LibraryPageState extends State<LibraryPage> {
                 _scaffoldKey.currentState?.openDrawer();
               },
               filterMenuTap: () {},
-              tagsTap: () {},
+              tagsTap: () {
+
+              },
             ),
             body: _viewModel.isLoading
                 ? const Center(child: CircularProgressIndicator())
@@ -211,7 +213,9 @@ class _LibraryPageState extends State<LibraryPage> {
                 ),
               ),
               if (entry.isItem() && entry.item!.attachments.isNotEmpty) _attachmentIndicator(entry),
-              IconButton(onPressed: () {}, icon: const Icon(Icons.more_vert)),
+              IconButton(onPressed: () {
+                _showEntryOperatePanel(entry);
+              }, icon: const Icon(Icons.more_vert)),
             ],
           ),
         ),
@@ -389,6 +393,63 @@ class _LibraryPageState extends State<LibraryPage> {
 
     // Return the appropriate SVG image
     return SvgPicture.asset(iconPath, height: 14, width: 14,);
+  }
+
+  /// 显示条目操作面板
+  void _showEntryOperatePanel(ListEntry entry) {
+    List<BrnCommonActionSheetItem> itemActions = [];
+    itemActions.add(BrnCommonActionSheetItem(
+      '在线查看',
+      desc: '在线查看条目的最新信息',
+      actionStyle: BrnCommonActionSheetItemStyle.normal,
+    ));
+    // itemActions.add(BrnCommonActionSheetItem(
+    //   '下载所有附件',
+    //   desc: '下载条目下的所有附件到本地',
+    //   actionStyle: BrnCommonActionSheetItemStyle.normal,
+    // ));
+    // itemActions.add(BrnCommonActionSheetItem(
+    //   '删除下载的附件',
+    //   desc: '该操作不可逆，请确保本地的附件修改同步至云端',
+    //   actionStyle: BrnCommonActionSheetItemStyle.alert,
+    // ));
+    // itemActions.add(BrnCommonActionSheetItem(
+    //   '分享条目',
+    //   // desc: '分享条目信息给朋友',
+    //   actionStyle: BrnCommonActionSheetItemStyle.normal,
+    // ));
+
+    var title = "";
+    if (entry.isCollection()) {
+      title = entry.collection!.name;
+    } else if (entry.isItem()) {
+      title = entry.item!.getTitle();
+    }
+
+    // 展示actionSheet
+    showModalBottomSheet(
+        context: context,
+        backgroundColor: Colors.transparent,
+        builder: (BuildContext context) {
+          return BrnCommonActionSheet(
+            title: title,
+            actions: itemActions,
+            cancelTitle: "取消",
+            clickCallBack: (int index, BrnCommonActionSheetItem actionEle) {
+              // String title = actionEle.title;
+              // BrnToast.show("title: $title, index: $index", context);
+              switch (index) {
+                case 0:
+                  _viewModel.viewItemOnline(entry.item!);
+                  break;
+                case 1:
+                  break;
+                default:
+
+              }
+            },
+          );
+        });
   }
 
 

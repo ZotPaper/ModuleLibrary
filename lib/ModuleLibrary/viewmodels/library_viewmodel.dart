@@ -1,6 +1,5 @@
 import 'dart:async';
 import 'dart:collection';
-
 import 'package:flutter/material.dart';
 import 'package:module/ModuleLibrary/model/list_entry.dart';
 import 'package:module/ModuleLibrary/model/page_type.dart';
@@ -14,6 +13,7 @@ import '../api/ZoteroDataSql.dart';
 import '../share_pref.dart';
 import '../page/LibraryUI/drawer.dart';
 import 'package:rxdart/rxdart.dart';
+import 'package:url_launcher/url_launcher.dart';
 
 class LibraryViewModel with ChangeNotifier {
   final ZoteroDataSql zoteroDataSql = ZoteroDataSql();
@@ -301,6 +301,19 @@ class LibraryViewModel with ChangeNotifier {
 
   int _compereCollection(Collection collection1, Collection collection2) {
     return collection1.name.compareTo(collection2.name);
+  }
+
+  /// 在浏览器中查看条目
+  Future<void> viewItemOnline(Item item) async {
+    var url = item.getItemData('url') ?? "";
+    if (url.isEmpty) return;
+
+    debugPrint('Moyear=== viewItemOnline: $url');
+
+    final Uri uri = Uri.parse(url);
+    if (!await launchUrl(uri)) {
+      throw Exception('Could not launch $url');
+    }
   }
 
 }
