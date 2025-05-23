@@ -1,5 +1,6 @@
 import 'package:flutter/cupertino.dart';
 import 'package:flutter/material.dart';
+import 'package:flutter/services.dart';
 import 'package:module/ModuleLibrary/model/list_entry.dart';
 import 'package:module/ModuleLibrary/model/page_type.dart';
 import 'package:module/ModuleLibrary/page/blank_page.dart';
@@ -55,33 +56,58 @@ class _LibraryPageState extends State<LibraryPage> {
 
   @override
   Widget build(BuildContext context) {
-    return ListenableBuilder(
-      listenable: _viewModel,
-      builder: (context, snapshot) {
-        return Scaffold(
-          backgroundColor: ResColor.bgColor,
-          key: _scaffoldKey,
-          drawerEnableOpenDragGesture: false,
-          drawer: CustomDrawer(
-            collections: _viewModel.displayedCollections,
-            onItemTap: _viewModel.handleDrawerItemTap,
-            onCollectionTap: (collection) {
-              _viewModel.handleCollectionTap(collection);
-            }, // 如果有需要再实现
-          ),
-          appBar: pageAppBar(
-            title: _viewModel.title,
-            leadingIconTap: () {
-              _scaffoldKey.currentState?.openDrawer();
-            },
-            filterMenuTap: () {},
-            tagsTap: () {},
-          ),
-          body: _viewModel.isLoading
-              ? const Center(child: CircularProgressIndicator())
-              : _buildPageContent(),
-        );
-      }
+    return PopScope(
+      canPop: false,
+      onPopInvokedWithResult: (bool didPop, result) {
+        if (didPop) {
+          return;
+        }
+        // 如果不允许默认 pop，则在这里自定义处理（可选）
+        // 例如：显示提示框或执行其他操作
+        // _viewModel.backToPreviousPage();
+
+        // 当用户尝试返回时（包括物理返回键和侧滑返回）
+        if (_viewModel.viewStack.isNotEmpty) {
+          // 如果栈不为空，先执行自定义返回逻辑
+          _viewModel.backToPreviousPos();
+        } else {
+          // 栈为空时，允许返回
+          if (Navigator.canPop(context)) {
+            Navigator.pop(context);
+          } else {
+            // 如果栈为空且无法返回，则退出app
+            SystemNavigator.pop();
+          }
+        }
+      },
+      child: ListenableBuilder(
+        listenable: _viewModel,
+        builder: (context, snapshot) {
+          return Scaffold(
+            backgroundColor: ResColor.bgColor,
+            key: _scaffoldKey,
+            drawerEnableOpenDragGesture: false,
+            drawer: CustomDrawer(
+              collections: _viewModel.displayedCollections,
+              onItemTap: _viewModel.handleDrawerItemTap,
+              onCollectionTap: (collection) {
+                _viewModel.handleCollectionTap(collection);
+              }, // 如果有需要再实现
+            ),
+            appBar: pageAppBar(
+              title: _viewModel.title,
+              leadingIconTap: () {
+                _scaffoldKey.currentState?.openDrawer();
+              },
+              filterMenuTap: () {},
+              tagsTap: () {},
+            ),
+            body: _viewModel.isLoading
+                ? const Center(child: CircularProgressIndicator())
+                : _buildPageContent(),
+          );
+        }
+      ),
     );
   }
 
@@ -123,7 +149,7 @@ class _LibraryPageState extends State<LibraryPage> {
 
   Widget searchLine() {
     return BrnSearchText(
-      focusNode: focusNode,
+      // focusNode: focusNode,
       controller: textController,
       // searchController: scontroller..isActionShow = true,
       onTextClear: () {
@@ -153,6 +179,11 @@ class _LibraryPageState extends State<LibraryPage> {
       child: InkWell(
         onTap: () {
           debugPrint("Moyear==== item click");
+
+          if (entry.isCollection()) {
+            _viewModel.handleCollectionTap(entry.collection!);
+          }
+
         },
         child: Container(
           padding: const EdgeInsets.all(10),

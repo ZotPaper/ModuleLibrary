@@ -235,6 +235,16 @@ class ZoteroDB {
     trashItems.addAll(items);
   }
 
+  /// 根据key获取合集
+  Collection? getCollectionByKey(String key) {
+    for (var collection in collections) {
+      if (collection.key == key) {
+        return collection;
+      }
+    }
+    return null;
+  }
+
 
 
 }

@@ -1,4 +1,5 @@
 import 'dart:async';
+import 'dart:collection';
 
 import 'package:flutter/material.dart';
 import 'package:module/ModuleLibrary/model/list_entry.dart';
@@ -42,6 +43,10 @@ class LibraryViewModel with ChangeNotifier {
   bool _isLoading = false;
 
   bool get isLoading => _isLoading;
+
+  /// 栈结构，用于记录浏览历史
+  final DoubleLinkedQueue<String> _viewStack = DoubleLinkedQueue<String>();
+  DoubleLinkedQueue<String> get viewStack => _viewStack;
 
   void setLoading(bool value) {
     _isLoading = value;
@@ -136,7 +141,7 @@ class LibraryViewModel with ChangeNotifier {
   }
 
   /// 显示指定位置的列表entries
-  Future<void> showListEntriesIn(String locationKey) async {
+  Future<void> showListEntriesIn(String locationKey, {bool addToViewStack = true}) async {
     List<ListEntry> list = [];
     switch (locationKey) {
       case 'library':
@@ -165,6 +170,11 @@ class LibraryViewModel with ChangeNotifier {
 
     _notifyShowItems();
     notifyListeners();
+
+    if (addToViewStack) {
+      // 添加到浏览历史栈中
+      _viewStack.addLast(locationKey);
+    }
   }
 
   /// 获取我的文库页面的条目数据
@@ -202,7 +212,7 @@ class LibraryViewModel with ChangeNotifier {
 
 
   /// 处理侧边栏合集的点击事件
-  Future<void> handleCollectionTap(Collection collection) async {
+  Future<void> handleCollectionTap(Collection collection, {bool addToViewStack = true}) async {
     // var itemKey = collection.key;
     // var entries = await _getEntriesInCollection(itemKey);
     title = collection.name;
@@ -225,6 +235,10 @@ class LibraryViewModel with ChangeNotifier {
     _notifyShowItems();
     notifyListeners();
 
+    if (addToViewStack) {
+      // 添加到浏览历史栈中
+      _viewStack.addLast(collection.key);
+    }
   }
 
   /// 获取我的出版物
@@ -246,9 +260,27 @@ class LibraryViewModel with ChangeNotifier {
     return entries;
   }
 
+  /// 返回上一个浏览记录
+  void backToPreviousPos() async {
+    var locationKey = _viewStack.removeLast();
+    if (locationKey.isEmpty) return;
 
-// _resetShowItems();
-// final tempItems = _items.where((item) => item.collections.isEmpty).toList();
-// _showItems.addAll(tempItems);
+    debugPrint('Moyear=== backToPreviousPage: $locationKey');
+
+    switch (locationKey) {
+      case 'library':
+      case 'publications':
+      case 'unfiled':
+      case "trashes":
+        showListEntriesIn(locationKey, addToViewStack: false);
+        break;
+      default:
+    }
+
+    var collection = zoteroDB.getCollectionByKey(locationKey);
+    if (collection != null) {
+      handleCollectionTap(collection, addToViewStack: false);
+    }
+  }
 
 }
