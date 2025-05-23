@@ -1,6 +1,6 @@
 
 import 'package:flutter/cupertino.dart';
-import 'package:module/LibZoteroStorage/entity/ItemTag.dart';
+import 'package:module_library/LibZoteroStorage/entity/ItemTag.dart';
 
 import '../../LibZoteroStorage/entity/Collection.dart';
 import '../../LibZoteroStorage/entity/Item.dart';

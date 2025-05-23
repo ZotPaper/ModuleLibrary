@@ -1,8 +1,8 @@
 import 'package:flutter/cupertino.dart';
 import 'package:flutter/material.dart';
 import 'package:bruno/bruno.dart';
-import 'package:module/LibZoteroStorage/entity/ItemTag.dart';
-import 'package:module/ModuleLibrary/viewmodels/zotero_database.dart';
+import 'package:module_library/LibZoteroStorage/entity/ItemTag.dart';
+import 'package:module_library/ModuleLibrary/viewmodels/zotero_database.dart';
 import '../../LibZoteroStorage/entity/Item.dart';
 
 class TagsManagerPage extends StatefulWidget {

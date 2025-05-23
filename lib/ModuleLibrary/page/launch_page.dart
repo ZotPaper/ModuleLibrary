@@ -1,6 +1,6 @@
 import 'package:flutter/cupertino.dart';
-import 'package:module/ModuleLibrary/page/LibraryPage.dart';
-import 'package:module/ModuleLibrary/page/sync_page/sync_page.dart';
+import 'package:module_library/ModuleLibrary/page/LibraryPage.dart';
+import 'package:module_library/ModuleLibrary/page/sync_page/sync_page.dart';
 
 import '../share_pref.dart';
 

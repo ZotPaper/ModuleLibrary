@@ -1,4 +1,4 @@
-import 'package:module/LibZoteroStorage/database/ZoteroDatabase.dart';
+import 'package:module_library/LibZoteroStorage/database/ZoteroDatabase.dart';
 
 import '../../entity/Collection.dart';
 

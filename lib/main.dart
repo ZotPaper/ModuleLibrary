@@ -1,7 +1,7 @@
 import 'package:flutter/material.dart';
-import 'package:module/ModuleItemDetail/page/item_details_page.dart';
-import 'package:module/ModuleLibrary/page/launch_page.dart';
-import 'package:module/ModuleTagManager/page/item_tagsmanager_page.dart';
+import 'package:module_library/ModuleItemDetail/page/item_details_page.dart';
+import 'package:module_library/ModuleLibrary/page/launch_page.dart';
+import 'package:module_library/ModuleTagManager/page/item_tagsmanager_page.dart';
 
 import 'LibZoteroStorage/entity/Item.dart';
 import 'ModuleLibrary/page/LibraryPage.dart';

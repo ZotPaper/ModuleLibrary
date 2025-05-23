@@ -1,6 +1,6 @@
 import 'package:flutter/cupertino.dart';
 import 'package:flutter/material.dart';
-import 'package:module/ModuleLibrary/page/sync_page/sync_viewmodel.dart';
+import 'package:module_library/ModuleLibrary/page/sync_page/sync_viewmodel.dart';
 
 import '../../res/ResColor.dart';
 import '../launch_page.dart';

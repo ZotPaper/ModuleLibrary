@@ -1,9 +1,9 @@
 import 'dart:async';
 import 'dart:collection';
 import 'package:flutter/material.dart';
-import 'package:module/ModuleLibrary/model/list_entry.dart';
-import 'package:module/ModuleLibrary/model/page_type.dart';
-import 'package:module/ModuleLibrary/viewmodels/zotero_database.dart';
+import 'package:module_library/ModuleLibrary/model/list_entry.dart';
+import 'package:module_library/ModuleLibrary/model/page_type.dart';
+import 'package:module_library/ModuleLibrary/viewmodels/zotero_database.dart';
 import '../../LibZoteroStorage/entity/Collection.dart';
 import '../../LibZoteroStorage/entity/Item.dart';
 import '../../LibZoteroStorage/entity/ItemData.dart';

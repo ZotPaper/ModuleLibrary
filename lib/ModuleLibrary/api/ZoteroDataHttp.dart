@@ -1,10 +1,10 @@
 import 'package:flutter/cupertino.dart';
-import 'package:module/LibZoteroStorage/entity/Collection.dart';
-import 'package:module/LibZoteroStorage/entity/Creator.dart';
-import 'package:module/LibZoteroStorage/entity/Item.dart';
-import 'package:module/LibZoteroStorage/entity/ItemData.dart';
-import 'package:module/LibZoteroStorage/entity/ItemInfo.dart';
-import 'package:module/LibZoteroStorage/entity/ItemTag.dart';
+import 'package:module_library/LibZoteroStorage/entity/Collection.dart';
+import 'package:module_library/LibZoteroStorage/entity/Creator.dart';
+import 'package:module_library/LibZoteroStorage/entity/Item.dart';
+import 'package:module_library/LibZoteroStorage/entity/ItemData.dart';
+import 'package:module_library/LibZoteroStorage/entity/ItemInfo.dart';
+import 'package:module_library/LibZoteroStorage/entity/ItemTag.dart';
 
 import '../../LibZoteroApi/ZoteroAPI.dart';
 

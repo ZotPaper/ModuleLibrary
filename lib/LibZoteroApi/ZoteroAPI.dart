@@ -1,7 +1,7 @@
 import 'package:dio/dio.dart';
-import 'package:module/LibZoteroApi/Model/CollectionPojo.dart';
-import 'package:module/LibZoteroApi/Model/KeyInfo.dart';
-import 'package:module/LibZoteroApi/Model/zotero_items_response.dart';
+import 'package:module_library/LibZoteroApi/Model/CollectionPojo.dart';
+import 'package:module_library/LibZoteroApi/Model/KeyInfo.dart';
+import 'package:module_library/LibZoteroApi/Model/zotero_items_response.dart';
 
 import 'Model/DeletedEntriesPojo.dart';
 import 'Model/GroupPojo.dart';

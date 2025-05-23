@@ -1,14 +1,14 @@
 import 'package:flutter/cupertino.dart';
 import 'package:flutter/material.dart';
 import 'package:flutter/services.dart';
-import 'package:module/LibZoteroStorage/entity/Item.dart';
-import 'package:module/ModuleItemDetail/page/item_details_page.dart';
-import 'package:module/ModuleLibrary/model/list_entry.dart';
-import 'package:module/ModuleLibrary/model/page_type.dart';
-import 'package:module/ModuleLibrary/page/blank_page.dart';
-import 'package:module/ModuleLibrary/page/sync_page/sync_page.dart';
-import 'package:module/ModuleLibrary/res/ResColor.dart';
-import 'package:module/ModuleLibrary/viewmodels/library_viewmodel.dart';
+import 'package:module_library/LibZoteroStorage/entity/Item.dart';
+import 'package:module_library/ModuleItemDetail/page/item_details_page.dart';
+import 'package:module_library/ModuleLibrary/model/list_entry.dart';
+import 'package:module_library/ModuleLibrary/model/page_type.dart';
+import 'package:module_library/ModuleLibrary/page/blank_page.dart';
+import 'package:module_library/ModuleLibrary/page/sync_page/sync_page.dart';
+import 'package:module_library/ModuleLibrary/res/ResColor.dart';
+import 'package:module_library/ModuleLibrary/viewmodels/library_viewmodel.dart';
 
 import 'LibraryUI/appBar.dart';
 import 'LibraryUI/drawer.dart';

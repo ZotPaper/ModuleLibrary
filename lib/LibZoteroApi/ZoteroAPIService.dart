@@ -1,8 +1,8 @@
 
 // 定义一些辅助类型
 import 'package:dio/dio.dart';
-import 'package:module/LibZoteroApi/Model/zotero_items_response.dart';
-import 'package:module/LibZoteroApi/NetworkConstants.dart';
+import 'package:module_library/LibZoteroApi/Model/zotero_items_response.dart';
+import 'package:module_library/LibZoteroApi/NetworkConstants.dart';
 
 import 'Model/CollectionPojo.dart';
 import 'Model/DeletedEntriesPojo.dart';

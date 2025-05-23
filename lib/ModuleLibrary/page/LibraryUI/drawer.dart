@@ -1,6 +1,6 @@
 import 'package:flutter/cupertino.dart';
 import 'package:flutter/material.dart';
-import 'package:module/LibZoteroStorage/entity/Collection.dart';
+import 'package:module_library/LibZoteroStorage/entity/Collection.dart';
 
 import '../../res/ResColor.dart';
 

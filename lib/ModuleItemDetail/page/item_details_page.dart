@@ -1,8 +1,8 @@
 import 'package:flutter/cupertino.dart';
 import 'package:flutter/material.dart';
-import 'package:module/ModuleItemDetail/page/item_detail_attachment_fragment.dart';
-import 'package:module/ModuleItemDetail/page/item_detail_basic_fragment.dart';
-import 'package:module/ModuleItemDetail/page/item_detail_note_fragment.dart';
+import 'package:module_library/ModuleItemDetail/page/item_detail_attachment_fragment.dart';
+import 'package:module_library/ModuleItemDetail/page/item_detail_basic_fragment.dart';
+import 'package:module_library/ModuleItemDetail/page/item_detail_note_fragment.dart';
 import '../../LibZoteroStorage/entity/Item.dart';
 import 'package:bruno/bruno.dart';
 

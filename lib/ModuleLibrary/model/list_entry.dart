@@ -1,5 +1,5 @@
-import 'package:module/LibZoteroStorage/entity/Collection.dart';
-import 'package:module/LibZoteroStorage/entity/Item.dart';
+import 'package:module_library/LibZoteroStorage/entity/Collection.dart';
+import 'package:module_library/LibZoteroStorage/entity/Item.dart';
 
 class ListEntry {
   Collection? collection;
