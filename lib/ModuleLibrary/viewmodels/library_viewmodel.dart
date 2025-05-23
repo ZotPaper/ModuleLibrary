@@ -154,7 +154,7 @@ class LibraryViewModel with ChangeNotifier {
         break;
       case 'unfiled':
         list = await _getUnfiledEntries();
-        debugPrint('Moyear=== unfiled res:${list.length}');
+        // debugPrint('Moyear=== unfiled res:${list.length}');
         title = "未分类条目";
         break;
       case "trashes":
@@ -162,7 +162,7 @@ class LibraryViewModel with ChangeNotifier {
         title = "回收站";
         break;
       default:
-        list = await _getEntriesInCollection(locationKey);
+        // list = await _getEntriesInCollection(locationKey);
     }
 
     _listEntries.clear();
@@ -179,37 +179,26 @@ class LibraryViewModel with ChangeNotifier {
 
   /// 获取我的文库页面的条目数据
   Future<List<ListEntry>> _getMyLibraryEntries() async {
-    List<ListEntry> entries = [];
-    var res = zoteroDB.getDisplayableItems().map((ele) {
-      return ListEntry(item: ele);
-    });
-    entries.addAll(res);
-    return entries;
-  }
+    var res = zoteroDB.getDisplayableItems();
+    // 对数据进行排序
+    sortItems(res);
 
-  /// 获取指定集合下面的entries
-  Future<List<ListEntry>> _getEntriesInCollection(String collectionKey) async {
-    List<ListEntry> entries = [];
-    // 获取指定集合下的item
-    var res = zoteroDB.getItemsFromCollection(collectionKey).map((ele) {
+    return res.map((ele) {
       return ListEntry(item: ele);
-    });
-    entries.addAll(res);
-    debugPrint("getEntriesInCollection: $collectionKey size: ${res.length}");
-    // todo 获取子集合
-    return entries;
+    }).toList();
+
   }
 
   /// 获取未分类的条目
   Future<List<ListEntry>> _getUnfiledEntries() async {
-    List<ListEntry> entries = [];
-    var res = zoteroDB.getUnfiledItems().map((ele) {
-      return ListEntry(item: ele);
-    });
-    entries.addAll(res);
-    return entries;
-  }
+    var res = zoteroDB.getUnfiledItems();
+    // 对数据进行排序
+    sortItems(res);
 
+    return res.map((ele) {
+      return ListEntry(item: ele);
+    }).toList();
+  }
 
   /// 处理侧边栏合集的点击事件
   Future<void> handleCollectionTap(Collection collection, {bool addToViewStack = true}) async {
@@ -218,12 +207,16 @@ class LibraryViewModel with ChangeNotifier {
     title = collection.name;
 
     var res = await zoteroDataSql.getItemsInCollection(collection.key);
+    // 对数据进行排序
+    sortItems(res);
     var entriesItems = res.map((ele) {
       return ListEntry(item: ele);
     });
     // debugPrint('Moyear== handleCollectionTap: $itemKey size: ${entries.length}');
 
     var subCollections = await zoteroDB.getSubCollectionsOf(collection.key);
+    // 对数据进行排序
+    sortCollections(subCollections);
     var entriesCollections = subCollections.map((ele) {
       return ListEntry(collection: ele);
     });
@@ -243,21 +236,21 @@ class LibraryViewModel with ChangeNotifier {
 
   /// 获取我的出版物
   Future<List<ListEntry>>_getPublicationsEntries() async {
-    List<ListEntry> entries = [];
-    var res = zoteroDB.getMyPublicationItems().map((ele) {
+    var res = zoteroDB.getMyPublicationItems();
+    // 对数据进行排序
+    sortItems(res);
+
+    return res.map((ele) {
       return ListEntry(item: ele);
-    });
-    entries.addAll(res);
-    return entries;
+    }).toList();
   }
 
   Future<List<ListEntry>> _getTrashEntries() async {
-    List<ListEntry> entries = [];
-    var res = zoteroDB.getTrashedItems().map((ele) {
+    var res = zoteroDB.getTrashedItems();
+    sortItems(res);
+    return res.map((ele) {
       return ListEntry(item: ele);
-    });
-    entries.addAll(res);
-    return entries;
+    }).toList();
   }
 
   /// 返回上一个浏览记录
@@ -281,6 +274,33 @@ class LibraryViewModel with ChangeNotifier {
     if (collection != null) {
       handleCollectionTap(collection, addToViewStack: false);
     }
+  }
+
+  /// 对items进行排序
+  List<Item> sortItems(List<Item> items) {
+    // 根据item进行排序
+    items.sort((a, b) {
+      return _compereItem(a, b);
+    });
+    return items;
+  }
+
+  /// 比较两个合集
+  List<Collection> sortCollections(List<Collection> collections) {
+    // 根据item进行排序
+    collections.sort((a, b) {
+      return _compereCollection(a, b);
+    });
+    return collections;
+  }
+
+  /// 比较两个item
+  int _compereItem(Item item1, Item item2) {
+    return item1.getTitle().toLowerCase().compareTo(item2.getTitle().toLowerCase());
+  }
+
+  int _compereCollection(Collection collection1, Collection collection2) {
+    return collection1.name.compareTo(collection2.name);
   }
 
 }
