@@ -75,14 +75,14 @@ class _CustomDrawerState extends State<CustomDrawer> {
         },
       ),
       drawerButtonLine(
-        icon: const Icon(Icons.collections),
+        icon: const Icon(Icons.star_border_outlined),
         text: "Favourites",
         onTap: () {
           widget.onItemTap(DrawerBtn.favourites);
         },
       ),
       drawerButtonLine(
-        icon: const Icon(Icons.library_books),
+        icon: const Icon(Icons.local_library_outlined),
         text: "My Library",
         onTap: () {
           widget.onItemTap(DrawerBtn.library);
@@ -93,7 +93,7 @@ class _CustomDrawerState extends State<CustomDrawer> {
 
   List<Widget> secondGroup() {
     return widget.collections.map((item)  =>
-        drawerButtonLine(icon: const Icon(Icons.folder_copy_outlined),
+        drawerButtonLine(icon: const Icon(Icons.folder_outlined),
             text: item.name,
             onTap: (){
               widget.onCollectionTap(item);
