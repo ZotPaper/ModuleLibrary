@@ -2,6 +2,7 @@ import 'package:flutter/cupertino.dart';
 import 'package:flutter/material.dart';
 import 'package:module/ModuleItemDetail/page/item_detail_attachment_fragment.dart';
 import 'package:module/ModuleItemDetail/page/item_detail_basic_fragment.dart';
+import 'package:module/ModuleItemDetail/page/item_detail_note_fragment.dart';
 import '../../LibZoteroStorage/entity/Item.dart';
 import 'package:bruno/bruno.dart';
 
@@ -82,7 +83,7 @@ class _ItemDetailsPageState extends State<ItemDetailsPage> with SingleTickerProv
               children: <Widget>[
                 ItemDetailBasicFragment(widget.item),
                 ItemDetailTagFragment(widget.item),
-                Center(child: Text('笔记')),
+                ItemDetailNoteFragment(widget.item),
                 ItemDetailAttachmentFragment(widget.item),
               ],
             ),
