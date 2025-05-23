@@ -34,11 +34,11 @@ PreferredSizeWidget pageAppBar(
           // 处理选项点击事件
           switch (result) {
             case 'Filter Menu':
-              print('Filter Menu');
+              // print('Filter Menu');
               filterMenuTap();
               break;
             case 'Tags':
-              print('Tags');
+              // print('Tags');
               tagsTap();
               break;
           }
@@ -46,11 +46,11 @@ PreferredSizeWidget pageAppBar(
         itemBuilder: (BuildContext context) => <PopupMenuEntry<String>>[
           const PopupMenuItem<String>(
             value: 'Filter Menu',
-            child: Text('Filter Menu'),
+            child: Text('筛选'),
           ),
           const PopupMenuItem<String>(
             value: 'Tags',
-            child: Text('Tags'),
+            child: Text('标签'),
           ),
         ],
       ),

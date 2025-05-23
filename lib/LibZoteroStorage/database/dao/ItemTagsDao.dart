@@ -6,6 +6,16 @@ class ItemTagsDao {
 
   ItemTagsDao(this.dbHelper);
 
+  Future<List<ItemTag>> getAllTags() async {
+    final db = await dbHelper.database;
+    final maps = await db.query(
+      'ItemTags',
+      // where: 'parent = ?',
+      // whereArgs: [parent],
+    );
+    return maps.map((map)  => ItemTag.fromJson(map)).toList();
+  }
+
   Future<int> insertItemTag(ItemTag tag) async {
     final db = await dbHelper.database;
     final map =  tag.toJson();

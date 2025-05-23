@@ -103,7 +103,7 @@ class _LibraryPageState extends State<LibraryPage> {
               },
               filterMenuTap: () {},
               tagsTap: () {
-
+                _navigationTagManager();
               },
             ),
             body: _viewModel.isLoading
@@ -472,6 +472,10 @@ class _LibraryPageState extends State<LibraryPage> {
       debugPrint(e.toString());
       BrnToast.show("跳转详情页失败", context);
     }
+  }
+
+  void _navigationTagManager() {
+    Navigator.of(context).pushNamed("tagsManagerPage");
   }
 
 

@@ -5,6 +5,7 @@ import 'package:module/LibZoteroStorage/database/dao/GroupInfoDao.dart';
 import 'package:module/LibZoteroStorage/entity/Collection.dart';
 import 'package:module/LibZoteroStorage/entity/ItemCollection.dart';
 import 'package:module/LibZoteroStorage/entity/ItemInfo.dart';
+import 'package:module/LibZoteroStorage/entity/ItemTag.dart';
 import 'package:sqflite/sqflite.dart';
 import '../../LibZoteroStorage/database/dao/AttachmentInfoDao.dart';
 import '../../LibZoteroStorage/database/dao/ItemCollectionDao.dart';
@@ -157,6 +158,11 @@ class ZoteroDataSql {
   /// Gets a complete item with all its related data
   Future<Item?> getItem(String itemKey) async {
 
+  }
+
+  Future<List<ItemTag>> getAllTags() async {
+    final tags = await itemTagsDao.getAllTags();
+    return tags;
   }
 
   /// Gets all items in a specific collection

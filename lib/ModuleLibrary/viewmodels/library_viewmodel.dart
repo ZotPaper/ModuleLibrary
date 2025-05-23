@@ -133,6 +133,10 @@ class LibraryViewModel with ChangeNotifier {
     var deletedItems = await zoteroDataSql.getDeletedTrashes();
     zoteroDB.setTrashedItems(deletedItems);
 
+    // 加载所有的标签数据
+    var allTags = await zoteroDataSql.getAllTags();
+    zoteroDB.setItemTags(allTags);
+
     // 只显示顶级的集合
     _displayedCollections.clear();
     _displayedCollections.addAll(collections.where((it) {

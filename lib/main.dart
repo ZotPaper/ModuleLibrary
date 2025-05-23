@@ -1,6 +1,7 @@
 import 'package:flutter/material.dart';
 import 'package:module/ModuleItemDetail/page/item_details_page.dart';
 import 'package:module/ModuleLibrary/page/launch_page.dart';
+import 'package:module/ModuleTagManager/page/item_tagsmanager_page.dart';
 
 import 'LibZoteroStorage/entity/Item.dart';
 import 'ModuleLibrary/page/LibraryPage.dart';
@@ -35,6 +36,7 @@ class MyApp extends StatelessWidget {
       home: const LaunchPage(),
       routes: {
         'libraryPage': (context) => const LibraryPage(),
+        'tagsManagerPage': (context) => const TagsManagerPage(),
         'itemDetailPage': (context) {
           final arguments = ModalRoute.of(context)?.settings.arguments;
           if (arguments is Item) {

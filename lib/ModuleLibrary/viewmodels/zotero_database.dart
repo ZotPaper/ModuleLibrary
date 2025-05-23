@@ -1,5 +1,6 @@
 
 import 'package:flutter/cupertino.dart';
+import 'package:module/LibZoteroStorage/entity/ItemTag.dart';
 
 import '../../LibZoteroStorage/entity/Collection.dart';
 import '../../LibZoteroStorage/entity/Item.dart';
@@ -37,6 +38,9 @@ class ZoteroDB {
   /// 回收站中的数据
   final List<Item> trashItems  = [];
 
+  final List<ItemTag> _itemTags = [];
+  List<ItemTag> get itemTags => _itemTags;
+
   // 判断是否已经加载了数据
   bool isPopulated() {
     return true;
@@ -64,6 +68,11 @@ class ZoteroDB {
     /// 建立集合项映射
     _createCollectionItemMap();
 
+  }
+
+  void setItemTags(List<ItemTag> itemTags) {
+    _itemTags.clear();
+    _itemTags.addAll(itemTags);
   }
 
   /// 将条目数据与附件和笔记关联起来
