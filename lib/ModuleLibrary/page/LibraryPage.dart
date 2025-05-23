@@ -10,6 +10,7 @@ import 'package:module/ModuleLibrary/viewmodels/library_viewmodel.dart';
 import 'LibraryUI/appBar.dart';
 import 'LibraryUI/drawer.dart';
 import 'package:flutter_svg/flutter_svg.dart';
+import 'package:bruno/bruno.dart';
 
 class LibraryPage extends StatefulWidget {
   const LibraryPage({super.key});
@@ -22,12 +23,34 @@ class _LibraryPageState extends State<LibraryPage> {
   final LibraryViewModel _viewModel = LibraryViewModel();
   final GlobalKey<ScaffoldState> _scaffoldKey = GlobalKey<ScaffoldState>();
 
-  final TextEditingController _searchController = TextEditingController();
+  // final TextEditingController _searchController = TextEditingController();
+
+  BrnSearchTextController searchController = BrnSearchTextController();
+  TextEditingController textController = TextEditingController();
+
+  final focusNode = FocusNode();
 
   @override
   void initState() {
     super.initState();
     _viewModel.init();
+    ///initState 中添加监听，记得销毁
+    textController.addListener((){
+      if(focusNode.hasFocus){
+        if(textController.text.isNotEmpty) {
+          searchController.isClearShow = true;
+          searchController.isActionShow = true;
+        }
+      }
+    });
+
+    focusNode.addListener((){
+      if(focusNode.hasFocus){
+        if(textController.text.isNotEmpty) {
+          searchController.isClearShow = true;
+        }
+      }
+    });
   }
 
   @override
@@ -99,26 +122,26 @@ class _LibraryPageState extends State<LibraryPage> {
   }
 
   Widget searchLine() {
-    return Container(
-      color: ResColor.bgColor,
-      height: 48,
-      width: double.infinity,
-      child: Row(
-        children: [
-          Container(width: 20),
-          const Icon(Icons.search),
-          Expanded(
-            child: TextField(
-              controller: _searchController,
-              decoration: const InputDecoration(
-                hintText: 'Search as you type',
-                border: InputBorder.none,
-              ),
-            ),
-          ),
-          Container(width: 20),
-        ],
-      ),
+    return BrnSearchText(
+      focusNode: focusNode,
+      controller: textController,
+      // searchController: scontroller..isActionShow = true,
+      onTextClear: () {
+        return false;
+      },
+      autoFocus: true,
+      onActionTap: () {
+        // scontroller.isClearShow = false;
+        // scontroller.isActionShow = false;
+        focusNode.unfocus();
+        // BrnToast.show('取消', context);
+      },
+      onTextCommit: (text) {
+        // BrnToast.show('提交内容 : $text', context);
+      },
+      onTextChange: (text) {
+        // BrnToast.show('输入内容 : $text', context);
+      },
     );
   }
 

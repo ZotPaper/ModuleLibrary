@@ -29,8 +29,8 @@ class LibraryViewModel with ChangeNotifier {
   final List<ListEntry> _listEntries = [];
   List<ListEntry> get listEntries => _listEntries;
 
-  // final List<Item> _showItems = [];
-  // List<Item> get showItems => _showItems;
+  /// 用于过滤的关键字
+  String filterText = "";
 
   final ZoteroDB zoteroDB = ZoteroDB();
 
@@ -38,9 +38,6 @@ class LibraryViewModel with ChangeNotifier {
 
   final BehaviorSubject<PageType> _curPageController = BehaviorSubject<PageType>.seeded(PageType.blank);
   Stream<PageType> get curPageStream => _curPageController.stream;
-
-  // final StreamController<List<Item>> _showItemsController = StreamController<List<Item>>.broadcast();
-  // Stream<List<Item>> get showItemsStream => _showItemsController.stream;
 
   bool _isLoading = false;
 
