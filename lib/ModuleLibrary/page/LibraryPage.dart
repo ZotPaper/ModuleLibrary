@@ -149,13 +149,13 @@ class _LibraryPageState extends State<LibraryPage> {
 
   Widget searchLine() {
     return BrnSearchText(
-      // focusNode: focusNode,
+      focusNode: focusNode,
       controller: textController,
       // searchController: scontroller..isActionShow = true,
       onTextClear: () {
         return false;
       },
-      autoFocus: true,
+      autoFocus: false,
       onActionTap: () {
         // scontroller.isClearShow = false;
         // scontroller.isActionShow = false;
