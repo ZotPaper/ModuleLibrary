@@ -125,7 +125,7 @@ class _ItemDetailBasicFragmentState extends State<ItemDetailBasicFragment> with 
         infoRow('访问日期', widget.item.getItemData('accessDate') ?? ""),
         infoRow('DOI', widget.item.getItemData('DOI') ?? ""),
         infoRow('key', widget.item.itemKey),
-        infoRow('贡献目录', 'DOI.org (Crossref)'),
+        // infoRow('馆藏目录', 'DOI.org (Crossref)'),
         infoRow('修改日期', widget.item.getItemData('dateModified') ?? ""),
         infoRow(
           'url',

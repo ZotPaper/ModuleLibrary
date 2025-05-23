@@ -4,6 +4,8 @@ import 'package:module/ModuleItemDetail/page/item_detail_basic_fragment.dart';
 import '../../LibZoteroStorage/entity/Item.dart';
 import 'package:bruno/bruno.dart';
 
+import 'item_detail_tag_fragment.dart';
+
 class ItemDetailsPage extends StatefulWidget {
 
   final Item item;
@@ -78,7 +80,7 @@ class _ItemDetailsPageState extends State<ItemDetailsPage> with SingleTickerProv
               controller: tabController,
               children: <Widget>[
                 ItemDetailBasicFragment(widget.item),
-                Center(child: Text('标签')),
+                ItemDetailTagFragment(widget.item),
                 Center(child: Text('笔记')),
                 Center(child: Text('附件')),
               ],
