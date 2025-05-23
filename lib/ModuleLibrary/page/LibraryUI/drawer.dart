@@ -194,6 +194,7 @@ class _CustomDrawerState extends State<CustomDrawer> {
                 borderRadius: BorderRadius.circular(20),
                 child: Image.asset(
                   "assets/ic_round.png",
+                  package: 'module_library',
                   width: 40,
                   height: 40,
                 ),

@@ -65,6 +65,7 @@ class _ItemDetailBasicFragmentState extends State<ItemDetailBasicFragment> with 
           children: [
             Image.asset(
               'assets/journal_cover.jpg',
+              package: 'module_library',
               width: 80,
               height: 120,
               fit: BoxFit.cover,

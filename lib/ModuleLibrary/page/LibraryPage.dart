@@ -232,6 +232,7 @@ class _LibraryPageState extends State<LibraryPage> {
     if (entry.isCollection()) {
       return SvgPicture.asset(
         'assets/items/opened_folder.svg',
+        package: 'module_library',
         width: 18,
         height: 18,
         // color: Colors.blue, // 可选颜色
@@ -271,6 +272,7 @@ class _LibraryPageState extends State<LibraryPage> {
           borderRadius: BorderRadius.circular(20),
           child: Image.asset(
             "assets/pdf.png",
+            package: 'module_library',
             width: 20,
             height: 20,
             fit: BoxFit.fitWidth,
@@ -397,7 +399,7 @@ class _LibraryPageState extends State<LibraryPage> {
     }
 
     // Return the appropriate SVG image
-    return SvgPicture.asset(iconPath, height: 14, width: 14,);
+    return SvgPicture.asset(iconPath, height: 14, width: 14, package: 'module_library',);
   }
 
   /// 显示条目操作面板
