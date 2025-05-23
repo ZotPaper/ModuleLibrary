@@ -178,36 +178,33 @@ class _CustomDrawerState extends State<CustomDrawer> {
     required String text,
     required Function onTap,
   }) {
-    return Container(
-      padding: const EdgeInsets.all(10),
-      width: double.infinity,
-      child: Material(
-        child: Ink(
-          child: InkWell(
-            onTap: () {
-              onTap();
-            },
-            child: Container(
-              color: ResColor.bgColor,
-              child: Row(
-                children: [
-                  ClipRRect(
-                    borderRadius: BorderRadius.circular(20),
-                    child: Image.asset(
-                      "assets/ic_round.png",
-                      width: 40,
-                      height: 40,
-                    ),
-                  ),
-                  const SizedBox(width: 10),
-                  Expanded(child: Text(text)),
-                  IconButton(
-                    onPressed: () {},
-                    icon: const Icon(Icons.settings_outlined),
-                  ),
-                ],
+    return Card(
+      elevation: 0,
+      color: ResColor.bgColor,
+      child: InkWell(
+        onTap: () {
+          debugPrint("点击了标题栏");
+        },
+        child: Container(
+          padding: const EdgeInsets.all(10),
+          width: double.infinity,
+          child:Row(
+            children: [
+              ClipRRect(
+                borderRadius: BorderRadius.circular(20),
+                child: Image.asset(
+                  "assets/ic_round.png",
+                  width: 40,
+                  height: 40,
+                ),
               ),
-            ),
+              const SizedBox(width: 10),
+              Expanded(child: Text(text)),
+              IconButton(
+                onPressed: () {},
+                icon: const Icon(Icons.settings_outlined),
+              ),
+            ],
           ),
         ),
       ),
