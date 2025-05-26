@@ -269,13 +269,12 @@ class _LibraryPageState extends State<LibraryPage> {
       child: Container(
         padding: EdgeInsets.all(4),
         child: ClipRRect(
-          borderRadius: BorderRadius.circular(20),
-          child: Image.asset(
-            "assets/pdf.png",
-            package: 'module_library',
-            width: 20,
+          // borderRadius: BorderRadius.circular(20),
+          child: SvgPicture.asset(
+            "assets/attachment_indicator_pdf.svg",
             height: 20,
-            fit: BoxFit.fitWidth,
+            width: 20,
+            package: 'module_library',
           ),
         ),
       ),
