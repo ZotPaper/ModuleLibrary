@@ -451,7 +451,7 @@ class _LibraryPageState extends State<LibraryPage> {
               // BrnToast.show("title: $title, index: $index", context);
               switch (index) {
                 case 0:
-                  _viewModel.viewItemOnline(entry.item!);
+                  _viewModel.viewItemOnline(context, entry.item!);
                   break;
                 case 1:
                   _showItemInfo(context, entry.item!);

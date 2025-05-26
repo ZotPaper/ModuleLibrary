@@ -1,5 +1,6 @@
 import 'dart:async';
 import 'dart:collection';
+import 'package:bruno/bruno.dart';
 import 'package:flutter/material.dart';
 import 'package:module_library/ModuleLibrary/model/list_entry.dart';
 import 'package:module_library/ModuleLibrary/model/page_type.dart';
@@ -308,9 +309,16 @@ class LibraryViewModel with ChangeNotifier {
   }
 
   /// 在浏览器中查看条目
-  Future<void> viewItemOnline(Item item) async {
+  Future<void> viewItemOnline(BuildContext context, Item item) async {
     var url = item.getItemData('url') ?? "";
-    if (url.isEmpty) return;
+    if (url.isEmpty) {
+      BrnToast.show(
+        "找不到该条目的在线链接",
+        context,
+        duration: BrnDuration.short,
+      );
+      return;
+    };
 
     debugPrint('Moyear=== viewItemOnline: $url');
 
