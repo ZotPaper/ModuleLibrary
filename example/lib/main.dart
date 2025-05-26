@@ -1,11 +1,10 @@
 import 'package:flutter/material.dart';
+import 'package:module_library/LibZoteroStorage/entity/Item.dart';
 import 'package:module_library/ModuleItemDetail/page/item_details_page.dart';
+import 'package:module_library/ModuleLibrary/page/LibraryPage.dart';
 import 'package:module_library/ModuleLibrary/page/launch_page.dart';
 import 'package:module_library/ModuleTagManager/page/item_tagsmanager_page.dart';
 
-import 'LibZoteroStorage/entity/Item.dart';
-import 'ModuleLibrary/page/LibraryPage.dart';
-import 'ModuleLibrary/share_pref.dart';
 
 void main() {
 
@@ -28,6 +27,7 @@ class MyApp extends StatelessWidget {
         textTheme: const TextTheme(
           bodyMedium: TextStyle(
             // fontSize: 16,
+            fontFamily: 'Bebas-Regular',
             fontWeight: FontWeight.normal,
             // color: Colors.black,
           ),
