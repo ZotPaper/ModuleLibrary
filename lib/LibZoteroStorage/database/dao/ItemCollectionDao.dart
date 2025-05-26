@@ -1,3 +1,5 @@
+import 'package:sqflite/sqflite.dart';
+
 import '../../entity/ItemCollection.dart';
 import '../ZoteroDatabase.dart';
 
@@ -10,7 +12,7 @@ class ItemCollectionDao {
     final db = await dbHelper.database;
     final map = itemCollection.toJson();
     map.remove('id');
-    return await db.insert('ItemCollection',  map);
+    return await db.insert('ItemCollection',  map, conflictAlgorithm: ConflictAlgorithm.replace);
   }
   Future<List<ItemCollection>> getItemCollection(String itemKey) async {
     final db = await dbHelper.database;

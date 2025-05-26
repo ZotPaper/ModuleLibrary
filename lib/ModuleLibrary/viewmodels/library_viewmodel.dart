@@ -7,8 +7,7 @@ import 'package:module_library/ModuleLibrary/model/page_type.dart';
 import 'package:module_library/ModuleLibrary/viewmodels/zotero_database.dart';
 import '../../LibZoteroStorage/entity/Collection.dart';
 import '../../LibZoteroStorage/entity/Item.dart';
-import '../../LibZoteroStorage/entity/ItemData.dart';
-import '../../LibZoteroStorage/entity/ItemInfo.dart';
+import '../../ModuleSync/zotero_sync_manager.dart';
 import '../api/ZoteroDataHttp.dart';
 import '../api/ZoteroDataSql.dart';
 import '../share_pref.dart';
@@ -18,6 +17,9 @@ import 'package:url_launcher/url_launcher.dart';
 
 class LibraryViewModel with ChangeNotifier {
   final ZoteroDataSql zoteroDataSql = ZoteroDataSql();
+
+  final String _userId = "16074844";
+  final String _apiKey = "znrrHVJZMhSd8I9TWUxZjAFC";
 
   PageType curPage = PageType.library;
 
@@ -34,6 +36,9 @@ class LibraryViewModel with ChangeNotifier {
   /// 用于过滤的关键字
   String filterText = "";
 
+  // 当前位置的key
+  String currentLocationKey = "";
+
   final ZoteroDB zoteroDB = ZoteroDB();
 
   LibraryViewModel() : super() {}
@@ -49,6 +54,8 @@ class LibraryViewModel with ChangeNotifier {
   final DoubleLinkedQueue<String> _viewStack = DoubleLinkedQueue<String>();
   DoubleLinkedQueue<String> get viewStack => _viewStack;
 
+  ZoteroSyncManager zoteroSyncManager = ZoteroSyncManager.instance;
+
   void setLoading(bool value) {
     _isLoading = value;
     notifyListeners();
@@ -59,11 +66,16 @@ class LibraryViewModel with ChangeNotifier {
     await SharedPref.init();
     bool isFirstStart = SharedPref.getBool(PrefString.isFirst, true);
 
+
     if (isFirstStart) {
       debugPrint("=============isFirstStart");
       // 切换到同步页面
       navigateToPage(PageType.sync);
     } else {
+      if (!zoteroSyncManager.isConfigured()) {
+        zoteroSyncManager.init(_userId, _apiKey);
+      }
+
       // 从数据库加载数据
       await _loadDataFromLocalDatabase();
       // 切换到列表页面
@@ -176,6 +188,9 @@ class LibraryViewModel with ChangeNotifier {
     _notifyShowItems();
     notifyListeners();
 
+    // 记录当前位置的key
+    currentLocationKey = locationKey;
+
     if (addToViewStack) {
       // 添加到浏览历史栈中
       _viewStack.addLast(locationKey);
@@ -232,6 +247,9 @@ class LibraryViewModel with ChangeNotifier {
 
     _notifyShowItems();
     notifyListeners();
+
+    // 记录当前位置的key
+    currentLocationKey = collection.key;
 
     if (addToViewStack) {
       // 添加到浏览历史栈中
@@ -325,6 +343,48 @@ class LibraryViewModel with ChangeNotifier {
     final Uri uri = Uri.parse(url);
     if (!await launchUrl(uri)) {
       throw Exception('Could not launch $url');
+    }
+  }
+
+  // 开始与服务器同步
+  void startSync({Function? onSyncCompleteCallback}) {
+    zoteroSyncManager.startCompleteSync(
+      onProgressCallback: (progress, total) {
+        debugPrint("局部加载Item进度：$progress/$total");
+        // todo 通知下载进度
+        // _onProgressCallback?.call(progress, total);
+      },
+      onFinishCallback: (items) async {
+        debugPrint("加载Item完成，条目数量：${items.length}");
+
+        await _loadDataFromLocalDatabase();
+
+        // 通知刷新当前页面
+        refreshInCurrent();
+        // 更新本地的文库版本
+
+        onSyncCompleteCallback?.call();
+      },
+    );
+  }
+
+  /// 刷新当前页面
+  void refreshInCurrent() {
+    if (currentLocationKey.isEmpty) return;
+
+    switch (currentLocationKey) {
+      case 'library':
+      case 'publications':
+      case 'unfiled':
+      case "trashes":
+        showListEntriesIn(currentLocationKey, addToViewStack: false);
+        break;
+      default:
+    }
+
+    var collection = zoteroDB.getCollectionByKey(currentLocationKey);
+    if (collection != null) {
+      handleCollectionTap(collection, addToViewStack: false);
     }
   }
 

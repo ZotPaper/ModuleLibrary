@@ -45,12 +45,16 @@ class ZoteroAPIService {
 
       final isCache = response.statusCode == 304;
       // final int LastModifiedVersion = response.headers.map['zotero-schema-version'] == null ? 0 : int.parse(response.headers.map['zotero-schema-version']!.first);
-      final int LastModifiedVersion = int.tryParse(response.headers.value("zotero-schema-version") ?? "-1") ?? -1;
+      final int LastModifiedVersion = int.tryParse(response.headers.value("Last-Modified-Version") ?? "-1") ?? -1;
       final totalRes = int.tryParse(response.headers.value("total-results") ?? "-1") ?? -1;
 
       return ZoteroAPIItemsResponse(data,  response.statusCode!, totalRes, LastModifiedVersion, isCache);
       // return Response(data,  response.statusCode!);
-    } catch (e) {
+    } on DioException catch (e) {
+      if (e.response?.statusCode == 304) {
+        // Use cached data
+        return ZoteroAPIItemsResponse([], 304, 0, ifModifiedSinceVersion, true);
+      }
       throw Exception('请求发生错误: $e');
     }
   }
@@ -219,11 +223,15 @@ class ZoteroAPIService {
 
       final isCache = response.statusCode == 304;
       // final int LastModifiedVersion = response.headers.map['zotero-schema-version'] == null ? 0 : int.parse(response.headers.map['zotero-schema-version']!.first);
-      final int LastModifiedVersion = int.tryParse(response.headers.value("zotero-schema-version") ?? "-1") ?? -1;
+      final int LastModifiedVersion = int.tryParse(response.headers.value("Last-Modified-Version") ?? "-1") ?? -1;
       final totalRes = int.tryParse(response.headers.value("total-results") ?? "-1") ?? -1;
 
       return ZoteroAPIItemsResponse(data,  response.statusCode!, totalRes, LastModifiedVersion, isCache);
-    } catch (e) {
+    } on DioException catch (e) {
+      if (e.response?.statusCode == 304) {
+        // Use cached data
+        return ZoteroAPIItemsResponse([], 304, 0, ifModifiedSinceVersion, true);
+      }
       throw Exception('请求发生错误: $e');
     }
   }
@@ -267,7 +275,11 @@ class ZoteroAPIService {
       return Response(
         response.data, response.statusCode!,
       );
-    } catch (e) {
+    } on DioException catch (e) {
+      if (e.response?.statusCode == 304) {
+        // Use cached data
+        return Response([], 304,);
+      }
       throw Exception('请求发生错误: $e');
     }
   }

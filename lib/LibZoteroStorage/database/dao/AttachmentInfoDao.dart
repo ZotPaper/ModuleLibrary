@@ -1,3 +1,5 @@
+import 'package:sqflite/sqflite.dart';
+
 import '../../entity/AttachmentInfo.dart';
 import '../ZoteroDatabase.dart';
 
@@ -10,7 +12,7 @@ class AttachmentInfoDao {
     final db = await dbHelper.database;
     final map = attachment.toJson();
     map.remove('id');
-    return await db.insert('AttachmentInfo',  map);
+    return await db.insert('AttachmentInfo',  map, conflictAlgorithm: ConflictAlgorithm.replace);
   }
 
   Future<AttachmentInfo?> getAttachment(String itemKey, int groupId) async {

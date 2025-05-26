@@ -1,3 +1,5 @@
+import 'package:sqflite/sqflite.dart';
+
 import '../../entity/GroupInfo.dart';
 import '../ZoteroDatabase.dart';
 
@@ -10,7 +12,7 @@ class GroupInfoDao {
     final db = await dbHelper.database;
     final map = group.toJson();
     map.remove('id');
-    return await db.insert('GroupInfo',  map);
+    return await db.insert('GroupInfo',  map, conflictAlgorithm: ConflictAlgorithm.replace);
   }
 
   Future<GroupInfo?> getGroup(int id) async {

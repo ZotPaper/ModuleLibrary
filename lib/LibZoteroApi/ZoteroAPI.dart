@@ -1,4 +1,5 @@
 import 'package:dio/dio.dart';
+import 'package:flutter/cupertino.dart';
 import 'package:module_library/LibZoteroApi/Model/CollectionPojo.dart';
 import 'package:module_library/LibZoteroApi/Model/KeyInfo.dart';
 import 'package:module_library/LibZoteroApi/Model/zotero_items_response.dart';
@@ -19,10 +20,17 @@ class ZoteroAPI {
 
   /// 获取用户所有条目信息
   /// 注意：此接口返回的接口默认是分页的
-  Future<ZoteroAPIItemsResponse?> getItems(String userId, {int startIndex = 0}) async {
-    final itemRes = await service.getItems(0, userId, startIndex);
+  Future<ZoteroAPIItemsResponse?> getItems(String userId, {int ifModifiedSinceVersion = -1, int startIndex = 0}) async {
+    debugPrint('Moyear==== 获取用户所有条目信息 userId: $userId, ifModifiedSinceVersion: $ifModifiedSinceVersion, startIndex: $startIndex');
+
+    final itemRes = await service.getItems(ifModifiedSinceVersion, userId, startIndex);
     if (itemRes.statusCode != 200) {
-      throw Exception('请求失败，状态码: ${itemRes.statusCode}');
+      if (itemRes.statusCode == 304) {
+        debugPrint('Moyear==== 304 条目数据已经是最新了.');
+        return itemRes;
+      } else {
+        throw Exception('请求失败，状态码: ${itemRes.statusCode}');
+      }
     } else if (itemRes.statusCode == 200) {
       return itemRes;
     }
@@ -143,7 +151,12 @@ class ZoteroAPI {
     final itemRes = await service.getTrashedItemsForUser(
         ifModifiedSinceVersion, user, since, index);
     if (itemRes.statusCode != 200) {
-      throw Exception('请求失败，状态码: ${itemRes.statusCode}');
+      if (itemRes.statusCode == 304) {
+        debugPrint('Moyear==== 304 回收站数据已经是最新了.');
+        return itemRes;
+      } else {
+        throw Exception('请求失败，状态码: ${itemRes.statusCode}');
+      }
     } else if (itemRes.statusCode == 200) {
       return itemRes;
     }
@@ -164,10 +177,18 @@ class ZoteroAPI {
 
   Future<List<CollectionPOJO>> getCollections(
       int ifModifiedSinceVersion, String user, int index) async {
+
     final itemRes =
         await service.getCollections(ifModifiedSinceVersion, user, index);
     if (itemRes.statusCode != 200) {
-      throw Exception('请求失败，状态码: ${itemRes.statusCode}');
+      if (itemRes.statusCode == 304) {
+        debugPrint('Moyear==== 304 集合列表已经是最新了.');
+        return [];
+      } else {
+        throw Exception('请求失败，状态码: ${itemRes.statusCode}');
+      }
+
+      // todo 解决304问题
     } else if (itemRes.statusCode == 200) {
       final List<dynamic> data = itemRes.data;
       final List<CollectionPOJO> collections = [];

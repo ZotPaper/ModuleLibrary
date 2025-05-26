@@ -1,6 +1,7 @@
 
 import 'package:flutter/cupertino.dart';
 import 'package:module_library/LibZoteroStorage/entity/ItemTag.dart';
+import 'package:shared_preferences/shared_preferences.dart';
 
 import '../../LibZoteroStorage/entity/Collection.dart';
 import '../../LibZoteroStorage/entity/Item.dart';
@@ -255,5 +256,56 @@ class ZoteroDB {
   }
 
 
+  Future<void> setItemsVersion(int libraryVersion) async {
+    final prefs = await SharedPreferences.getInstance();
+    await prefs.setInt('ItemsLibraryVersion', libraryVersion);
+    debugPrint('setting library version $libraryVersion');
+  }
+
+  Future<void> clearItemsVersion() async {
+    try {
+      final prefs = await SharedPreferences.getInstance();
+      await prefs.remove('ItemsLibraryVersion');
+    } catch (e) {
+      debugPrint('error clearing items version from local db.');
+    }
+  }
+
+  Future<void> setZoteroSettingVersion(int settingVersion) async {
+    final prefs = await SharedPreferences.getInstance();
+    await prefs.setInt('ZoteroSettingVersion', settingVersion);
+    debugPrint('setting zotero setting version $settingVersion');
+  }
+
+  Future<int> getZoteroSettingVersion() async {
+    final prefs = await SharedPreferences.getInstance();
+    return prefs.getInt('ZoteroSettingVersion') ?? -1;
+  }
+
+
+  Future<void> setLastDeletedItemsCheckVersion(int version) async {
+    final prefs = await SharedPreferences.getInstance();
+    await prefs.setInt('LastDeletedItemsCheckVersion', version);
+  }
+
+  Future<int> getLastDeletedItemsCheckVersion() async {
+    final prefs = await SharedPreferences.getInstance();
+    return prefs.getInt('LastDeletedItemsCheckVersion') ?? 0;
+  }
+
+  Future<int> getLibraryVersion() async {
+    final prefs = await SharedPreferences.getInstance();
+    return prefs.getInt('ItemsLibraryVersion') ?? -1;
+  }
+
+  Future<int> getTrashVersion() async {
+    final prefs = await SharedPreferences.getInstance();
+    return prefs.getInt('TrashLibraryVersion') ?? -1;
+  }
+
+  Future<void> setTrashVersion(int version) async {
+    final prefs = await SharedPreferences.getInstance();
+    await prefs.setInt('TrashLibraryVersion', version);
+  }
 
 }

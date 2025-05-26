@@ -9,6 +9,7 @@ import 'package:module_library/ModuleLibrary/page/blank_page.dart';
 import 'package:module_library/ModuleLibrary/page/sync_page/sync_page.dart';
 import 'package:module_library/ModuleLibrary/res/ResColor.dart';
 import 'package:module_library/ModuleLibrary/viewmodels/library_viewmodel.dart';
+import 'package:pull_to_refresh/pull_to_refresh.dart';
 
 import 'LibraryUI/appBar.dart';
 import 'LibraryUI/drawer.dart';
@@ -32,6 +33,8 @@ class _LibraryPageState extends State<LibraryPage> {
   TextEditingController textController = TextEditingController();
 
   final focusNode = FocusNode();
+
+  final RefreshController _refreshController = RefreshController(initialRefresh: false);
 
   @override
   void initState() {
@@ -138,12 +141,18 @@ class _LibraryPageState extends State<LibraryPage> {
           child: Container(
             color: ResColor.bgColor,
             width: double.infinity,
-            child: ListView.builder(
-              itemCount: _viewModel.listEntries.length,
-              itemBuilder: (context, index) {
-                final entry = _viewModel.listEntries[index];
-                return widgetListEntry(entry);
-              },
+            child: SmartRefresher(
+              enablePullDown: true,
+              controller: _refreshController,
+              header: const WaterDropHeader(),
+              onRefresh: _onRefresh,
+              child: ListView.builder(
+                itemCount: _viewModel.listEntries.length,
+                itemBuilder: (context, index) {
+                  final entry = _viewModel.listEntries[index];
+                  return widgetListEntry(entry);
+                },
+              ),
             ),
           ),
         ),
@@ -477,6 +486,14 @@ class _LibraryPageState extends State<LibraryPage> {
 
   void _navigationTagManager() {
     Navigator.of(context).pushNamed("tagsManagerPage");
+  }
+
+  void _onRefresh() async{
+    // 开始与服务器同步
+    _viewModel.startSync(onSyncCompleteCallback: () {
+      // 关闭刷新动画
+      _refreshController.refreshCompleted();
+    });
   }
 
 

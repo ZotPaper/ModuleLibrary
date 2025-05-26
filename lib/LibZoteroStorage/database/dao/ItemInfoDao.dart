@@ -1,3 +1,5 @@
+import 'package:sqflite/sqflite.dart';
+
 import '../../entity/ItemInfo.dart';
 import '../ZoteroDatabase.dart';
 
@@ -11,7 +13,7 @@ class ItemInfoDao {
     final map =  item.toJson();
     map.remove('id');
     map['deleted']= item.deleted  ? 1 : 0;
-    return await db.insert('ItemInfo',  map);
+    return await db.insert('ItemInfo',  map, conflictAlgorithm: ConflictAlgorithm.replace);
   }
   Future<List<ItemInfo>> getItemInfos() async{
     final db = await dbHelper.database;

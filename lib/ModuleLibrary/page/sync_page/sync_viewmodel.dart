@@ -1,6 +1,7 @@
 import 'dart:async';
 import 'package:flutter/material.dart';
 import 'package:flutter/cupertino.dart';
+import 'package:module_library/ModuleSync/zotero_sync_manager.dart';
 
 import '../../../LibZoteroStorage/entity/Collection.dart';
 import '../../../LibZoteroStorage/entity/Item.dart';
@@ -18,13 +19,7 @@ class SyncViewModel with ChangeNotifier {
   final String _userId = "16074844";
   final String _apiKey = "znrrHVJZMhSd8I9TWUxZjAFC";
 
-  late final ZoteroDataHttp zoteroHttp;
-
-  final ZoteroDataSql zoteroDataSql = ZoteroDataSql();
-
-  // List<Item> _items = [];
-  final List<Collection> _collections = [];
-  late final List<Item> _showItems = [];
+  final ZoteroSyncManager zoteroSyncManager = ZoteroSyncManager.instance;
 
   Function(int progress, int total)? onProgressCallback;
 
@@ -34,125 +29,37 @@ class SyncViewModel with ChangeNotifier {
   // 2. 暴露 Stream 供 View 监听
   Stream<String> get navigationStream => _navigationController.stream;
 
-  SyncViewModel() : super() {
-    zoteroHttp = ZoteroDataHttp(apiKey: _apiKey);
-  }
-
-  final StreamController<List<Item>> _showItemsController = StreamController<List<Item>>.broadcast();
-  Stream<List<Item>> get showItemsStream => _showItemsController.stream;
-
-  // List<Item> get items => _items;
-  List<Collection> get collections => _collections;
-  List<Item> get showItems => _showItems;
+  SyncViewModel() : super();
 
   void init() async {
     await SharedPref.init();
     bool isFirstStart = SharedPref.getBool(PrefString.isFirst, true);
+
+    zoteroSyncManager.init(_userId, _apiKey);
 
     if (isFirstStart) {
       debugPrint("=============isFirstStart");
       // 初次启动，从网络获取数据并保存到数据库
       await _performCompleteSync();
     }
-    /// 通知更新列表
-    _notifyShowItems();
-  }
-
-  void _resetShowItems() {
-    _showItems.clear();
-  }
-
-  void _notifyShowItems() {
-    _showItemsController.add(_showItems);
-    notifyListeners();
   }
 
   /// 首次运行，完整同步数据，从服务器
   Future<void> _performCompleteSync() async {
-    // todo 考虑原子性
-    // 获取所有集合
-    await _loadAllCollections();
-    // 获取所有条目
-    await _loadAllItems();
-    // 获取所有已删除的条目
-    await _loadTrashedItems();
+    zoteroSyncManager.startCompleteSync(
+      onProgressCallback: onProgressCallback,
+      onFinishCallback: (items) {
+          // 跳转到 Library 页面
+          _navigateToLibrary();
+      },
+    );
   }
 
   void dispose() {
-    _showItemsController.close();
-  }
-
-  Future<void> _loadAllCollections() async {
-    var collections = await zoteroHttp.getCollections(0, _userId, 0);
-    await zoteroDataSql.saveCollections(collections);
-    _collections.addAll(collections);
-
-    for (var collection in collections) {
-      _showItems.add(Item(
-        itemInfo: ItemInfo(id: 0, itemKey: collection.key, groupId: collection.groupId,
-            version: collection.version, deleted: false),
-        itemData: [ItemData(id: 0, parent: collection.key, name: 'title', value: collection.name, valueType: "String")],
-        creators: [],
-        tags: [],
-        collections: [],
-      ));
-    }
-  }
-
-  /// 从zotero中获取所有条目
-  Future<void> _loadAllItems() async {
-    var _items = await zoteroHttp.getItems(_userId,
-      onProgress: (progress, total) {
-        debugPrint("加载Item进度：$progress/$total");
-        // todo 通知下载进度
-        onProgressCallback?.call(progress, total);
-      },
-      onFinish: (items) {
-        debugPrint("加载Item完成，条目数量：${items.length}");
-        // todo 跳转到文库页面
-        // _navigateToLibrary();
-      },
-      onError: (errorCode, msg) {
-        debugPrint("加载错误：$msg");
-      },
-    );
-
-    // todo 记录到数据库中
-    _showItems.addAll(_items);
-    await zoteroDataSql.saveItems(_items);
-    await SharedPref.setBool(PrefString.isFirst, false);
   }
 
   void _navigateToLibrary() {
     _navigationController.add("libraryPage");
-  }
-
-  Future _loadTrashedItems() async {
-    var items = await zoteroHttp.getTrashedItems(_userId,
-      onProgress: (progress, total) {
-        debugPrint("加载回收站中的Item进度：$progress/$total");
-        // 通知下载进度
-        // onProgressCallback?.call(progress, total);
-      },
-      onFinish: (items) {
-        debugPrint("加载回收站中的Item完成，条目数量：${items.length}");
-        // todo 解决下载中断或者其他类型的错误导致无法跳转的问题
-        // 跳转到文库页面
-        _navigateToLibrary();
-      },
-      onError: (errorCode, msg) {
-        debugPrint("加载错误：$msg");
-      },
-    );
-
-    debugPrint("Moyear===== 获取到回收站条目：${items.length}");
-
-    for (var item in items) {
-      // 获取合集下的条目
-      await zoteroDataSql.moveItemToTrash(item);
-      debugPrint("Moyear===== 将条目：${item.itemKey} 放到回收站");
-    }
-
   }
 
 }

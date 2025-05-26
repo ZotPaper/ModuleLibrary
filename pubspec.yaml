@@ -64,6 +64,8 @@ dependencies:
       url: https://github.com/moyearzhou/bruno-moyear.git
 #      ref: v3.4.3
 
+  # 下拉刷新
+  pull_to_refresh: ^2.0.0
 
 dev_dependencies:
   flutter_test:

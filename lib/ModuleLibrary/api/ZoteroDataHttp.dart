@@ -5,6 +5,7 @@ import 'package:module_library/LibZoteroStorage/entity/Item.dart';
 import 'package:module_library/LibZoteroStorage/entity/ItemData.dart';
 import 'package:module_library/LibZoteroStorage/entity/ItemInfo.dart';
 import 'package:module_library/LibZoteroStorage/entity/ItemTag.dart';
+import 'package:module_library/ModuleLibrary/viewmodels/zotero_database.dart';
 
 import '../../LibZoteroApi/ZoteroAPI.dart';
 
@@ -19,12 +20,17 @@ class ZoteroDataHttp {
 
   /// 获取zotero所有的条目,
   /// 注意：是全量数据
-  Future<List<Item>> getItems(String userId,
+  Future<List<Item>> getItems(
+      ZoteroDB zoteroDB,
+      String userId,
       {Function(int progress, int total)? onProgress,
       Function(List<Item>)? onFinish,
       Function(int errorCode, String msg)? onError}) async {
+
+    final lastModifiedVersion = await zoteroDB.getLibraryVersion();
+
     // 发送请求下载数据，注意默认返回最多为25条（依赖后端而定），所以需要分页下载
-    final response = await service.getItems(userId);
+    final response = await service.getItems(userId, ifModifiedSinceVersion: lastModifiedVersion);
     if (response == null) {
       return [];
     }
@@ -38,13 +44,19 @@ class ZoteroDataHttp {
 
     // 继续下载剩余页面
     while (downloadedCount[0] < total) {
-      final pagedResponse = await service.getItems(userId, startIndex: downloadedCount[0]);
+      final pagedResponse = await service.getItems(userId, ifModifiedSinceVersion: lastModifiedVersion, startIndex: downloadedCount[0]);
       if (pagedResponse == null) {
         continue;
       }
       await _processPage(pagedResponse.data, items, total, downloadedCount, onProgress, onFinish);
     }
 
+
+    final newLibraryVersion = response.LastModifiedVersion;
+
+    // 下载完成数据后，更新本地的文库版本号
+    await zoteroDB.setItemsVersion(newLibraryVersion);
+    debugPrint("Moyear==== 下载完成数据后，更新本地的文库版本号: $newLibraryVersion");
     return items;
   }
 
@@ -67,9 +79,14 @@ class ZoteroDataHttp {
   }
 
   Future<List<Collection>> getCollections(
-      int ifModifiedSinceVersion, String userId, int index) async {
+      ZoteroDB zoteroDB,
+      String userId,
+      { int index = 0}) async {
+
+    final lastModifiedVersion = await zoteroDB.getLibraryVersion();
+
     final itemRes =
-        await service.getCollections(ifModifiedSinceVersion, userId, index);
+        await service.getCollections(lastModifiedVersion, userId, index);
     List<Collection> collections = [];
 
     for (var collectionPOJO in itemRes) {
@@ -208,12 +225,16 @@ class ZoteroDataHttp {
 
   /// 获取zotero所有的条目,
   /// 注意：是全量数据
-  Future<List<Item>> getTrashedItems(String userId,
+  Future<List<Item>> getTrashedItems(
+      ZoteroDB zoteroDB,
+      String userId,
       {Function(int progress, int total)? onProgress,
         Function(List<Item>)? onFinish,
         Function(int errorCode, String msg)? onError}) async {
+    final lastTrashVersion = await zoteroDB.getTrashVersion();
+
     // 发送请求下载数据，注意默认返回最多为25条（依赖后端而定），所以需要分页下载
-    final response = await service.getTrashedItemsForUser(userId);
+    final response = await service.getTrashedItemsForUser(userId, ifModifiedSinceVersion: lastTrashVersion);
     if (response == null) {
       return [];
     }
@@ -235,6 +256,11 @@ class ZoteroDataHttp {
       await _processPage(pagedResponse.data, items, total, downloadedCount, onProgress, onFinish);
     }
 
+    final newTrashVersion = response.LastModifiedVersion;
+    // 更新trash回收站数据库版本号
+    await zoteroDB.setTrashVersion(newTrashVersion);
+
+    debugPrint("Moyear=== 更新回收站数据库版本号：$newTrashVersion");
     return items;
   }
 

@@ -1,4 +1,5 @@
 import 'package:module_library/LibZoteroStorage/database/ZoteroDatabase.dart';
+import 'package:sqflite/sqflite.dart';
 
 import '../../entity/Collection.dart';
 
@@ -11,7 +12,7 @@ class CollectionsDao {
     final db = await dbHelper.database;
     final map = collection.toJson();
     map.remove('id');
-    return await db.insert('Collections',  map);
+    return await db.insert('Collections',  map, conflictAlgorithm: ConflictAlgorithm.replace);
   }
 
   Future<Collection?> getCollection(String key) async {

@@ -1,3 +1,5 @@
+import 'package:sqflite/sqflite.dart';
+
 import '../ZoteroDatabase.dart';
 
 class RecentlyOpenedAttachmentDao {
@@ -9,7 +11,7 @@ class RecentlyOpenedAttachmentDao {
     final db = await dbHelper.database;
     final map =  attachment.toMap();
     map.remove('id');
-    return await db.insert('RecentlyOpenedAttachment',  map);
+    return await db.insert('RecentlyOpenedAttachment',  map, conflictAlgorithm: ConflictAlgorithm.replace);
   }
 
   Future<RecentlyOpenedAttachment?> getRecentAttachment(String itemKey) async {
