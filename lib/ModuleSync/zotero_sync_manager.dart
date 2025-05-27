@@ -23,6 +23,12 @@ class ZoteroSyncManager {
 
   ZoteroDB zoteroDB = ZoteroDB();
 
+  var _loadingItemsFinished = false;
+  var _loadingCollectionsFinished = false;
+  var _loadingTrashFinished = false;
+
+  List<Item> _downloadingItems = [];
+
   Function(int progress, int total)? _onProgressCallback;
   Function(List<Item> items)? _onFinishCallback;
 
@@ -62,6 +68,9 @@ class ZoteroSyncManager {
   Future<void> _loadAllCollections() async {
     var collections = await zoteroHttp.getCollections(zoteroDB, _userId);
     await zoteroDataSql.saveCollections(collections);
+
+    _loadingCollectionsFinished = true;
+    _finishSingleStep();
   }
 
   /// 从zotero中获取所有条目
@@ -70,13 +79,17 @@ class ZoteroSyncManager {
       zoteroDB,
       _userId,
       onProgress: (progress, total) {
-        debugPrint("加载Item进度：$progress/$total");
+        debugPrint("SyncManager加载Item进度：$progress/$total");
         // 通知下载进度
         _onProgressCallback?.call(progress, total);
       },
       onFinish: (items) {
-        debugPrint("加载Item完成，条目数量：${items.length}");
-        // 更新本地的文库版本
+        debugPrint("SyncManager加载Item完成，条目数量：${items.length}");
+
+        _downloadingItems = items;
+
+        _loadingItemsFinished = true;
+        _finishSingleStep();
       },
       onError: (errorCode, msg) {
         debugPrint("加载错误：$msg");
@@ -86,43 +99,102 @@ class ZoteroSyncManager {
     // todo 记录到数据库中，提花大
     // _showItems.addAll(_items);
     await zoteroDataSql.saveItems(items);
-    await SharedPref.setBool(PrefString.isFirst, false);
   }
 
   /// 获取zotero回收站中的条目
   Future _loadTrashedItems() async {
-    var items = await zoteroHttp.getTrashedItems(zoteroDB, _userId,
+    await zoteroHttp.getTrashedItems(zoteroDB, _userId,
       onProgress: (progress, total) {
-        debugPrint("加载回收站中的Item进度：$progress/$total");
+        debugPrint("SyncManager加载回收站中的Item进度：$progress/$total");
         // 通知下载进度
         // onProgressCallback?.call(progress, total);
       },
       onFinish: (items) {
-        debugPrint("加载回收站中的Item完成，条目数量：${items.length}");
+        /// 处理回收站中的条目
+        _handleItemsOfTrash(items).then((res) {
+          _loadingTrashFinished = true;
+          _finishSingleStep();
+        });
       },
       onError: (errorCode, msg) {
         debugPrint("加载错误：$msg");
       },
     );
 
-    await _loadingLibraryStage2(items);
+
   }
 
-  /// 第二阶段：处理回收站中的条目
-  Future<void> _loadingLibraryStage2(List<Item> items) async {
-    debugPrint("Moyear===== 获取到回收站条目：${items.length}");
+  Future<void> _handleItemsOfTrash(List<Item> items) async {
+    debugPrint("Moyear===== SyncManager获取到回收站条目：${items.length}");
 
     for (var item in items) {
       // 获取合集下的条目
       await zoteroDataSql.moveItemToTrash(item);
-      debugPrint("Moyear===== 将条目：${item.itemKey} 放到回收站");
+      debugPrint("Moyear===== SyncManager将条目：${item.itemKey} 放到回收站");
     }
 
-    // todo 解决下载中断或者其他类型的错误导致无法跳转的问题
-    _onFinishCallback?.call(items);
   }
 
+  /// 完成每一个同步都会调用一阶段
+  void _finishSingleStep() {
+    // debugPrint("Moyear===== 完成一阶段 $_loadingCollectionsFinished $_loadingItemsFinished $_loadingTrashFinished");
 
+    if (_loadingCollectionsFinished && _loadingItemsFinished && _loadingTrashFinished) {
+      _loadLibraryStage2().then((res) {
+        _finishLibrarySync();
+      });
+    }
+  }
+
+  /// 第二阶段：处理回收站中的条目
+  /// Checks for deleted entries on the zotero servers and mirrors those changes on the local database.
+  /// we have to assume the library is loaded.
+  Future<void> _loadLibraryStage2() async {
+    if (!_loadingTrashFinished || !_loadingCollectionsFinished || !_loadingItemsFinished) {
+      throw Exception("Error cannot proceed to stage 2 if library still loading.");
+    }
+
+    final int deletedItemsCheckVersion = await zoteroDB.getLastDeletedItemsCheckVersion();
+    final int libraryVersion = await zoteroDB.getLibraryVersion();
+
+    if (deletedItemsCheckVersion == libraryVersion) {
+      debugPrint('Not checking deleted items because library hasn\'t changed. $libraryVersion');
+      return; // nothing to check
+    }
+
+    try {
+      final deletedEntries = await zoteroHttp.getDeletedEntries(
+        _userId,
+        deletedItemsCheckVersion,
+      );
+
+      debugPrint('Moyear=== SyncManager处理删除的条目 size ${deletedEntries?.items?.length} ${deletedEntries}');
+
+      if (deletedEntries != null) {
+        // 删除 item
+        for (String itemKey in deletedEntries.items) {
+          debugPrint('Deleting item $itemKey');
+          await zoteroDataSql.deleteItem(itemKey);
+        }
+
+        // 删除 collection
+        for (String collectionKey in deletedEntries.collections) {
+          debugPrint('Deleting collection $collectionKey');
+          await zoteroDataSql.deleteCollection(collectionKey);
+        }
+
+        debugPrint('Setting deletedLibraryVersion to $libraryVersion from $deletedItemsCheckVersion');
+        await zoteroDB.setLastDeletedItemsCheckVersion(libraryVersion);
+      }
+    } catch (e, stack) {
+      debugPrint('Error while updating deleted entries: $e\n$stack');
+      rethrow;
+    }
+  }
+
+  void _finishLibrarySync() {
+    _onFinishCallback?.call(_downloadingItems);
+  }
 }
 
 

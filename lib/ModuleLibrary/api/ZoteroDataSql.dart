@@ -233,15 +233,29 @@ class ZoteroDataSql {
 
   }
 
-  /// Deletes an item and all its related data
+  /// todo Deletes an item and all its related data
   Future<void> deleteItem(String itemKey) async {
+    // todo 实现该方法
     // Since we have ON DELETE CASCADE for most relations, we only need to delete the main item
     // The database will take care of the rest
-    // final itemInfo = await itemInfoDao.getItemInfoByKey(itemKey);
-    // if (itemInfo != null) {
-    //   await itemInfoDao.deleteItemInfo(itemKey,  itemInfo.groupId);
-    // }
+    final itemInfo = await itemInfoDao.getItemInfoByKey(itemKey);
+    if (itemInfo != null) {
+      await itemInfoDao.deleteItemInfo(itemKey, groupId: itemInfo.groupId);
+    }
+
+    // todo 是否要删除ItemData的方法
+    itemDataDao.deleteItemDataOf(itemKey);
+    
   }
+
+  /// Deletes a collection
+  Future<void> deleteCollection(String collectionKey) async {
+    final collection = await collectionsDao.getCollection(collectionKey);
+    if (collection != null) {
+      await collectionsDao.deleteCollection(collectionKey);
+    }
+  }
+
 
   Future<List<Item>> getDeletedTrashes({
     Function(Item item)? onNext,

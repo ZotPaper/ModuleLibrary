@@ -7,6 +7,7 @@ import 'package:module_library/LibZoteroStorage/entity/ItemInfo.dart';
 import 'package:module_library/LibZoteroStorage/entity/ItemTag.dart';
 import 'package:module_library/ModuleLibrary/viewmodels/zotero_database.dart';
 
+import '../../LibZoteroApi/Model/DeletedEntriesPojo.dart';
 import '../../LibZoteroApi/ZoteroAPI.dart';
 
 class ZoteroDataHttp {
@@ -32,6 +33,12 @@ class ZoteroDataHttp {
     // 发送请求下载数据，注意默认返回最多为25条（依赖后端而定），所以需要分页下载
     final response = await service.getItems(userId, ifModifiedSinceVersion: lastModifiedVersion);
     if (response == null) {
+      return [];
+    }
+
+    // 如果没有数据，则直接返回，调用onFinish
+    if (response.data.isEmpty) {
+      onFinish?.call([]);
       return [];
     }
 
@@ -236,6 +243,13 @@ class ZoteroDataHttp {
     // 发送请求下载数据，注意默认返回最多为25条（依赖后端而定），所以需要分页下载
     final response = await service.getTrashedItemsForUser(userId, ifModifiedSinceVersion: lastTrashVersion);
     if (response == null) {
+      onFinish?.call([]);
+      return [];
+    }
+
+    // 如果没有数据，则直接返回，调用onFinish
+    if (response.data.isEmpty) {
+      onFinish?.call([]);
       return [];
     }
 
@@ -263,6 +277,20 @@ class ZoteroDataHttp {
     debugPrint("Moyear=== 更新回收站数据库版本号：$newTrashVersion");
     return items;
   }
+
+
+  Future<DeletedEntriesPojo?> getDeletedEntries(
+      String userId,
+      int sinceVersion,
+      {Function(int progress, int total)? onProgress,
+        Function(List<Item>)? onFinish,
+        Function(int errorCode, String msg)? onError}) async {
+
+    // 发送请求下载数据，注意默认返回最多为25条（依赖后端而定），所以需要分页下载
+    final response = await service.getDeletedEntriesSince(userId, sinceVersion);
+    return response;
+  }
+
 
 
 }

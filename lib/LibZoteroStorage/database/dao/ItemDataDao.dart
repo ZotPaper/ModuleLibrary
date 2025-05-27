@@ -43,4 +43,14 @@ class ItemDataDao {
       whereArgs: [parent, name],
     );
   }
+
+  /// 删除属于itemkey的条目数据
+  Future<int> deleteItemDataOf(String parent) async {
+    final db = await dbHelper.database;
+    return await db.delete(
+      'ItemData',
+      where: 'parent = ?',
+      whereArgs: [parent],
+    );
+  }
 }

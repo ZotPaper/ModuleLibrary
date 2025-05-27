@@ -310,7 +310,6 @@ class _LibraryPageState extends State<LibraryPage> {
   Widget _refreshHeader() {
     return Consumer<LibraryViewModel>(
       builder: (context, viewModel, child) {
-        debugPrint("Moyear==== header局部刷新 进度:${viewModel?.syncProgress?.progress}/${viewModel?.syncProgress?.total}");
         return WaterDropHeader(
           refresh: Row(
             mainAxisAlignment: MainAxisAlignment.center,

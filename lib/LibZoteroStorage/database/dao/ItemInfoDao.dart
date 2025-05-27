@@ -17,7 +17,7 @@ class ItemInfoDao {
   }
   Future<List<ItemInfo>> getItemInfos() async{
     final db = await dbHelper.database;
-    final result = await db.query('ItemInfo');
+    final result = await db.query('ItemInfo', where: 'deleted = ?', whereArgs: [0]);
     return result.map((json)  => ItemInfo.fromJson(json)).toList();
   }
   Future<ItemInfo?> getItemInfoByKey(String itemKey) async {
@@ -53,7 +53,7 @@ class ItemInfoDao {
     );
   }
 
-  Future<int> deleteItemInfo(String itemKey, int groupId) async {
+  Future<int> deleteItemInfo(String itemKey, {int groupId = -1}) async {
     final db = await dbHelper.database;
     return await db.delete(
       'ItemInfo',

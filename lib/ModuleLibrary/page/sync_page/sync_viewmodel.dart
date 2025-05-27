@@ -49,8 +49,7 @@ class SyncViewModel with ChangeNotifier {
     zoteroSyncManager.startCompleteSync(
       onProgressCallback: onProgressCallback,
       onFinishCallback: (items) {
-          // 跳转到 Library 页面
-          _navigateToLibrary();
+        _onSyncComplete();
       },
     );
   }
@@ -61,5 +60,12 @@ class SyncViewModel with ChangeNotifier {
   void _navigateToLibrary() {
     _navigationController.add("libraryPage");
   }
+
+  Future<void> _onSyncComplete() async {
+    await SharedPref.setBool(PrefString.isFirst, false);
+    // 跳转到 Library 页面
+    _navigateToLibrary();
+  }
+
 
 }
