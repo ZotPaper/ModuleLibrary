@@ -1,9 +1,11 @@
+import 'dart:collection';
+
 import 'package:flutter/cupertino.dart';
 import 'package:flutter/material.dart';
 import 'package:bruno/bruno.dart';
-import 'package:module_library/LibZoteroStorage/entity/ItemTag.dart';
 import 'package:module_library/ModuleLibrary/viewmodels/zotero_database.dart';
 import '../../LibZoteroStorage/entity/Item.dart';
+import '../../LibZoteroStorage/entity/ItemTag.dart';
 
 class TagsManagerPage extends StatefulWidget {
   const TagsManagerPage({super.key});
@@ -15,7 +17,13 @@ class TagsManagerPage extends StatefulWidget {
 class _ItemDetailTagFragmentState extends State<TagsManagerPage> with SingleTickerProviderStateMixin {
   late AnimationController _controller;
 
+  /// 这个集合存储所有的标签，是包含重复的
   List<ItemTag> tags = [];
+
+  /// 这个集合存储所有的标签，是去重复的
+  Set<String> uniqueTags = LinkedHashSet();
+
+  List<Item> items = [];
 
   ZoteroDB zoteroDB = ZoteroDB();
 
@@ -24,15 +32,11 @@ class _ItemDetailTagFragmentState extends State<TagsManagerPage> with SingleTick
     super.initState();
     _controller = AnimationController(vsync: this);
 
-    // zoteroDB..forEach((tag) {
-    //   tags.add(tag.tag);
-    // });
-
+    /// 去除重复的标签
     zoteroDB.itemTags.forEach((tag) {
       tags.add(tag);
+      uniqueTags.add(tag.tag);
     });
-
-
   }
 
   @override
@@ -65,7 +69,7 @@ class _ItemDetailTagFragmentState extends State<TagsManagerPage> with SingleTick
                 spacing: 8,
                 runSpacing: 8,
                 children: [
-                  ...tags.map((tag) => _tagItem(tag)),
+                  ...uniqueTags.map((tag) => _tagItem(tag)),
                 ],
               ),
 
@@ -74,9 +78,9 @@ class _ItemDetailTagFragmentState extends State<TagsManagerPage> with SingleTick
     );
   }
 
-  Widget _tagItem(ItemTag item) {
+  Widget _tagItem(String tag) {
     return BrnTagCustom(
-      tagText: item.tag,
+      tagText: tag,
       fontSize: 14,
       backgroundColor: const Color(0xFFF1F2FA),
       textColor: const Color(0xFF4B5162),
