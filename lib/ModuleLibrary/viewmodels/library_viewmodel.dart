@@ -16,6 +16,10 @@ import 'package:rxdart/rxdart.dart';
 import 'package:url_launcher/url_launcher.dart';
 
 class LibraryViewModel with ChangeNotifier {
+
+  bool _initialized = false;
+  bool get initialized => _initialized;
+
   final ZoteroDataSql zoteroDataSql = ZoteroDataSql();
 
   final String _userId = "16074844";
@@ -49,6 +53,8 @@ class LibraryViewModel with ChangeNotifier {
   bool _isLoading = false;
 
   bool get isLoading => _isLoading;
+
+ SyncProgress? syncProgress = null;
 
   /// 栈结构，用于记录浏览历史
   final DoubleLinkedQueue<String> _viewStack = DoubleLinkedQueue<String>();
@@ -86,6 +92,7 @@ class LibraryViewModel with ChangeNotifier {
     }
 
     setLoading(false);
+    _initialized = true;
   }
 
 
@@ -351,7 +358,10 @@ class LibraryViewModel with ChangeNotifier {
     zoteroSyncManager.startCompleteSync(
       onProgressCallback: (progress, total) {
         debugPrint("局部加载Item进度：$progress/$total");
-        // todo 通知下载进度
+
+        // 通知下载进度
+        syncProgress = SyncProgress(progress, total);
+        notifyListeners();
         // _onProgressCallback?.call(progress, total);
       },
       onFinishCallback: (items) async {
@@ -364,6 +374,8 @@ class LibraryViewModel with ChangeNotifier {
         // 更新本地的文库版本
 
         onSyncCompleteCallback?.call();
+
+        syncProgress = null;
       },
     );
   }

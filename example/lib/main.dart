@@ -3,12 +3,17 @@ import 'package:module_library/LibZoteroStorage/entity/Item.dart';
 import 'package:module_library/ModuleItemDetail/page/item_details_page.dart';
 import 'package:module_library/ModuleLibrary/page/LibraryPage.dart';
 import 'package:module_library/ModuleLibrary/page/launch_page.dart';
+import 'package:module_library/ModuleLibrary/viewmodels/library_viewmodel.dart';
 import 'package:module_library/ModuleTagManager/page/item_tagsmanager_page.dart';
-
+import 'package:provider/provider.dart';
 
 void main() {
 
-  runApp(const MyApp());
+  runApp(
+    ChangeNotifierProvider(
+      create: (_) => LibraryViewModel(),
+      child: MyApp(),
+    ),);
 }
 
 class MyApp extends StatelessWidget {

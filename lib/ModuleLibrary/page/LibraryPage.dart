@@ -9,6 +9,7 @@ import 'package:module_library/ModuleLibrary/page/blank_page.dart';
 import 'package:module_library/ModuleLibrary/page/sync_page/sync_page.dart';
 import 'package:module_library/ModuleLibrary/res/ResColor.dart';
 import 'package:module_library/ModuleLibrary/viewmodels/library_viewmodel.dart';
+import 'package:provider/provider.dart';
 import 'package:pull_to_refresh/pull_to_refresh.dart';
 
 import 'LibraryUI/appBar.dart';
@@ -24,7 +25,7 @@ class LibraryPage extends StatefulWidget {
 }
 
 class _LibraryPageState extends State<LibraryPage> {
-  final LibraryViewModel _viewModel = LibraryViewModel();
+  late LibraryViewModel _viewModel;
   final GlobalKey<ScaffoldState> _scaffoldKey = GlobalKey<ScaffoldState>();
 
   // final TextEditingController _searchController = TextEditingController();
@@ -39,7 +40,6 @@ class _LibraryPageState extends State<LibraryPage> {
   @override
   void initState() {
     super.initState();
-    _viewModel.init();
     ///initState 中添加监听，记得销毁
     textController.addListener((){
       if(focusNode.hasFocus){
@@ -58,6 +58,22 @@ class _LibraryPageState extends State<LibraryPage> {
       }
     });
   }
+
+
+  @override
+  void didChangeDependencies() {
+    super.didChangeDependencies();
+
+    // 在这里通过 Provider 获取 ViewModel
+    _viewModel = Provider.of<LibraryViewModel>(context, listen: false);
+
+    // 第一次进入页面时初始化数据
+    if (!_viewModel.initialized) {
+      _viewModel.init();
+    }
+
+  }
+
 
   @override
   Widget build(BuildContext context) {
@@ -144,7 +160,7 @@ class _LibraryPageState extends State<LibraryPage> {
             child: SmartRefresher(
               enablePullDown: true,
               controller: _refreshController,
-              header: const WaterDropHeader(),
+              header: _refreshHeader(),
               onRefresh: _onRefresh,
               child: ListView.builder(
                 itemCount: _viewModel.listEntries.length,
@@ -287,6 +303,40 @@ class _LibraryPageState extends State<LibraryPage> {
           ),
         ),
       ),
+    );
+  }
+
+  /// 下拉刷新 Header
+  Widget _refreshHeader() {
+    return Consumer<LibraryViewModel>(
+      builder: (context, viewModel, child) {
+        debugPrint("Moyear==== header局部刷新 进度:${viewModel?.syncProgress?.progress}/${viewModel?.syncProgress?.total}");
+        return WaterDropHeader(
+          refresh: Row(
+            mainAxisAlignment: MainAxisAlignment.center,
+            children: [
+              const SizedBox(
+                  width: 25.0,
+                  height: 25.0,
+                  child: CupertinoActivityIndicator()
+              ),
+              const SizedBox(width: 10,),
+              Text((viewModel.syncProgress == null) ? "正在同步..." : "正在同步: ${viewModel.syncProgress!.progress}/${viewModel.syncProgress!.total}.", style: TextStyle(fontSize: 12, color: Colors.grey))
+            ],
+          ),
+          complete: const Row(
+            mainAxisAlignment: MainAxisAlignment.center,
+            children: [
+              Icon(
+                Icons.done,
+                color: Colors.grey,
+              ),
+              SizedBox(width: 10,),
+              Text("同步完成", style: TextStyle(fontSize: 12, color: Colors.grey))
+            ],
+          ),
+        );
+      },
     );
   }
 

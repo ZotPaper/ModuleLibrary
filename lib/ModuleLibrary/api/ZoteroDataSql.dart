@@ -52,27 +52,32 @@ class ZoteroDataSql {
   Future<void> saveItems(List<Item> items) async {
     // This would be implemented as a transaction for data integrity
     for (var item in items) {
-      itemInfoDao.insertItem(item.itemInfo);
-      for(var itemData in item.itemData){
-        itemDataDao.insertItemData(itemData);
-      }
-      for(var creator in item.creators){
-        itemCreatorDao.insertItemCreator(creator);
-      }
-      for(var itemTag in item.tags){
-        itemTagsDao.insertItemTag(itemTag);
-      }
-      for(var collection in item.collections){
-        itemCollectionDao.insertItemCollection(ItemCollection(collectionKey: collection, itemKey: item.itemInfo.itemKey));
-      }
-      for(var attachment in item.attachments){
-        // attachmentInfoDao.insertAttachment(attachment);
-      }
-      for(var note in item.notes){
-
-      }
+      saveItem(item);
     }
   }
+
+  Future<void> saveItem(Item item) async {
+    itemInfoDao.insertItem(item.itemInfo);
+    for(var itemData in item.itemData){
+      itemDataDao.insertItemData(itemData);
+    }
+    for(var creator in item.creators){
+      itemCreatorDao.insertItemCreator(creator);
+    }
+    for(var itemTag in item.tags){
+      itemTagsDao.insertItemTag(itemTag);
+    }
+    for(var collection in item.collections){
+      itemCollectionDao.insertItemCollection(ItemCollection(collectionKey: collection, itemKey: item.itemInfo.itemKey));
+    }
+    for(var attachment in item.attachments){
+      // attachmentInfoDao.insertAttachment(attachment);
+    }
+    for(var note in item.notes){
+
+    }
+  }
+
   Future<void> saveCollections(List<Collection> collections) async {
     // This would be implemented as a transaction for data integrity
     for (var collection in collections) {

@@ -122,4 +122,13 @@ class ZoteroSyncManager {
     _onFinishCallback?.call(items);
   }
 
+
+}
+
+
+class SyncProgress {
+  final int progress;
+  final int total;
+
+  SyncProgress(this.progress, this.total);
 }
