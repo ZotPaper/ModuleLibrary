@@ -24,8 +24,8 @@ class ItemInfoDao {
     final db = await dbHelper.database;
     final maps = await db.query(
       'ItemInfo',
-      where: 'itemKey = ?',
-      whereArgs: [itemKey],
+      where: 'itemKey = ? AND deleted = ?',
+      whereArgs: [itemKey, 0],
     );
     if (maps.isNotEmpty)  {
       return ItemInfo.fromJson(maps.first);
