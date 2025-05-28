@@ -325,16 +325,26 @@ class ZoteroAPI {
   }
 
   Future<ZoteroSettingsResponse> getSettings(
-      int ifModifiedSinceVersion, String user, int since) async {
+      String user,
+      int ifModifiedSinceVersion,
+      int since) async {
     final itemRes =
         await service.getSettings(ifModifiedSinceVersion, user, since);
+
     if (itemRes.statusCode != 200) {
       throw Exception('请求失败，状态码: ${itemRes.statusCode}');
     } else if (itemRes.statusCode == 200) {
-      return ZoteroSettingsResponse.fromJson(itemRes.data);
+      var res = ZoteroSettingsResponse.fromHttpJson(itemRes.data);
+      // 从响应头中获取版本号
+      var rawVersion = itemRes.headers?['last-modified-version']?[0]
+          .toString()
+          .replaceAll('', '') ?? "-1";
+      res.lastModifiedVersion = int.parse(rawVersion);
+      return res;
     }
     return ZoteroSettingsResponse();
   }
+
 
   /// 安全获取嵌套 JSON 值
   ///

@@ -1,4 +1,5 @@
 import 'package:flutter/cupertino.dart';
+import 'package:module_library/LibZoteroApi/Model/ZoteroSettingsResponse.dart';
 import 'package:module_library/LibZoteroApi/Model/zotero_items_response.dart';
 import 'package:module_library/LibZoteroStorage/entity/Collection.dart';
 import 'package:module_library/LibZoteroStorage/entity/Creator.dart';
@@ -350,6 +351,17 @@ class ZoteroDataHttp {
           total,
         )
     );
+  }
+
+  Future<ZoteroSettingsResponse?> getZoteroSettings(int sinceVersion) async {
+    // 发送请求下载数据，注意默认返回最多为25条（依赖后端而定），所以需要分页下载
+    try {
+      final response = await service.getSettings(userId, sinceVersion, sinceVersion);
+      return response;
+    } catch (e) {
+      debugPrint("Moyear=== getZoteroSettings error: $e");
+      return null;
+    }
   }
 
 

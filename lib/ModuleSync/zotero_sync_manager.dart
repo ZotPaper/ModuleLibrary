@@ -1,5 +1,7 @@
 import 'package:flutter/cupertino.dart';
+import 'package:module_library/ModuleLibrary/utils/my_logger.dart';
 
+import '../LibZoteroApi/Model/ZoteroSettingsResponse.dart';
 import '../LibZoteroStorage/entity/Item.dart';
 import '../LibZoteroStorage/entity/ItemData.dart';
 import '../LibZoteroStorage/entity/ItemInfo.dart';
@@ -7,6 +9,7 @@ import '../ModuleLibrary/api/ZoteroDataHttp.dart';
 import '../ModuleLibrary/api/ZoteroDataSql.dart';
 import '../ModuleLibrary/share_pref.dart';
 import '../ModuleLibrary/viewmodels/zotero_database.dart';
+import '../ModuleTagManager/zotero_setting_manager.dart';
 
 class ZoteroSyncManager {
   static final ZoteroSyncManager _singleton = ZoteroSyncManager._internal();
@@ -26,6 +29,8 @@ class ZoteroSyncManager {
   var _loadingItemsFinished = false;
   var _loadingCollectionsFinished = false;
   var _loadingTrashFinished = false;
+
+  var _loadingZoteroSettingFinished = false;
 
   List<Item> _downloadingItems = [];
 
@@ -74,6 +79,7 @@ class ZoteroSyncManager {
     await _loadAllItems();
     // 获取所有已删除的条目
     await _loadTrashedItems();
+    await _loadZoteroSettings(zoteroDB);
   }
 
   /// 从zotero中获取所有集合
@@ -131,9 +137,34 @@ class ZoteroSyncManager {
         debugPrint("加载错误：$msg");
       },
     );
-
-
   }
+
+  /// 获取zotero的设置
+  Future<void> _loadZoteroSettings(ZoteroDB db) async {
+    int settingVersion = await db.getZoteroSettingVersion();
+    // 每次都获取全部设置信息也可以设置为 -1
+    // int settingVersion = -1;
+
+    try {
+      final response = await zoteroHttp.getZoteroSettings(settingVersion);
+      if (response == null) {
+        return;
+      }
+
+      final int newVersion = response.lastModifiedVersion;
+
+      MyLogger.d("[oldVersion: $settingVersion; newVersion: $newVersion]，result: $response");
+
+      // 追加设置到本地 json（ZoteroSettingManager 自行封装）
+      await ZoteroSettingManager.appendSettings(response);
+
+      // 设置本地版本号
+      await db.setZoteroSettingVersion(newVersion);
+    } catch (e, stack) {
+      debugPrint('SyncZoteroSettings error: $e\n$stack');
+    }
+  }
+
 
   Future<void> _handleItemsOfTrash(List<Item> items) async {
     debugPrint("Moyear===== SyncManager获取到回收站条目：${items.length}");
@@ -205,6 +236,12 @@ class ZoteroSyncManager {
   void _finishLibrarySync() {
     _onFinishCallback?.call(_downloadingItems);
     _isSyncing = false;
+
+    _loadingZoteroSettingFinished = false;
+    _loadingCollectionsFinished = false;
+    _loadingItemsFinished = false;
+    _loadingTrashFinished = false;
+
   }
 }
 

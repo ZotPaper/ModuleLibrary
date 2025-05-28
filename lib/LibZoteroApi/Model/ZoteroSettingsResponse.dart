@@ -18,8 +18,41 @@ class ZoteroSettingsResponse {
     this.lastModifiedVersion = -1,
   });
 
+  /// 从 本地JSON的配置文件中 解析出 ZoteroSettingsResponse
   factory ZoteroSettingsResponse.fromJson(Map<String, dynamic> json) =>
       _$ZoteroSettingsResponseFromJson(json);
+
+  /// 从 HTTP 响应体中解析出 ZoteroSettingsResponse
+  factory ZoteroSettingsResponse.fromHttpJson(Map<String, dynamic> json) {
+    final pageEntries = parseLastPageIndices(json);
+
+    return ZoteroSettingsResponse(
+      lastPageIndices: pageEntries,
+      tagColors: json['tagColors'] == null
+          ? null
+          : TagColors.fromJson(json['tagColors'] as Map<String, dynamic>),
+      lastModifiedVersion: (json['lastModifiedVersion'] as num?)?.toInt() ?? -1,
+    );
+  }
+
+  static Map<String, LastPageEntry> parseLastPageIndices(Map<String, dynamic>? json) {
+    final result = <String, LastPageEntry>{};
+    if (json == null) {
+      return result;
+    }
+
+    for (final entry in json.entries) {
+      final key = entry.key;
+      final value = entry.value;
+
+      if (key.startsWith('lastPageIndex_u_') && value is Map<String, dynamic>) {
+        final itemKey = key.replaceFirst('lastPageIndex_u_', '');
+        result[itemKey] = LastPageEntry.fromJson(value);
+      }
+    }
+
+    return result;
+  }
 
   Map<String, dynamic> toJson() => _$ZoteroSettingsResponseToJson(this);
 
@@ -34,6 +67,20 @@ class ZoteroSettingsResponse {
     );
     return tagColor?.color;
   }
+
+  // ✅ 添加 copyWith 方法
+  ZoteroSettingsResponse copyWith({
+    Map<String, LastPageEntry>? lastPageIndices,
+    TagColors? tagColors,
+    int? lastModifiedVersion,
+  }) {
+    return ZoteroSettingsResponse(
+      lastPageIndices: lastPageIndices ?? this.lastPageIndices,
+      tagColors: tagColors ?? this.tagColors,
+      lastModifiedVersion: lastModifiedVersion ?? this.lastModifiedVersion,
+    );
+  }
+
 }
 
 @JsonSerializable()

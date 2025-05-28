@@ -17,7 +17,9 @@ class DioResponse<T> {
   final T data;
   final int statusCode;
 
-  DioResponse(this.data,  this.statusCode);
+  Headers? headers;
+
+  DioResponse(this.data,  this.statusCode, {this.headers});
 }
 
 
@@ -445,11 +447,19 @@ class ZoteroAPIService {
       final response = await _dio.get('/users/$user/settings',
           options: Options(headers: headers),
           queryParameters: queryParameters);
+
       return Response(
-              response.data, response.statusCode!,
+              response.data, response.statusCode!, headers: response.headers,
             );
-    } catch (e) {
-      throw Exception('请求发生错误: $e');
+    } on DioException catch (e) {
+      // 304 不是异常
+      if (e.error != 304) {
+        throw Exception('请求发生错误: $e');
+      } else {
+        return Response(
+          null, e.response!.statusCode!, headers: e.response!.headers,
+        );
+      }
     }
   }
 }
