@@ -4,6 +4,7 @@ import 'package:module_library/LibZoteroApi/Model/CollectionPojo.dart';
 import 'package:module_library/LibZoteroApi/Model/KeyInfo.dart';
 import 'package:module_library/LibZoteroApi/Model/zotero_items_response.dart';
 
+import '../ModuleLibrary/model/zotero_item_downloaded.dart';
 import 'Model/DeletedEntriesPojo.dart';
 import 'Model/GroupPojo.dart';
 import 'Model/ZoteroSettingsResponse.dart';
@@ -20,10 +21,11 @@ class ZoteroAPI {
 
   /// 获取用户所有条目信息
   /// 注意：此接口返回的接口默认是分页的
-  Future<ZoteroAPIItemsResponse?> getItems(String userId, {int ifModifiedSinceVersion = -1, int startIndex = 0}) async {
+  Future<ZoteroAPIItemsResponse?> getItems(String userId, {int ifModifiedSinceVersion = -1, int startIndex = 0 }) async {
     debugPrint('Moyear==== 获取用户所有条目信息 userId: $userId, ifModifiedSinceVersion: $ifModifiedSinceVersion, startIndex: $startIndex');
 
-    final itemRes = await service.getItems(ifModifiedSinceVersion, userId, startIndex);
+    final itemRes = await service.getItems(userId, ifModifiedSinceVersion, startIndex);
+
     if (itemRes.statusCode != 200) {
       if (itemRes.statusCode == 304) {
         debugPrint('Moyear==== 304 条目数据已经是最新了.');
@@ -32,13 +34,22 @@ class ZoteroAPI {
         throw Exception('请求失败，状态码: ${itemRes.statusCode}');
       }
     } else if (itemRes.statusCode == 200) {
+
+
       return itemRes;
     }
+
+
     return null;
   }
 
-  Future<List> getItemsSince(int ifModifiedSinceVersion, String userId,
-      int modificationSinceVersion, int index) async {
+  /// 获取指定位置开始的条目信息
+  Future<List> getItemsSince(
+      String userId,
+      int ifModifiedSinceVersion,
+      int modificationSinceVersion,
+      int index,
+      ) async {
     final itemRes = await service.getItemsSince(
         ifModifiedSinceVersion, userId, modificationSinceVersion, index);
     if (itemRes.statusCode != 200) {

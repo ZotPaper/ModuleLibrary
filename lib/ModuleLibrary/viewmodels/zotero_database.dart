@@ -6,6 +6,7 @@ import 'package:shared_preferences/shared_preferences.dart';
 import '../../LibZoteroStorage/entity/Collection.dart';
 import '../../LibZoteroStorage/entity/Item.dart';
 import '../../LibZoteroStorage/entity/Note.dart';
+import '../model/zotero_item_downloaded.dart';
 
 /// 这是存放从本地数据库加载到内存的数据存放类（全局单例类）
 ///
@@ -41,6 +42,9 @@ class ZoteroDB {
 
   final List<ItemTag> _itemTags = [];
   List<ItemTag> get itemTags => _itemTags;
+
+  /// 本地下载的条目信息，用于下载变化的部分
+  Map<String, int> downloadedItemsInfo = {};
 
   // 判断是否已经加载了数据
   bool isPopulated() {
@@ -307,5 +311,27 @@ class ZoteroDB {
     final prefs = await SharedPreferences.getInstance();
     await prefs.setInt('TrashLibraryVersion', version);
   }
+
+  void setDownloadProgress(ItemsDownloadProgress progress) {
+    downloadedItemsInfo['downloadedAmount'] = progress.nDownloaded;
+    downloadedItemsInfo['total'] = progress.total;
+    downloadedItemsInfo['downloadVersion'] = progress.libraryVersion;
+  }
+
+  void destroyDownloadProgress() {
+    downloadedItemsInfo.clear();
+  }
+
+  ItemsDownloadProgress? getDownloadProgress() {
+    final nDownload = downloadedItemsInfo['downloadedAmount'] ?? 0;
+    if (nDownload == 0) return null;
+
+    final total = downloadedItemsInfo['total'] ?? 0;
+    final downloadVersion = downloadedItemsInfo['downloadVersion'] ?? 0;
+    if (total == nDownload) return null;
+
+    return ItemsDownloadProgress(downloadVersion, nDownload, total);
+  }
+
 
 }

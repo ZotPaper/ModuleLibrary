@@ -29,6 +29,11 @@ class ZoteroSyncManager {
 
   List<Item> _downloadingItems = [];
 
+  bool _isSyncing = false;
+  bool isSyncing() {
+    return _isSyncing;
+  }
+
   Function(int progress, int total)? _onProgressCallback;
   Function(List<Item> items)? _onFinishCallback;
 
@@ -36,7 +41,7 @@ class ZoteroSyncManager {
     _userId = userId;
     _apiKey = apiKey;
 
-    zoteroHttp = ZoteroDataHttp(apiKey: _apiKey);
+    zoteroHttp = ZoteroDataHttp(userId: _userId, apiKey: _apiKey);
   }
 
   // 判断是否已经配置了用户id和apiKey
@@ -52,8 +57,15 @@ class ZoteroSyncManager {
       throw Exception("请先配置用户id和apiKey");
     }
 
+    if (_isSyncing) {
+      debugPrint("SyncManager正在同步中，请稍后...");
+      return;
+    }
+
     _onProgressCallback = onProgressCallback;
     _onFinishCallback = onFinishCallback;
+
+    _isSyncing = true;
 
     // todo 考虑原子性
     // 获取所有集合
@@ -66,7 +78,7 @@ class ZoteroSyncManager {
 
   /// 从zotero中获取所有集合
   Future<void> _loadAllCollections() async {
-    var collections = await zoteroHttp.getCollections(zoteroDB, _userId);
+    var collections = await zoteroHttp.getCollections(zoteroDB);
     await zoteroDataSql.saveCollections(collections);
 
     _loadingCollectionsFinished = true;
@@ -77,7 +89,6 @@ class ZoteroSyncManager {
   Future<void> _loadAllItems() async {
     var items = await zoteroHttp.getItems(
       zoteroDB,
-      _userId,
       onProgress: (progress, total) {
         debugPrint("SyncManager加载Item进度：$progress/$total");
         // 通知下载进度
@@ -103,7 +114,7 @@ class ZoteroSyncManager {
 
   /// 获取zotero回收站中的条目
   Future _loadTrashedItems() async {
-    await zoteroHttp.getTrashedItems(zoteroDB, _userId,
+    await zoteroHttp.getTrashedItems(zoteroDB,
       onProgress: (progress, total) {
         debugPrint("SyncManager加载回收站中的Item进度：$progress/$total");
         // 通知下载进度
@@ -164,7 +175,6 @@ class ZoteroSyncManager {
 
     try {
       final deletedEntries = await zoteroHttp.getDeletedEntries(
-        _userId,
         deletedItemsCheckVersion,
       );
 
@@ -194,6 +204,7 @@ class ZoteroSyncManager {
 
   void _finishLibrarySync() {
     _onFinishCallback?.call(_downloadingItems);
+    _isSyncing = false;
   }
 }
 

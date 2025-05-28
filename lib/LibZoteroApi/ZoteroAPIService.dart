@@ -30,13 +30,15 @@ class ZoteroAPIService {
     },));
   }
 
-  Future<ZoteroAPIItemsResponse> getItems(int ifModifiedSinceVersion, String user, int index) async {
+
+  Future<ZoteroAPIItemsResponse> getItems(String user, int ifModifiedSinceVersion, int index) async {
     try {
       final headers = {
         'If-Modified-Since-Version': ifModifiedSinceVersion.toString()
       };
       final queryParameters = {
-        'start': index.toString()
+        'start': index.toString(),
+        'since': ifModifiedSinceVersion.toString()
       };
       final response = await _dio.get('/users/$user/items',
           options: Options(headers: headers),
@@ -58,6 +60,7 @@ class ZoteroAPIService {
       throw Exception('请求发生错误: $e');
     }
   }
+
   Future<Response<dynamic>> getItemsSince(int ifModifiedSinceVersion, String user, int modificationSinceVersion, int index) async {
     try {
       final headers = {
