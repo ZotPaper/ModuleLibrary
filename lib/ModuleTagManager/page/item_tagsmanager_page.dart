@@ -3,7 +3,11 @@ import 'dart:collection';
 import 'package:flutter/cupertino.dart';
 import 'package:flutter/material.dart';
 import 'package:bruno/bruno.dart';
+import 'package:module_library/LibZoteroApi/Model/ZoteroSettingsResponse.dart';
+import 'package:module_library/ModuleLibrary/utils/color_utils.dart';
+import 'package:module_library/ModuleLibrary/utils/my_logger.dart';
 import 'package:module_library/ModuleLibrary/viewmodels/zotero_database.dart';
+import 'package:module_library/ModuleTagManager/item_tagmanager.dart';
 import '../../LibZoteroStorage/entity/Item.dart';
 import '../../LibZoteroStorage/entity/ItemTag.dart';
 
@@ -25,6 +29,12 @@ class _ItemDetailTagFragmentState extends State<TagsManagerPage> with SingleTick
 
   List<Item> items = [];
 
+  List<TagColor> styledTags = [];
+
+  List<TagColor> showedTags = [];
+
+  final tagManger = TagManager();
+
   ZoteroDB zoteroDB = ZoteroDB();
 
   @override
@@ -37,6 +47,11 @@ class _ItemDetailTagFragmentState extends State<TagsManagerPage> with SingleTick
       tags.add(tag);
       uniqueTags.add(tag.tag);
     });
+
+    tagManger.getStyledTags().then((res) {
+      _updateShowingTags(res, uniqueTags);
+    });
+
   }
 
   @override
@@ -69,7 +84,7 @@ class _ItemDetailTagFragmentState extends State<TagsManagerPage> with SingleTick
                 spacing: 8,
                 runSpacing: 8,
                 children: [
-                  ...uniqueTags.map((tag) => _tagItem(tag)),
+                  ...showedTags.map((tag) => _tagItem(tag)),
                 ],
               ),
 
@@ -78,12 +93,19 @@ class _ItemDetailTagFragmentState extends State<TagsManagerPage> with SingleTick
     );
   }
 
-  Widget _tagItem(String tag) {
+  Widget _tagItem(TagColor tag) {
+    Color? tagColor;
+    try {
+      tagColor = ColorUtils.hexToColor(tag.color);
+     } catch (e) {
+      tagColor = const Color(0xFF4B5162);
+    }
+
     return BrnTagCustom(
-      tagText: tag,
+      tagText: tag.name,
       fontSize: 14,
       backgroundColor: const Color(0xFFF1F2FA),
-      textColor: const Color(0xFF4B5162),
+      textColor: tagColor,
       textPadding: const EdgeInsets.symmetric(vertical: 4, horizontal: 8),
     );
   }
@@ -109,5 +131,32 @@ class _ItemDetailTagFragmentState extends State<TagsManagerPage> with SingleTick
       ),
     );
   }
+
+  void _updateShowingTags(List<TagColor> styledTags, Set<String> uniqueTags) {
+    MyLogger.d("Moyear==== 样式标签：$styledTags");
+
+    showedTags.clear();
+    showedTags.addAll(styledTags);
+
+    for (var tag in uniqueTags) {
+      var index = showedTags.indexWhere((ele) {
+        if (ele.name == tag) {
+          return true;
+        }
+        return false;
+      });
+
+      // 如果样式标签中没有这个标签，则添加
+      if (index < 0) {
+        showedTags.add(TagColor(name: tag, color: '#4B5162'));
+      }
+    }
+
+    setState(() {
+      showedTags;
+    });
+  }
+
+
 
 }
