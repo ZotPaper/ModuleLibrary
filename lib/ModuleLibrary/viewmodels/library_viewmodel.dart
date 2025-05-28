@@ -2,9 +2,11 @@ import 'dart:async';
 import 'dart:collection';
 import 'package:bruno/bruno.dart';
 import 'package:flutter/material.dart';
+import 'package:module_library/LibZoteroApi/Model/ZoteroSettingsResponse.dart';
 import 'package:module_library/ModuleLibrary/model/list_entry.dart';
 import 'package:module_library/ModuleLibrary/model/page_type.dart';
 import 'package:module_library/ModuleLibrary/viewmodels/zotero_database.dart';
+import 'package:module_library/ModuleTagManager/item_tagmanager.dart';
 import '../../LibZoteroStorage/entity/Collection.dart';
 import '../../LibZoteroStorage/entity/Item.dart';
 import '../../ModuleSync/zotero_sync_manager.dart';
@@ -45,6 +47,8 @@ class LibraryViewModel with ChangeNotifier {
 
   final ZoteroDB zoteroDB = ZoteroDB();
 
+  TagManager tagManager = TagManager();
+
   LibraryViewModel() : super() {}
 
   final BehaviorSubject<PageType> _curPageController = BehaviorSubject<PageType>.seeded(PageType.blank);
@@ -72,7 +76,6 @@ class LibraryViewModel with ChangeNotifier {
     await SharedPref.init();
     bool isFirstStart = SharedPref.getBool(PrefString.isFirst, true);
 
-
     if (isFirstStart) {
       debugPrint("=============isFirstStart");
       // 切换到同步页面
@@ -81,6 +84,9 @@ class LibraryViewModel with ChangeNotifier {
       if (!zoteroSyncManager.isConfigured()) {
         zoteroSyncManager.init(_userId, _apiKey);
       }
+
+      // 初始化标签管理器
+      await tagManager.init();
 
       // 从数据库加载数据
       await _loadDataFromLocalDatabase();
@@ -399,5 +405,38 @@ class LibraryViewModel with ChangeNotifier {
       handleCollectionTap(collection, addToViewStack: false);
     }
   }
+
+  Future<TagColor?> filterInImportTag(String tag) async {
+    return await tagManager.foundInImportantTag(tag);
+  }
+
+  Future<List<TagColor>> getImportTagOfItem(Item item) async {
+    List<TagColor> res = [];
+    var itemTags = item.getTagList();
+
+    List<TagColor> importantTags = await tagManager.getStyledTags();
+
+    importantTags.forEach((ele) {
+      if (itemTags.contains(ele.name)) {
+        res.add(ele);
+      }
+    });
+    return res;
+  }
+
+  List<TagColor> getImportTagOfItemSync(Item item) {
+    List<TagColor> res = [];
+    var itemTags = item.getTagList();
+
+    List<TagColor> importantTags = tagManager.styledTags;
+
+    importantTags.forEach((ele) {
+      if (itemTags.contains(ele.name)) {
+        res.add(ele);
+      }
+    });
+    return res;
+  }
+
 
 }

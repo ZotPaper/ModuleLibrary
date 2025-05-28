@@ -11,6 +11,7 @@ class TagManager {
   factory TagManager() => _instance;
 
   List<TagColor> _styledTags = [];
+  List<TagColor> get styledTags => _styledTags;
 
   bool _isInit = false;
 
@@ -29,6 +30,17 @@ class TagManager {
       await init();
     }
     return _styledTags;
+  }
+
+  Future<TagColor?> foundInImportantTag(String tag) async {
+    List<TagColor> styledTags = await getStyledTags();
+
+    for (var styledTag in styledTags) {
+      if (styledTag.name == tag) {
+        return Future.value(styledTag);
+      }
+    }
+    return Future.value(null);
   }
 
 }

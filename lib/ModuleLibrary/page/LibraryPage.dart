@@ -1,6 +1,7 @@
 import 'package:flutter/cupertino.dart';
 import 'package:flutter/material.dart';
 import 'package:flutter/services.dart';
+import 'package:module_library/LibZoteroApi/Model/ZoteroSettingsResponse.dart';
 import 'package:module_library/LibZoteroStorage/entity/Item.dart';
 import 'package:module_library/ModuleItemDetail/page/item_details_page.dart';
 import 'package:module_library/ModuleLibrary/model/list_entry.dart';
@@ -9,9 +10,11 @@ import 'package:module_library/ModuleLibrary/page/blank_page.dart';
 import 'package:module_library/ModuleLibrary/page/sync_page/sync_page.dart';
 import 'package:module_library/ModuleLibrary/res/ResColor.dart';
 import 'package:module_library/ModuleLibrary/viewmodels/library_viewmodel.dart';
+import 'package:module_library/ModuleTagManager/item_tagmanager.dart';
 import 'package:provider/provider.dart';
 import 'package:pull_to_refresh/pull_to_refresh.dart';
 
+import '../utils/color_utils.dart';
 import 'LibraryUI/appBar.dart';
 import 'LibraryUI/drawer.dart';
 import 'package:flutter_svg/flutter_svg.dart';
@@ -238,6 +241,7 @@ class _LibraryPageState extends State<LibraryPage> {
                         style: const TextStyle(color: Colors.grey),
                       ),
                     ),
+                    if (entry.isItem()) _itemImportantTags(entry.item!),
                   ],
                 ),
               ),
@@ -543,6 +547,27 @@ class _LibraryPageState extends State<LibraryPage> {
       // 关闭刷新动画
       _refreshController.refreshCompleted();
     });
+  }
+
+  Widget _itemImportantTags(Item item) {
+    if (item.getTagList().isEmpty) {
+      return Container();
+    }
+
+    // 获取item的标签
+    final tags =  _viewModel.getImportTagOfItemSync(item);
+    return Row(
+        children: tags.map<Widget>((tag) {
+      return Container(
+        margin: const EdgeInsets.only(right: 2),
+        child: BrnTagCustom(
+          tagText: tag.name,
+
+          textColor: ColorUtils.hexToColor(tag.color),
+          backgroundColor: const Color(0xFFF1F2FA),
+        ),
+      );
+    }).toList(),);
   }
 
 
