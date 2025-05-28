@@ -16,12 +16,23 @@ class ZoteroSettingManager {
   static Future<void> _initSettingsFile() async {
     if (_settingsFile != null) return;
 
-    final dir = await getExternalStorageDirectory();
+    final dir = await getAppStorageDir();
+
+
     final configDir = Directory('${dir?.path}/zotero/config');
     if (!await configDir.exists()) await configDir.create(recursive: true);
 
     _settingsFile = File('${configDir.path}/$_settingsFileName');
   }
+
+  static Future<Directory?> getAppStorageDir() async {
+    if (Platform.isAndroid) {
+      return await getExternalStorageDirectory();
+    } else if (Platform.isIOS) {
+      return getApplicationDocumentsDirectory();
+    }
+  }
+
 
   static Future<bool> saveSettingsSync(ZoteroSettingsResponse settings) async {
     try {
@@ -60,7 +71,8 @@ class ZoteroSettingManager {
   static Future<ZoteroSettingsResponse> loadSettings() async {
     final settings = await loadSettingsSync();
     if (settings == null) {
-      throw FileSystemException("Settings file not found");
+      return  ZoteroSettingsResponse();
+      // throw FileSystemException("Settings file not found");
     }
     return settings;
   }
