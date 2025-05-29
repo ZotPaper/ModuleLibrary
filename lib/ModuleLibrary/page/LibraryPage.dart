@@ -2,6 +2,7 @@ import 'package:flutter/cupertino.dart';
 import 'package:flutter/material.dart';
 import 'package:flutter/services.dart';
 import 'package:module_library/LibZoteroApi/Model/ZoteroSettingsResponse.dart';
+import 'package:module_library/LibZoteroStorage/entity/Collection.dart';
 import 'package:module_library/LibZoteroStorage/entity/Item.dart';
 import 'package:module_library/ModuleItemDetail/page/item_details_page.dart';
 import 'package:module_library/ModuleLibrary/model/list_entry.dart';
@@ -222,37 +223,73 @@ class _LibraryPageState extends State<LibraryPage> {
         child: Container(
           padding: const EdgeInsets.all(10),
           width: double.infinity,
-          child: Row(
+          child: entry.isItem() ? _widgetItemEntry(entry.item!) : _widgetCollectionEntry(entry.collection!)
+        ),
+      ),
+    );
+  }
+  
+  /// 条目的列表widget
+  Widget _widgetItemEntry(Item item)  {
+    return Row(
+      children: [
+        _entryIcon(ListEntry(item: item)),
+        const SizedBox(width: 12),
+        Expanded(
+          child: Column(
             children: [
-              _entryIcon(entry),
-              const SizedBox(width: 12),
-              Expanded(
-                child: Column(
-                  children: [
-                    Container(
-                      width: double.infinity,
-                      child: Text(entry.isCollection() ? entry.collection!.name : entry.item!.getTitle(), maxLines: 2),
-                    ),
-                    Container(
-                      width: double.infinity,
-                      child: Text(
-                        entry.isItem() ? entry.item!.getAuthor() : "",
-                        maxLines: 1,
-                        style: const TextStyle(color: Colors.grey),
-                      ),
-                    ),
-                    if (entry.isItem()) _itemImportantTags(entry.item!),
-                  ],
+              Container(
+                width: double.infinity,
+                child: Text(item.getTitle(), maxLines: 2),
+              ),
+              Container(
+                width: double.infinity,
+                child: Text(
+                  item.getAuthor(),
+                  maxLines: 1,
+                  style: const TextStyle(color: Colors.grey),
                 ),
               ),
-              if (entry.isItem() && entry.item!.attachments.isNotEmpty) _attachmentIndicator(entry),
-              IconButton(onPressed: () {
-                _showEntryOperatePanel(context, entry);
-              }, icon: const Icon(Icons.more_vert)),
+              _itemImportantTags(item),
             ],
           ),
         ),
-      ),
+        if (item.attachments.isNotEmpty) _attachmentIndicator(item),
+        IconButton(onPressed: () {
+          _showItemEntryOperatePanel(context, item);
+        }, icon: const Icon(Icons.more_vert)),
+      ],
+    );
+  }
+
+  Widget _widgetCollectionEntry(Collection collection)  {
+    int sizeSub = _viewModel.getNumInCollection(collection);
+
+    return Row(
+      children: [
+        _entryIcon(ListEntry(collection: collection)),
+        const SizedBox(width: 12),
+        Expanded(
+          child: Column(
+            children: [
+              SizedBox(
+                width: double.infinity,
+                child: Text(collection.name, maxLines: 2),
+              ),
+              SizedBox(
+                width: double.infinity,
+                child: Text(
+                  "$sizeSub条子项",
+                  maxLines: 1,
+                  style: const TextStyle(color: Colors.grey),
+                ),
+              ),
+            ],
+          ),
+        ),
+        IconButton(onPressed: () {
+        }, icon: const Icon(Icons.more_vert)),
+      ],
     );
   }
 
@@ -282,18 +319,14 @@ class _LibraryPageState extends State<LibraryPage> {
         borderRadius: BorderRadius.circular(26),
       ),
       child: _iconItemWidget(entry),
-      // child: ClipRRect(
-      //   borderRadius: BorderRadius.circular(20),
-      //   child: _iconItemWidget(entry),
-      // ),
     );
   }
 
-  Widget _attachmentIndicator(ListEntry entry) {
+  Widget _attachmentIndicator(Item item) {
     return  InkWell(
       onTap: () {
         // print("pdf tap");
-        _showItemInfo(context, entry.item!);
+        _showItemInfo(context, item);
       },
       child: Container(
         padding: EdgeInsets.all(4),
@@ -464,7 +497,7 @@ class _LibraryPageState extends State<LibraryPage> {
   }
 
   /// 显示条目操作面板
-  void _showEntryOperatePanel(BuildContext context, ListEntry entry) {
+  void _showItemEntryOperatePanel(BuildContext context, Item item) {
     List<BrnCommonActionSheetItem> itemActions = [];
     itemActions.add(BrnCommonActionSheetItem(
       '在线查看',
@@ -492,12 +525,7 @@ class _LibraryPageState extends State<LibraryPage> {
     //   actionStyle: BrnCommonActionSheetItemStyle.normal,
     // ));
 
-    var title = "";
-    if (entry.isCollection()) {
-      title = entry.collection!.name;
-    } else if (entry.isItem()) {
-      title = entry.item!.getTitle();
-    }
+    var title = item.getTitle();
 
     // 展示actionSheet
     showModalBottomSheet(
@@ -513,10 +541,10 @@ class _LibraryPageState extends State<LibraryPage> {
               // BrnToast.show("title: $title, index: $index", context);
               switch (index) {
                 case 0:
-                  _viewModel.viewItemOnline(context, entry.item!);
+                  _viewModel.viewItemOnline(context, item);
                   break;
                 case 1:
-                  _showItemInfo(context, entry.item!);
+                  _showItemInfo(context, item);
                   break;
                 default:
 

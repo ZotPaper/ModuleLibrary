@@ -438,5 +438,13 @@ class LibraryViewModel with ChangeNotifier {
     return res;
   }
 
+  int getNumInCollection(Collection collection) {
+    int size = collection.subCollections?.length ?? 0;
+    size += zoteroDB.getItemsFromCollection(collection.key).length;
+
+    return size;
+
+  }
+
 
 }
