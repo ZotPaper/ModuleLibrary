@@ -69,21 +69,21 @@ class _CustomDrawerState extends State<CustomDrawer> {
     return [
       drawerButtonLine(
         icon: const Icon(Icons.home_outlined),
-        text: "Home",
+        text: "主页",
         onTap: () {
           widget.onItemTap(DrawerBtn.home);
         },
       ),
       drawerButtonLine(
         icon: const Icon(Icons.star_border_outlined),
-        text: "Favourites",
+        text: "收藏",
         onTap: () {
           widget.onItemTap(DrawerBtn.favourites);
         },
       ),
       drawerButtonLine(
         icon: const Icon(Icons.local_library_outlined),
-        text: "My Library",
+        text: "我的文库",
         onTap: () {
           widget.onItemTap(DrawerBtn.library);
         },
@@ -106,21 +106,21 @@ class _CustomDrawerState extends State<CustomDrawer> {
     return [
       drawerButtonLine(
         icon: const Icon(Icons.newspaper),
-        text: "Unfiled Items",
+        text: "未分类条目",
         onTap: () {
           widget.onItemTap(DrawerBtn.unfiled);
         },
       ),
       drawerButtonLine(
         icon: const Icon(Icons.book_outlined),
-        text: "My Publications",
+        text: "我的出版物",
         onTap: () {
           widget.onItemTap(DrawerBtn.publications);
         },
       ),
       drawerButtonLine(
         icon: const Icon(Icons.restore_from_trash),
-        text: "Trash",
+        text: "回收站",
         onTap: () {
           widget.onItemTap(DrawerBtn.trash);
         },
