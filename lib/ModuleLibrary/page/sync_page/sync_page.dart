@@ -17,7 +17,7 @@ class _SyncPageFragmentState extends State<SyncPageFragment>
   late AnimationController _controller;
   late SyncViewModel _viewModel;
 
-  var _loadingMessage = "首次运行，完整同步页面";
+  var _loadingMessage = "正在加载中...";
 
   @override
   void initState() {
@@ -43,25 +43,40 @@ class _SyncPageFragmentState extends State<SyncPageFragment>
       appBar: AppBar(
         backgroundColor: ResColor.bgColor,
       ),
-      body: StreamBuilder(
-        stream: _viewModel.navigationStream,
-        builder: (context, snapshot) {
-          if (snapshot.hasData) {
-            debugPrint('接收到跳转事件: ${snapshot.data}');
-            // 确保在帧结束后执行导航
-            WidgetsBinding.instance.addPostFrameCallback((_) {
-              debugPrint('执行页面跳转');
-              Navigator.of(context).pushReplacement(
-                MaterialPageRoute(
-                  builder: (context) => LaunchPage(),
-                ),
-              );
-            });
-          }
-          return Center(
-            child: Text(_loadingMessage),
-          );
-        },
+      body: Center(
+        child: Column(
+          mainAxisAlignment: MainAxisAlignment.center,
+          crossAxisAlignment: CrossAxisAlignment.center,
+          children: [
+            ConstrainedBox(
+                constraints: const BoxConstraints(maxHeight: 300, maxWidth: 300),
+                child: Image.asset(
+                  "assets/intro_zotpaper.webp",
+                  package: "module_library",
+                  fit: BoxFit.contain,
+                )
+            ),
+            const SizedBox(height: 60,),
+            StreamBuilder(
+              stream: _viewModel.navigationStream,
+              builder: (context, snapshot) {
+                if (snapshot.hasData) {
+                  debugPrint('接收到跳转事件: ${snapshot.data}');
+                  // 确保在帧结束后执行导航
+                  WidgetsBinding.instance.addPostFrameCallback((_) {
+                    debugPrint('执行页面跳转');
+                    Navigator.of(context).pushReplacement(
+                      MaterialPageRoute(
+                        builder: (context) => const LaunchPage(),
+                      ),
+                    );
+                  });
+                }
+                return Text(_loadingMessage);
+              },
+            ),
+          ],
+        ),
       ),
     );
   }

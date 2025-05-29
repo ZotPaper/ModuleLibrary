@@ -63,6 +63,7 @@ class ZoteroSettingManager {
     } catch (e) {
       MyLogger.e("Load failed: $e");
       return null;
+
     }
   }
 
