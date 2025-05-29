@@ -1,7 +1,12 @@
 import 'package:flutter/cupertino.dart';
 import 'package:flutter/material.dart';
+import 'package:module_library/LibZoteroStorage/entity/ItemTag.dart';
+import 'package:module_library/ModuleTagManager/item_tagmanager.dart';
 
+import '../../LibZoteroApi/Model/ZoteroSettingsResponse.dart';
 import '../../LibZoteroStorage/entity/Item.dart';
+import '../../ModuleLibrary/utils/color_utils.dart';
+import '../../ModuleLibrary/utils/my_logger.dart';
 
 class ItemDetailTagFragment extends StatefulWidget {
   final Item item;
@@ -16,6 +21,10 @@ class _ItemDetailTagFragmentState extends State<ItemDetailTagFragment> with Sing
 
   List<String> tags = [];
 
+  List<TagColor> showedTags = [];
+
+  TagManager tagManger = TagManager();
+
   @override
   void initState() {
     super.initState();
@@ -23,6 +32,10 @@ class _ItemDetailTagFragmentState extends State<ItemDetailTagFragment> with Sing
 
     widget.item.tags.forEach((tag) {
       tags.add(tag.tag);
+    });
+
+    tagManger.getStyledTags().then((res) {
+      _updateShowingTags(res, tags);
     });
   }
 
@@ -44,13 +57,13 @@ class _ItemDetailTagFragmentState extends State<ItemDetailTagFragment> with Sing
             child: Text('标签列表', style: TextStyle(fontSize: 16)),
           ),
           const SizedBox(height: 4),
-          ...tags.map((tag) => _tagItem(tag)),
+          ...showedTags.map((tag) => _tagItem(tag)),
           _addTagButton(),
         ],
     ));
   }
 
-  Widget _tagItem(String tag) {
+  Widget _tagItem(TagColor tag) {
     return Card(
       color: Colors.grey[100],
       elevation: 0,
@@ -60,7 +73,7 @@ class _ItemDetailTagFragmentState extends State<ItemDetailTagFragment> with Sing
             height: 42,
             padding: const EdgeInsets.symmetric(horizontal: 12.0),
             alignment: Alignment.centerLeft,
-            child: Text(tag)
+            child: Text(tag.name, style: TextStyle(color: ColorUtils.hexToColor(tag.color)))
         ),
       ),
     );
@@ -86,6 +99,28 @@ class _ItemDetailTagFragmentState extends State<ItemDetailTagFragment> with Sing
         ),
       ),
     );
+  }
+
+  void _updateShowingTags(List<TagColor> styledTags, List<String> uniqueTags) {
+    // MyLogger.d("Moyear==== 样式标签：$styledTags");
+
+    List<TagColor> res = [];
+
+    styledTags.forEach((tag) {
+      if (uniqueTags.contains(tag.name)) {
+        res.add(tag);
+      }
+    });
+
+    uniqueTags.forEach((tag) {
+      if (!res.any((element) => element.name == tag)) {
+        res.add(TagColor(name: tag, color: '#4B5162'));
+      }
+    });
+
+    setState(() {
+      showedTags.addAll(res);
+    });
   }
 
 }
