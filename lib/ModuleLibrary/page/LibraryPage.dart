@@ -288,6 +288,7 @@ class _LibraryPageState extends State<LibraryPage> {
           ),
         ),
         IconButton(onPressed: () {
+          _showCollectionEntryOperatePanel(context, collection);
         }, icon: const Icon(Icons.more_vert)),
       ],
     );
@@ -504,11 +505,21 @@ class _LibraryPageState extends State<LibraryPage> {
       desc: '在线查看条目的最新信息',
       actionStyle: BrnCommonActionSheetItemStyle.normal,
     ));
-    itemActions.add(BrnCommonActionSheetItem(
-      '查看条目信息',
-      // desc: '分享条目信息给朋友',
-      actionStyle: BrnCommonActionSheetItemStyle.normal,
-    ));
+
+    bool isStared = _viewModel.isItemStarred(item);
+    if (isStared) {
+      itemActions.add(BrnCommonActionSheetItem(
+        '从收藏夹中移除',
+        actionStyle: BrnCommonActionSheetItemStyle.alert,
+      ));
+    } else {
+      itemActions.add(BrnCommonActionSheetItem(
+        '添加到收藏',
+        // desc: '分享条目信息给朋友',
+        actionStyle: BrnCommonActionSheetItemStyle.normal,
+      ));
+    }
+
     // itemActions.add(BrnCommonActionSheetItem(
     //   '下载所有附件',
     //   desc: '下载条目下的所有附件到本地',
@@ -544,7 +555,61 @@ class _LibraryPageState extends State<LibraryPage> {
                   _viewModel.viewItemOnline(context, item);
                   break;
                 case 1:
-                  _showItemInfo(context, item);
+                  if (isStared) {
+                    _viewModel.removeStar(item: item);
+                  } else {
+                    _viewModel.addToStaredItem(item);
+                  }
+                  break;
+                default:
+              }
+            },
+          );
+        });
+  }
+
+
+  /// 显示合集操作面板
+  void _showCollectionEntryOperatePanel(BuildContext context, Collection collection) {
+    List<BrnCommonActionSheetItem> itemActions = [];
+
+    bool isStared = _viewModel.isCollectionStarred(collection);
+    if (isStared) {
+      itemActions.add(BrnCommonActionSheetItem(
+        '从收藏夹中移除',
+        actionStyle: BrnCommonActionSheetItemStyle.alert,
+      ));
+    } else {
+      itemActions.add(BrnCommonActionSheetItem(
+        '添加到收藏夹',
+        actionStyle: BrnCommonActionSheetItemStyle.normal,
+      ));
+
+    }
+
+    var title = collection.name;
+
+    // 展示actionSheet
+    showModalBottomSheet(
+        context: context,
+        backgroundColor: Colors.transparent,
+        builder: (BuildContext context) {
+          return BrnCommonActionSheet(
+            title: title,
+            actions: itemActions,
+            cancelTitle: "取消",
+            clickCallBack: (int index, BrnCommonActionSheetItem actionEle) {
+              // String title = actionEle.title;
+              // BrnToast.show("title: $title, index: $index", context);
+              switch (index) {
+                case 0:
+                  if (isStared) {
+                    _viewModel.removeStar(collection: collection);
+                  } else {
+                    _viewModel.addToStar(collection);
+                  }
+                  break;
+                case 1:
                   break;
                 default:
 

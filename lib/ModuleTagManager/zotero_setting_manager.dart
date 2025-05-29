@@ -1,5 +1,6 @@
 import 'dart:convert';
 import 'dart:io';
+import 'package:module_library/LibZoteroStorage/storage_provider.dart';
 import 'package:module_library/ModuleLibrary/utils/my_logger.dart';
 import 'package:path_provider/path_provider.dart';
 import '../LibZoteroApi/Model/ZoteroSettingsResponse.dart';
@@ -21,21 +22,13 @@ class ZoteroSettingManager {
   Future<void> _initSettingsFile() async {
     if (_settingsFile != null) return;
 
-    final dir = await getAppStorageDir();
+    final dir = await StorageProvider.getAppStorageDir();
 
 
     final configDir = Directory('${dir?.path}/zotero/config');
     if (!await configDir.exists()) await configDir.create(recursive: true);
 
     _settingsFile = File('${configDir.path}/$_settingsFileName');
-  }
-
-  Future<Directory?> getAppStorageDir() async {
-    if (Platform.isAndroid) {
-      return await getExternalStorageDirectory();
-    } else if (Platform.isIOS) {
-      return getApplicationDocumentsDirectory();
-    }
   }
 
 

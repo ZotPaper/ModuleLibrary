@@ -259,6 +259,18 @@ class ZoteroDB {
     return null;
   }
 
+  /// 根据key获取条目item
+  Item? getItemByKey(String key) {
+    for (var item in items) {
+      if (item.itemKey == key) {
+        return item;
+      }
+    }
+    return null;
+  }
+
+
+
 
   Future<void> setItemsVersion(int libraryVersion) async {
     final prefs = await SharedPreferences.getInstance();

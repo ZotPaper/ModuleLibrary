@@ -5,6 +5,7 @@ import 'package:flutter/material.dart';
 import 'package:module_library/LibZoteroApi/Model/ZoteroSettingsResponse.dart';
 import 'package:module_library/ModuleLibrary/model/list_entry.dart';
 import 'package:module_library/ModuleLibrary/model/page_type.dart';
+import 'package:module_library/ModuleLibrary/my_library_filter.dart';
 import 'package:module_library/ModuleLibrary/viewmodels/zotero_database.dart';
 import 'package:module_library/ModuleTagManager/item_tagmanager.dart';
 import '../../LibZoteroStorage/entity/Collection.dart';
@@ -12,6 +13,7 @@ import '../../LibZoteroStorage/entity/Item.dart';
 import '../../ModuleSync/zotero_sync_manager.dart';
 import '../api/ZoteroDataHttp.dart';
 import '../api/ZoteroDataSql.dart';
+import '../model/my_item_entity.dart';
 import '../share_pref.dart';
 import '../page/LibraryUI/drawer.dart';
 import 'package:rxdart/rxdart.dart';
@@ -114,7 +116,7 @@ class LibraryViewModel with ChangeNotifier {
         // showListEntriesIn("home");
         break;
       case DrawerBtn.favourites:
-        // showListEntriesIn("favourites");
+        showListEntriesIn("favourites");
       case DrawerBtn.library:
         showListEntriesIn("library");
         break;
@@ -163,6 +165,9 @@ class LibraryViewModel with ChangeNotifier {
     var allTags = await zoteroDataSql.getAllTags();
     zoteroDB.setItemTags(allTags);
 
+    // 初始化过滤器
+    MyItemFilter.instance.init();
+
     // 只显示顶级的集合
     _displayedCollections.clear();
     _displayedCollections.addAll(collections.where((it) {
@@ -190,6 +195,10 @@ class LibraryViewModel with ChangeNotifier {
       case "trashes":
         list = await _getTrashEntries();
         title = "回收站";
+        break;
+      case "favourites":
+        list = await _getMyStarredEntries();
+        title = "收藏";
         break;
       default:
         // list = await _getEntriesInCollection(locationKey);
@@ -301,6 +310,7 @@ class LibraryViewModel with ChangeNotifier {
       case 'publications':
       case 'unfiled':
       case "trashes":
+      case "favourites":
         showListEntriesIn(locationKey, addToViewStack: false);
         break;
       default:
@@ -395,6 +405,7 @@ class LibraryViewModel with ChangeNotifier {
       case 'publications':
       case 'unfiled':
       case "trashes":
+      case "favourites":
         showListEntriesIn(currentLocationKey, addToViewStack: false);
         break;
       default:
@@ -446,5 +457,67 @@ class LibraryViewModel with ChangeNotifier {
 
   }
 
+  void addToStar(Collection collection) {
+    var collectionInfo = FilterInfo.fromCollection(collection);
+    // 添加到收藏夹
+    MyItemFilter.instance.addToStar(collectionInfo);
+  }
 
+  void addToStaredItem(Item item) {
+    var itemInfo = FilterInfo.fromItem(item);
+    // 添加到收藏夹
+    MyItemFilter.instance.addToStar(itemInfo);
+  }
+
+  Future<List<ListEntry>> _getMyStarredEntries() async {
+    List<ListEntry> res = [];
+    MyItemFilter.instance.getMyStars().forEach((ele) {
+      if (ele.isCollection) {
+        var collection = zoteroDB.getCollectionByKey(ele.itemKey);
+        if (collection != null) {
+          res.add(ListEntry(collection: collection));
+        }
+      } else {
+        var item = zoteroDB.getItemByKey(ele.itemKey);
+        if (item != null) {
+          res.add(ListEntry(item: item));
+        }
+      }
+    });
+
+    // 排序
+    res.sort((a, b) {
+      if (a.isCollection() && b.isItem()) {
+        return -1;
+      } else if (a.isItem() && b.isCollection()) {
+        return 1;
+      } else {
+        return 0;
+      }
+    });
+
+    return res;
+  }
+
+  /// 获取收藏夹是否被收藏
+  bool isCollectionStarred(Collection collection) {
+    return MyItemFilter.instance.isStarred(FilterInfo.fromCollection(collection));
+
+  }
+
+  bool isItemStarred(Item item) {
+    return MyItemFilter.instance.isStarred(FilterInfo.fromItem(item));
+  }
+
+  void removeStar({Collection? collection, Item? item}) {
+    if (collection != null) {
+      MyItemFilter.instance.removeStar(FilterInfo.fromCollection(collection));
+    }
+    if (item != null) {
+      MyItemFilter.instance.removeStar(FilterInfo.fromItem(item));
+    }
+
+    // todo 刷新数据
+    refreshInCurrent();
+  }
 }
