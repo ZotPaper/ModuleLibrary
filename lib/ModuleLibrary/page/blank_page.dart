@@ -24,6 +24,23 @@ class _BlankPageState extends State<BlankPage> with SingleTickerProviderStateMix
 
   @override
   Widget build(BuildContext context) {
-    return const Center(child: Text('No items available'));
+    return Center(child:
+      Column(
+        mainAxisAlignment: MainAxisAlignment.center,
+        crossAxisAlignment: CrossAxisAlignment.center,
+        children: [
+          ConstrainedBox(
+              constraints: const BoxConstraints(maxHeight: 300, maxWidth: 300),
+              child: Image.asset(
+                "assets/intro_zotpaper.webp",
+                package: "module_library",
+                fit: BoxFit.contain,
+              )
+          ),
+          const SizedBox(height: 60,),
+          const Text('暂无数据'),
+        ],
+      )
+    );
   }
 }
