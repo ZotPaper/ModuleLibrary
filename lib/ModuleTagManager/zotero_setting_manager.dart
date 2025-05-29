@@ -4,16 +4,21 @@ import 'package:module_library/ModuleLibrary/utils/my_logger.dart';
 import 'package:path_provider/path_provider.dart';
 import '../LibZoteroApi/Model/ZoteroSettingsResponse.dart';
 
-typedef OnSettingChangedListener = void Function(int newVersion);
+typedef OnSettingChangedListener = void Function(int newVersion, ZoteroSettingsResponse newSettings);
 
 class ZoteroSettingManager {
+
+  static final ZoteroSettingManager instance = ZoteroSettingManager._internal();
+  ZoteroSettingManager._internal();
+  factory ZoteroSettingManager() => instance;
+
   static const _settingsFileName = "zoterosetting.json";
-  static final List<OnSettingChangedListener> _listeners = [];
+  final List<OnSettingChangedListener> _listeners = [];
 
-  static File? _settingsFile;
-  static final _lock = Object();
+  File? _settingsFile;
 
-  static Future<void> _initSettingsFile() async {
+
+  Future<void> _initSettingsFile() async {
     if (_settingsFile != null) return;
 
     final dir = await getAppStorageDir();
@@ -25,7 +30,7 @@ class ZoteroSettingManager {
     _settingsFile = File('${configDir.path}/$_settingsFileName');
   }
 
-  static Future<Directory?> getAppStorageDir() async {
+  Future<Directory?> getAppStorageDir() async {
     if (Platform.isAndroid) {
       return await getExternalStorageDirectory();
     } else if (Platform.isIOS) {
@@ -34,14 +39,14 @@ class ZoteroSettingManager {
   }
 
 
-  static Future<bool> saveSettingsSync(ZoteroSettingsResponse settings) async {
+  Future<bool> saveSettingsSync(ZoteroSettingsResponse settings) async {
     try {
       await _initSettingsFile();
       final jsonStr = jsonEncode(settings.toJson());
       await _settingsFile!.writeAsString(jsonStr);
 
       for (var listener in _listeners) {
-        listener(settings.lastModifiedVersion);
+        listener(settings.lastModifiedVersion, settings);
       }
 
       return true;
@@ -51,11 +56,11 @@ class ZoteroSettingManager {
     }
   }
 
-  static Future<void> saveSettings(ZoteroSettingsResponse settings) async {
+  Future<void> saveSettings(ZoteroSettingsResponse settings) async {
     await saveSettingsSync(settings);
   }
 
-  static Future<ZoteroSettingsResponse?> loadSettingsSync() async {
+  Future<ZoteroSettingsResponse?> loadSettingsSync() async {
     try {
       await _initSettingsFile();
       if (!await _settingsFile!.exists()) return null;
@@ -68,7 +73,7 @@ class ZoteroSettingManager {
     }
   }
 
-  static Future<ZoteroSettingsResponse> loadSettings() async {
+  Future<ZoteroSettingsResponse> loadSettings() async {
     final settings = await loadSettingsSync();
     if (settings == null) {
       return  ZoteroSettingsResponse();
@@ -77,7 +82,7 @@ class ZoteroSettingManager {
     return settings;
   }
 
-  static Future<void> appendSettings(ZoteroSettingsResponse newSettings) async {
+  Future<void> appendSettings(ZoteroSettingsResponse newSettings) async {
     final oldSettings = await loadSettingsSync();
     if (oldSettings == null) {
       return saveSettings(newSettings);
@@ -101,20 +106,20 @@ class ZoteroSettingManager {
     return saveSettings(merged);
   }
 
-  static Future<void> clearSettings() async {
+  Future<void> clearSettings() async {
     await _initSettingsFile();
     await _settingsFile?.delete();
   }
 
-  static void addSettingChangedListener(OnSettingChangedListener listener) {
+  void addSettingChangedListener(OnSettingChangedListener listener) {
     _listeners.add(listener);
   }
 
-  static void removeSettingChangedListener(OnSettingChangedListener listener) {
+  void removeSettingChangedListener(OnSettingChangedListener listener) {
     _listeners.remove(listener);
   }
 
-  static void removeAllSettingChangedListeners() {
+  void removeAllSettingChangedListeners() {
     _listeners.clear();
   }
 }

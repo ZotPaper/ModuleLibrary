@@ -156,7 +156,7 @@ class ZoteroSyncManager {
       MyLogger.d("[oldVersion: $settingVersion; newVersion: $newVersion]，result: $response");
 
       // 追加设置到本地 json（ZoteroSettingManager 自行封装）
-      await ZoteroSettingManager.appendSettings(response);
+      await ZoteroSettingManager.instance.appendSettings(response);
 
       // 设置本地版本号
       await db.setZoteroSettingVersion(newVersion);
