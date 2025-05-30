@@ -67,13 +67,14 @@ class MyItemFilter {
   }
 
   List<FilterInfo> getMyStars() {
+    // MyLogger.d("收藏的列表数量：${_starredItems.length} 列表：$_starredItems");
     return List.unmodifiable(_starredItems);
   }
 
   Future<void> addToStar(FilterInfo entity) async {
     await ensureInit();
     if (_starredItems.contains(entity)) {
-      MyLogger.d('The item: ${entity.itemKey} has been added to stars');
+      MyLogger.d('The item: ${entity.itemKey} has been added to stars，no need to add again');
       return;
     }
     _starredItems.add(entity);
@@ -84,11 +85,13 @@ class MyItemFilter {
   Future<void> removeStar(FilterInfo entity) async {
     await ensureInit();
     if (!_starredItems.contains(entity)) {
-      MyLogger.d('The item: ${entity.itemKey} has not been added to stars');
+      MyLogger.d('The item: ${entity.itemKey} has not been added to stars, unable to remove it.');
       return;
     }
+    // MyLogger.d("删除前收藏的列表数量：${_starredItems.length} 列表：$_starredItems");
     _starredItems.remove(entity);
-    MyLogger.d('Remove item: ${entity.itemKey} from stars');
+    // MyLogger.d("删除后收藏的列表数量：${_starredItems.length} 列表：$_starredItems");
+    MyLogger.d('Remove  $entity from stars');
     await _writeStarConfig();
   }
 

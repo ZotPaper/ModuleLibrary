@@ -509,15 +509,21 @@ class LibraryViewModel with ChangeNotifier {
     return MyItemFilter.instance.isStarred(FilterInfo.fromItem(item));
   }
 
-  void removeStar({Collection? collection, Item? item}) {
+  /// 从收藏夹移除
+  Future<void> removeStar({Collection? collection, Item? item}) async {
+    bool delete = false;
     if (collection != null) {
-      MyItemFilter.instance.removeStar(FilterInfo.fromCollection(collection));
+      await MyItemFilter.instance.removeStar(FilterInfo.fromCollection(collection));
+      delete = true;
     }
     if (item != null) {
-      MyItemFilter.instance.removeStar(FilterInfo.fromItem(item));
+      await MyItemFilter.instance.removeStar(FilterInfo.fromItem(item));
+      delete = true;
     }
 
-    // todo 刷新数据
-    refreshInCurrent();
+    // 如果有元素删除则刷新数据
+    if (delete) {
+      refreshInCurrent();
+    }
   }
 }

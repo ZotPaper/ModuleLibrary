@@ -44,4 +44,9 @@ class FilterInfo {
 
   @override
   int get hashCode => itemKey.hashCode ^ isCollection.hashCode;
+
+  @override
+  String toString() {
+    return "FilterInfo{itemKey: $itemKey, name: $name, isCollection: $isCollection}";
+  }
 }
