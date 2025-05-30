@@ -113,7 +113,7 @@ class LibraryViewModel with ChangeNotifier {
   void handleDrawerItemTap(DrawerBtn drawerBtn, {String? collectionKey}) {
     switch (drawerBtn) {
       case DrawerBtn.home:
-        // showListEntriesIn("home");
+        showListEntriesIn("home");
         break;
       case DrawerBtn.favourites:
         showListEntriesIn("favourites");
@@ -179,6 +179,10 @@ class LibraryViewModel with ChangeNotifier {
   Future<void> showListEntriesIn(String locationKey, {bool addToViewStack = true}) async {
     List<ListEntry> list = [];
     switch (locationKey) {
+      case 'home':
+        list = await _getHomeListEntries();
+        title = "主页";
+        break;
       case 'library':
         list = await _getMyLibraryEntries();
         title = "我的文库";
@@ -230,6 +234,21 @@ class LibraryViewModel with ChangeNotifier {
     }).toList();
 
   }
+
+  Future<List<ListEntry>> _getHomeListEntries() async {
+    List<ListEntry> res = [];
+    zoteroDB.collections.forEach((element) {
+      res.add(ListEntry(collection: element));
+    });
+    var allItems = zoteroDB.getDisplayableItems();
+    sortItems(allItems);
+
+    res.addAll(allItems.map((ele) {
+      return ListEntry(item: ele);
+    }).toList());
+    return res;
+  }
+
 
   /// 获取未分类的条目
   Future<List<ListEntry>> _getUnfiledEntries() async {
@@ -306,6 +325,7 @@ class LibraryViewModel with ChangeNotifier {
     debugPrint('Moyear=== backToPreviousPage: $locationKey');
 
     switch (locationKey) {
+      case 'home':
       case 'library':
       case 'publications':
       case 'unfiled':
@@ -401,6 +421,7 @@ class LibraryViewModel with ChangeNotifier {
     if (currentLocationKey.isEmpty) return;
 
     switch (currentLocationKey) {
+      case 'home':
       case 'library':
       case 'publications':
       case 'unfiled':
@@ -526,4 +547,6 @@ class LibraryViewModel with ChangeNotifier {
       refreshInCurrent();
     }
   }
+
+
 }
