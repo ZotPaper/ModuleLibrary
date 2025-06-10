@@ -672,14 +672,14 @@ class _LibraryPageState extends State<LibraryPage> {
       crossAxisAlignment: CrossAxisAlignment.center,
       children: [
         ConstrainedBox(
-            constraints: const BoxConstraints(maxHeight: 300, maxWidth: 300),
+            constraints: const BoxConstraints(maxHeight: 240, maxWidth: 240),
             child: Image.asset(
-              "assets/intro_zotpaper.webp",
+              "assets/content_failed.png",
               package: "module_library",
               fit: BoxFit.contain,
             )
         ),
-        const SizedBox(height: 60,),
+        const SizedBox(height: 18,),
         const Text('暂无数据'),
       ],
     )
