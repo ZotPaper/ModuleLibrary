@@ -32,8 +32,6 @@ class _LibraryPageState extends State<LibraryPage> {
   late LibraryViewModel _viewModel;
   final GlobalKey<ScaffoldState> _scaffoldKey = GlobalKey<ScaffoldState>();
 
-  // final TextEditingController _searchController = TextEditingController();
-
   BrnSearchTextController searchController = BrnSearchTextController();
   TextEditingController textController = TextEditingController();
 
@@ -75,7 +73,6 @@ class _LibraryPageState extends State<LibraryPage> {
     if (!_viewModel.initialized) {
       _viewModel.init();
     }
-
   }
 
 
@@ -150,29 +147,37 @@ class _LibraryPageState extends State<LibraryPage> {
 
   /// 文库列表页面
   Widget libraryListPage() {
-    return Column(
-      children: [
-        searchLine(),
-        Expanded(
-          child: _viewModel.displayEntries.isEmpty ? _emptyView() : Container(
-            color: ResColor.bgColor,
-            width: double.infinity,
-            child: SmartRefresher(
-              enablePullDown: true,
-              controller: _refreshController,
-              header: _refreshHeader(),
-              onRefresh: _onRefresh,
-              child: ListView.builder(
-                itemCount: _viewModel.displayEntries.length,
-                itemBuilder: (context, index) {
-                  final entry = _viewModel.displayEntries[index];
-                  return widgetListEntry(entry);
-                },
+    return GestureDetector(
+      onTap: () {
+        // 移除焦点
+        FocusScope.of(context).unfocus();
+        focusNode.unfocus();
+      },
+      behavior: HitTestBehavior.opaque, // 确保整个区域都能响应点击
+      child: Column(
+        children: [
+          searchLine(),
+          Expanded(
+            child: _viewModel.displayEntries.isEmpty ? _emptyView() : Container(
+              color: ResColor.bgColor,
+              width: double.infinity,
+              child: SmartRefresher(
+                enablePullDown: true,
+                controller: _refreshController,
+                header: _refreshHeader(),
+                onRefresh: _onRefresh,
+                child: ListView.builder(
+                  itemCount: _viewModel.displayEntries.length,
+                  itemBuilder: (context, index) {
+                    final entry = _viewModel.displayEntries[index];
+                    return widgetListEntry(entry);
+                  },
+                ),
               ),
             ),
           ),
-        ),
-      ],
+        ],
+      ),
     );
   }
 
