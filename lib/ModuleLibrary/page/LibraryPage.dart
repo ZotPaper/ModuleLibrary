@@ -144,21 +144,17 @@ class _LibraryPageState extends State<LibraryPage> {
     } else if (_viewModel.curPage == PageType.library) {
       return libraryListPage();
     } else {
-      return const BlankPage();
+      return _emptyView();
     }
   }
 
   /// 文库列表页面
   Widget libraryListPage() {
-    if (_viewModel.listEntries.isEmpty) {
-      return const BlankPage();
-    }
-
     return Column(
       children: [
         searchLine(),
         Expanded(
-          child: Container(
+          child: _viewModel.displayEntries.isEmpty ? _emptyView() : Container(
             color: ResColor.bgColor,
             width: double.infinity,
             child: SmartRefresher(
@@ -167,9 +163,9 @@ class _LibraryPageState extends State<LibraryPage> {
               header: _refreshHeader(),
               onRefresh: _onRefresh,
               child: ListView.builder(
-                itemCount: _viewModel.listEntries.length,
+                itemCount: _viewModel.displayEntries.length,
                 itemBuilder: (context, index) {
-                  final entry = _viewModel.listEntries[index];
+                  final entry = _viewModel.displayEntries[index];
                   return widgetListEntry(entry);
                 },
               ),
@@ -196,9 +192,10 @@ class _LibraryPageState extends State<LibraryPage> {
         // BrnToast.show('取消', context);
       },
       onTextCommit: (text) {
-        // BrnToast.show('提交内容 : $text', context);
+        _viewModel.setFilterText(text);
       },
       onTextChange: (text) {
+        _viewModel.setFilterText(text);
         // BrnToast.show('输入内容 : $text', context);
       },
     );
@@ -661,6 +658,27 @@ class _LibraryPageState extends State<LibraryPage> {
         ),
       );
     }).toList(),);
+  }
+
+  Widget _emptyView() {
+    return Center(child:
+    Column(
+      mainAxisAlignment: MainAxisAlignment.center,
+      crossAxisAlignment: CrossAxisAlignment.center,
+      children: [
+        ConstrainedBox(
+            constraints: const BoxConstraints(maxHeight: 300, maxWidth: 300),
+            child: Image.asset(
+              "assets/intro_zotpaper.webp",
+              package: "module_library",
+              fit: BoxFit.contain,
+            )
+        ),
+        const SizedBox(height: 60,),
+        const Text('暂无数据'),
+      ],
+    )
+    );
   }
 
 

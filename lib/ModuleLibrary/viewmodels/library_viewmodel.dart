@@ -38,8 +38,14 @@ class LibraryViewModel with ChangeNotifier {
 
   List<Collection> get displayedCollections => _displayedCollections;
 
+  // 当前位置的所有列表entries
   final List<ListEntry> _listEntries = [];
-  List<ListEntry> get listEntries => _listEntries;
+  // List<ListEntry> get listEntries => _listEntries;
+
+  // 用于显示的列表entries，用于过滤
+  final List<ListEntry> _displayListEntries = [];
+  List<ListEntry> get displayEntries => _displayListEntries;
+
 
   /// 用于过滤的关键字
   String filterText = "";
@@ -211,6 +217,13 @@ class LibraryViewModel with ChangeNotifier {
     _listEntries.clear();
     _listEntries.addAll(list);
 
+    _displayListEntries.clear();
+    if (filterText.isEmpty) {
+      _displayListEntries.addAll(_listEntries);
+    } else {
+      _displayListEntries.addAll(_filterListEntries(_listEntries, filterText));
+    }
+
     _notifyShowItems();
     notifyListeners();
 
@@ -283,8 +296,17 @@ class LibraryViewModel with ChangeNotifier {
     });
 
     _listEntries.clear();
+    // 过滤数据并添加
     _listEntries.addAll(entriesCollections);
     _listEntries.addAll(entriesItems);
+
+    _displayListEntries.clear();
+    // 过滤数据并添加, 如果没有过滤条件，则添加全部数据
+    if (filterText.trim().isEmpty) {
+      _displayListEntries.addAll(_listEntries);
+    } else {
+      _displayListEntries.addAll(_filterListEntries(_listEntries, filterText));
+    }
 
     _notifyShowItems();
     notifyListeners();
@@ -548,5 +570,65 @@ class LibraryViewModel with ChangeNotifier {
     }
   }
 
+  /// 设置过滤条件
+  void setFilterText(String text) {
+    filterText = text;
+    refreshInCurrent();
+  }
+
+  /// 对条目进行过滤
+  List<ListEntry> _filterListEntries(List<ListEntry> entries, String filter, {bool ignoreCase = true}) {
+    if (filter.trim().isEmpty) {
+      return entries;
+    }
+    return entries.where((entry) {
+      if (entry.isCollection()) {
+        return entry.collection!.name.contains(filter);
+      } else if (entry.isItem()) {
+        if (entry.item!.getTitle().contains(filter) == true || entry.item!.getAuthor().contains(filter)) {
+          return true;
+        }
+
+        // 遍历作者
+        for (var creator in entry.item!.creators) {
+          if (ignoreCase) {
+            if (creator.firstName.toLowerCase().contains(filter.toLowerCase())
+                || creator.lastName.toLowerCase().contains(filter.toLowerCase())) {
+              return true;
+            }
+          } else {
+            if (creator.firstName.contains(filter) || creator.lastName.contains(filter)) {
+              return true;
+            }
+          }
+        }
+
+        // 遍历条目数据中的 摘要, 笔记, 批注, 出版社
+        if (_itemDataContains(entry.item!, "abstractNote", filter) ||
+            _itemDataContains(entry.item!, "note", filter) ||
+            _itemDataContains(entry.item!, "annotationText", filter) ||
+            _itemDataContains(entry.item!, "publicationTitle", filter)
+        ) {
+          return true;
+        }
+        else {
+          return false;
+        }
+      } else {
+        return false;
+      }
+    }).toList();
+  }
+
+  /// 条目数据是否包含过滤条件
+  bool _itemDataContains(Item item, String itemAttr, String filter, {bool ignoreCase = true}) {
+    if (itemAttr.isEmpty) return false;
+    var value = item.getItemData(itemAttr) ?? "";
+    if (ignoreCase) {
+      filter = filter.toLowerCase();
+      value = value.toLowerCase();
+    }
+    return value.contains(filter) == true;
+  }
 
 }
