@@ -631,4 +631,24 @@ class LibraryViewModel with ChangeNotifier {
     return value.contains(filter) == true;
   }
 
+  void moveItemToTrash(BuildContext context, Item item) {
+    zoteroDataSql.itemInfoDao.markItemDeleted(item.itemKey, true);
+    zoteroDB.moveItemToTrash(item);
+
+    BrnToast.show("将条目${item.itemKey}移动到回收站成功", context);
+    refreshInCurrent();
+  }
+
+  bool isItemDeleted(Item item) {
+    return item.itemInfo.deleted;
+  }
+
+  void restoreItem(BuildContext context, Item item) {
+    zoteroDataSql.itemInfoDao.markItemDeleted(item.itemKey, false);
+    zoteroDB.restoreItemFromTrash(item);
+
+    BrnToast.show("恢复条目${item.itemKey}成功", context);
+    refreshInCurrent();
+  }
+
 }

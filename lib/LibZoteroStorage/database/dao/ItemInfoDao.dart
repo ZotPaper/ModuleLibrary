@@ -62,6 +62,17 @@ class ItemInfoDao {
     );
   }
 
+  /// 标记item为已删除
+  Future<int> markItemDeleted(String itemKey, bool isDeleted, {int groupId = -1}) async {
+    final db = await dbHelper.database;
+    return await db.update(
+      'ItemInfo',
+      {'deleted': isDeleted ? 1 : 0},
+      where: 'itemKey = ? AND groupId = ?',
+      whereArgs: [itemKey, groupId],
+    );
+}
+
   /// 获取所有已删除的item
   Future<List<ItemInfo>> getDeletedItemInfos() async{
     final db = await dbHelper.database;

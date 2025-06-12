@@ -26,29 +26,32 @@ class ZoteroDataHttp {
 
   /// 获取zotero所有的条目,
   /// 注意：是全量数据
-  Future<List<Item>> getItems(
-      ZoteroDB zoteroDB,
+  Future<List<Item>> getItems(ZoteroDB zoteroDB,
       {Function(int progress, int total)? onProgress,
-      Function(List<Item>)? onFinish,
-      Function(int errorCode, String msg)? onError}) async {
-
+        Function(List<Item>)? onFinish,
+        Function(int errorCode, String msg)? onError}) async {
     final lastModifiedVersion = await zoteroDB.getLibraryVersion();
 
     final downloadedProgress = zoteroDB.getDownloadProgress();
     int starIndex = downloadedProgress?.nDownloaded ?? 0;
 
     // 发送请求下载数据，注意默认返回最多为25条（依赖后端而定），所以需要分页下载
-    final response = await service.getItems(userId, ifModifiedSinceVersion: lastModifiedVersion, startIndex: starIndex);
+    final response = await service.getItems(
+        userId, ifModifiedSinceVersion: lastModifiedVersion,
+        startIndex: starIndex);
     if (response == null) {
       return [];
     }
 
     // todo 检查本地版本号和远程版本号是否一致，不一致的话说明发生了冲突
-    if (downloadedProgress != null && response.LastModifiedVersion != downloadedProgress.libraryVersion) {
+    if (downloadedProgress != null &&
+        response.LastModifiedVersion != downloadedProgress.libraryVersion) {
       // Due to possible miss-syncs, we cannot continue the download.
       // we will raise an exception which will tell the activity to redownload without the
       // progress object.
-      throw Exception("Cannot continue, our version ${downloadedProgress.libraryVersion} doesn't match Server's ${response.LastModifiedVersion}");
+      throw Exception("Cannot continue, our version ${downloadedProgress
+          .libraryVersion} doesn't match Server's ${response
+          .LastModifiedVersion}");
     }
 
     // 如果没有数据，则直接返回，调用onFinish
@@ -62,7 +65,8 @@ class ZoteroDataHttp {
     List<int> downloadedCount = [0];
 
     // 处理第一页数据
-    await _processPage(response.data, items, total, downloadedCount, onProgress, onFinish);
+    await _processPage(
+        response.data, items, total, downloadedCount, onProgress, onFinish);
     // 缓存下载进度, 主要是为了避免后续重复下载
     _cacheDownloadProgress(zoteroDB, response, downloadedCount[0], total);
     // 检查进度，并且把结果回调出去
@@ -70,11 +74,15 @@ class ZoteroDataHttp {
 
     // 继续下载剩余页面
     while (downloadedCount[0] < total) {
-      final pagedResponse = await service.getItems(userId, ifModifiedSinceVersion: lastModifiedVersion, startIndex: downloadedCount[0]);
+      final pagedResponse = await service.getItems(
+          userId, ifModifiedSinceVersion: lastModifiedVersion,
+          startIndex: downloadedCount[0]);
       if (pagedResponse == null) {
         continue;
       }
-      await _processPage(pagedResponse.data, items, total, downloadedCount, onProgress, onFinish);
+      await _processPage(
+          pagedResponse.data, items, total, downloadedCount, onProgress,
+          onFinish);
       // 缓存下载进度, 主要是为了避免后续重复下载
       _cacheDownloadProgress(zoteroDB, response, downloadedCount[0], total);
       // 检查进度，并且把结果回调出去
@@ -95,13 +103,13 @@ class ZoteroDataHttp {
     // 下载完成数据后，更新本地的文库版本号
     final newLibraryVersion = response.LastModifiedVersion;
     await zoteroDB.setItemsVersion(newLibraryVersion);
-    debugPrint("Moyear==== 下载完成数据后，更新本地的文库版本号: $newLibraryVersion");
+    debugPrint(
+        "Moyear==== 下载完成数据后，更新本地的文库版本号: $newLibraryVersion");
     return items;
   }
 
   /// 处理分页数据
-  Future<void> _processPage(
-      List<dynamic> pageData,
+  Future<void> _processPage(List<dynamic> pageData,
       List<Item> items,
       int total,
       List<int> downloadedCount,
@@ -120,29 +128,24 @@ class ZoteroDataHttp {
   }
 
   /// 检查下载进度，并且把结果回调出去
-  void _checkProgress(
-      List<int> downloadedCount,
+  void _checkProgress(List<int> downloadedCount,
       int total,
       List<Item> items,
       Function(int progress, int total)? onProgress,
       Function(List<Item>)? onFinish) async {
-
     if (downloadedCount[0] == total) {
       onFinish?.call(items);
     } else {
       onProgress?.call(downloadedCount[0], total);
     }
-
   }
 
-  Future<List<Collection>> getCollections(
-      ZoteroDB zoteroDB,
+  Future<List<Collection>> getCollections(ZoteroDB zoteroDB,
       { int index = 0}) async {
-
     final lastModifiedVersion = await zoteroDB.getLibraryVersion();
 
     final itemRes =
-        await service.getCollections(lastModifiedVersion, userId, index);
+    await service.getCollections(lastModifiedVersion, userId, index);
     List<Collection> collections = [];
 
     for (var collectionPOJO in itemRes) {
@@ -281,15 +284,15 @@ class ZoteroDataHttp {
 
   /// 获取zotero所有的条目,
   /// 注意：是全量数据
-  Future<List<Item>> getTrashedItems(
-      ZoteroDB zoteroDB,
+  Future<List<Item>> getTrashedItems(ZoteroDB zoteroDB,
       {Function(int progress, int total)? onProgress,
         Function(List<Item>)? onFinish,
         Function(int errorCode, String msg)? onError}) async {
     final lastTrashVersion = await zoteroDB.getTrashVersion();
 
     // 发送请求下载数据，注意默认返回最多为25条（依赖后端而定），所以需要分页下载
-    final response = await service.getTrashedItemsForUser(userId, ifModifiedSinceVersion: lastTrashVersion);
+    final response = await service.getTrashedItemsForUser(
+        userId, ifModifiedSinceVersion: lastTrashVersion);
     if (response == null) {
       onFinish?.call([]);
       return [];
@@ -307,17 +310,21 @@ class ZoteroDataHttp {
     List<int> downloadedCount = [0];
 
     // 处理第一页数据
-    await _processPage(response.data, items, total, downloadedCount, onProgress, onFinish);
+    await _processPage(
+        response.data, items, total, downloadedCount, onProgress, onFinish);
     // 检查进度，并且把结果回调出去
     _checkProgress(downloadedCount, total, items, onProgress, onFinish);
 
     // 继续下载剩余页面
     while (downloadedCount[0] < total) {
-      final pagedResponse = await service.getItems(userId, startIndex: downloadedCount[0]);
+      final pagedResponse = await service.getItems(
+          userId, startIndex: downloadedCount[0]);
       if (pagedResponse == null) {
         continue;
       }
-      await _processPage(pagedResponse.data, items, total, downloadedCount, onProgress, onFinish);
+      await _processPage(
+          pagedResponse.data, items, total, downloadedCount, onProgress,
+          onFinish);
       // 检查进度，并且把结果回调出去
       _checkProgress(downloadedCount, total, items, onProgress, onFinish);
     }
@@ -331,19 +338,19 @@ class ZoteroDataHttp {
   }
 
   /// 获取zotero删除的条目
-  Future<DeletedEntriesPojo?> getDeletedEntries(
-      int sinceVersion,
+  Future<DeletedEntriesPojo?> getDeletedEntries(int sinceVersion,
       {Function(int progress, int total)? onProgress,
         Function(List<Item>)? onFinish,
         Function(int errorCode, String msg)? onError}) async {
-
     // 发送请求下载数据，注意默认返回最多为25条（依赖后端而定），所以需要分页下载
     final response = await service.getDeletedEntriesSince(userId, sinceVersion);
     return response;
   }
 
-  void _cacheDownloadProgress(ZoteroDB zoteroDB, ZoteroAPIItemsResponse response, int downloadedCount, int total) {
-    debugPrint("Moyear=== 缓存下载进度：${response.LastModifiedVersion} $downloadedCount/$total");
+  void _cacheDownloadProgress(ZoteroDB zoteroDB,
+      ZoteroAPIItemsResponse response, int downloadedCount, int total) {
+    debugPrint("Moyear=== 缓存下载进度：${response
+        .LastModifiedVersion} $downloadedCount/$total");
     zoteroDB.setDownloadProgress(
         ItemsDownloadProgress(
           response.LastModifiedVersion,
@@ -356,7 +363,8 @@ class ZoteroDataHttp {
   Future<ZoteroSettingsResponse?> getZoteroSettings(int sinceVersion) async {
     // 发送请求下载数据，注意默认返回最多为25条（依赖后端而定），所以需要分页下载
     try {
-      final response = await service.getSettings(userId, sinceVersion, sinceVersion);
+      final response = await service.getSettings(
+          userId, sinceVersion, sinceVersion);
       return response;
     } catch (e) {
       debugPrint("Moyear=== getZoteroSettings error: $e");
@@ -364,6 +372,35 @@ class ZoteroDataHttp {
     }
   }
 
+  Future<dynamic> moveItemToTrash(
+      ZoteroDB zoteroDB,
+      Item item, {
+        Function(Item deletedItem, int newTrashVersion)? onSuccess,
+        Function(int errorCode, String msg)? onError,
+      }) async {
+    try {
+      int itemVersion = item.getVersion();
+      final response = await service.deleteItem(userId, item.itemKey, itemVersion);
+      // todo 判断是否成功删除，删除成功，更新数据库数据与版本号
+      // 204 No Content	The item was deleted.
+      // 409 Conflict	The target library is locked.
+      // 412 Precondition Failed	The item has changed since retrieval (i.e., the provided item version no longer matches).
+      // 428 Precondition Required	If-Unmodified-Since-Version was not provided.
+
+      if (response.statusCode == 200) {
+        onSuccess?.call(item, response.LastModifiedVersion);
+       }
+
+      if (response.statusCode == 204 || response.statusCode == 428 || response.statusCode == 412 || response.statusCode == 409) {
+        onError?.call(response.statusCode, response.reasonPhrase);
+      }
+
+      return response;
+    } catch (e) {
+      debugPrint("Moyear=== moveItemToTrash error: $e");
+      return null;
+    }
+  }
 
 
 }

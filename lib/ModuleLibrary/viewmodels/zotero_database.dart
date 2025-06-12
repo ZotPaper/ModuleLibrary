@@ -1,6 +1,7 @@
 
 import 'package:flutter/cupertino.dart';
 import 'package:module_library/LibZoteroStorage/entity/ItemTag.dart';
+import 'package:module_library/ModuleLibrary/utils/my_logger.dart';
 import 'package:shared_preferences/shared_preferences.dart';
 
 import '../../LibZoteroStorage/entity/Collection.dart';
@@ -343,6 +344,30 @@ class ZoteroDB {
     if (total == nDownload) return null;
 
     return ItemsDownloadProgress(downloadVersion, nDownload, total);
+  }
+
+  /// 移动条目到回收站
+  void moveItemToTrash(Item item) {
+    if (!_items.contains(item)) {
+      MyLogger.w("error. got request to move item to trash that is not in items list.");
+      return;
+    }
+    _items.remove(item);
+    // 更新item的itemInfo为已删除
+    item.itemInfo = item.itemInfo.copyWith(deleted: true);
+    trashItems.add(item);
+  }
+
+  /// 从回收站中恢复条目
+  void restoreItemFromTrash(Item item) {
+    if (!trashItems.contains(item)) {
+      MyLogger.w("error. got request to restore item from trash that is not in trash list.");
+      return;
+    }
+    trashItems.remove(item);
+    // 更新item的itemInfo为未删除
+    item.itemInfo = item.itemInfo.copyWith(deleted: false);
+    _items.add(item);
   }
 
 

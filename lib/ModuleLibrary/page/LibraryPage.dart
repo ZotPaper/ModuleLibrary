@@ -500,7 +500,7 @@ class _LibraryPageState extends State<LibraryPage> {
   }
 
   /// 显示条目操作面板
-  void _showItemEntryOperatePanel(BuildContext context, Item item) {
+  void _showItemEntryOperatePanel(BuildContext ctx, Item item) {
     List<BrnCommonActionSheetItem> itemActions = [];
     itemActions.add(BrnCommonActionSheetItem(
       '在线查看',
@@ -519,6 +519,19 @@ class _LibraryPageState extends State<LibraryPage> {
         '添加到收藏',
         // desc: '分享条目信息给朋友',
         actionStyle: BrnCommonActionSheetItemStyle.normal,
+      ));
+    }
+
+    bool isItemDeleted = _viewModel.isItemDeleted(item);
+    if (isItemDeleted) {
+      itemActions.add(BrnCommonActionSheetItem(
+        '还原到文献库中',
+        actionStyle: BrnCommonActionSheetItemStyle.normal,
+      ));
+    } else {
+      itemActions.add(BrnCommonActionSheetItem(
+        '移动到回收站',
+        actionStyle: BrnCommonActionSheetItemStyle.alert,
       ));
     }
 
@@ -542,25 +555,34 @@ class _LibraryPageState extends State<LibraryPage> {
 
     // 展示actionSheet
     showModalBottomSheet(
-        context: context,
+        context: ctx,
         backgroundColor: Colors.transparent,
-        builder: (BuildContext context) {
+        useRootNavigator: true,
+        builder: (BuildContext bottomSheetContext) {
           return BrnCommonActionSheet(
             title: title,
             actions: itemActions,
             cancelTitle: "取消",
             clickCallBack: (int index, BrnCommonActionSheetItem actionEle) {
-              // String title = actionEle.title;
-              // BrnToast.show("title: $title, index: $index", context);
               switch (index) {
-                case 0:
+                case 0: // 在线查看
                   _viewModel.viewItemOnline(context, item);
                   break;
-                case 1:
+                case 1: // 收藏或取消收藏
                   if (isStared) {
                     _viewModel.removeStar(item: item);
                   } else {
                     _viewModel.addToStaredItem(item);
+                  }
+                  break;
+                case 2: // 删除或还原
+                  if (isItemDeleted) {
+                    _viewModel.restoreItem(context, item);
+                  } else {
+                    // 延迟显示删除提示框，否则加载不出来
+                    Future.delayed(const Duration(milliseconds: 200), (){
+                      _showTrashItemConfirmDialog(ctx, item);
+                    });
                   }
                   break;
                 default:
@@ -601,8 +623,6 @@ class _LibraryPageState extends State<LibraryPage> {
             actions: itemActions,
             cancelTitle: "取消",
             clickCallBack: (int index, BrnCommonActionSheetItem actionEle) {
-              // String title = actionEle.title;
-              // BrnToast.show("title: $title, index: $index", context);
               switch (index) {
                 case 0:
                   if (isStared) {
@@ -683,6 +703,29 @@ class _LibraryPageState extends State<LibraryPage> {
         const Text('暂无数据'),
       ],
     )
+    );
+  }
+
+  // 显示删除条目确认框
+  void _showTrashItemConfirmDialog(BuildContext ctx, Item item) {
+    BrnDialogManager.showConfirmDialog(context,
+      cancel: "取消",
+      confirm: "确定",
+      title: "移动到回收站",
+      messageWidget: Padding(
+        padding: const EdgeInsets.only(top: 6, left: 24, right: 24),
+        child: BrnCSS2Text.toTextView(
+            "是否将条目\<font color = '#8ac6d1'\>${item.getTitle()}</font>"
+                "移动到回收站？"),
+      ),
+      showIcon: true,
+      onConfirm: () {
+        _viewModel.moveItemToTrash(context, item);
+        Navigator.of(ctx).pop();
+      },
+      onCancel: () {
+        Navigator.of(ctx).pop();
+      },
     );
   }
 
