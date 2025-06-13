@@ -10,6 +10,7 @@ import 'package:module_library/ModuleLibrary/model/page_type.dart';
 import 'package:module_library/ModuleLibrary/page/blank_page.dart';
 import 'package:module_library/ModuleLibrary/page/sync_page/sync_page.dart';
 import 'package:module_library/ModuleLibrary/res/ResColor.dart';
+import 'package:module_library/ModuleLibrary/utils/sheet_item_helper.dart';
 import 'package:module_library/ModuleLibrary/viewmodels/library_viewmodel.dart';
 import 'package:module_library/ModuleTagManager/item_tagmanager.dart';
 import 'package:provider/provider.dart';
@@ -501,39 +502,78 @@ class _LibraryPageState extends State<LibraryPage> {
 
   /// 显示条目操作面板
   void _showItemEntryOperatePanel(BuildContext ctx, Item item) {
-    List<BrnCommonActionSheetItem> itemActions = [];
-    itemActions.add(BrnCommonActionSheetItem(
-      '在线查看',
-      desc: '在线查看条目的最新信息',
-      actionStyle: BrnCommonActionSheetItemStyle.normal,
+    List<ItemClickProxy> itemClickProxies = [];
+    itemClickProxies.add(ItemClickProxy(
+      title: "在线查看",
+      desc: "在线查看条目的最新信息",
+      onClick: () {
+        _viewModel.viewItemOnline(context, item);
+      },
     ));
 
     bool isStared = _viewModel.isItemStarred(item);
     if (isStared) {
-      itemActions.add(BrnCommonActionSheetItem(
-        '从收藏夹中移除',
-        actionStyle: BrnCommonActionSheetItemStyle.alert,
+      itemClickProxies.add(ItemClickProxy(
+        title: "从收藏夹中移除",
+        desc: "从收藏夹中移除该条目",
+        actionStyle: "alert",
+        onClick: () {
+          _viewModel.removeStar(item: item);
+        },
       ));
     } else {
-      itemActions.add(BrnCommonActionSheetItem(
-        '添加到收藏',
-        // desc: '分享条目信息给朋友',
-        actionStyle: BrnCommonActionSheetItemStyle.normal,
+      itemClickProxies.add(ItemClickProxy(
+        title: "添加到收藏",
+        onClick: () {
+          _viewModel.addToStaredItem(item);
+        },
       ));
     }
 
     bool isItemDeleted = _viewModel.isItemDeleted(item);
     if (isItemDeleted) {
-      itemActions.add(BrnCommonActionSheetItem(
-        '还原到文献库中',
-        actionStyle: BrnCommonActionSheetItemStyle.normal,
+      itemClickProxies.add(ItemClickProxy(
+        title: "还原到文献库中",
+        onClick: () {
+          _viewModel.restoreItem(ctx, item);
+        },
       ));
     } else {
-      itemActions.add(BrnCommonActionSheetItem(
-        '移动到回收站',
-        actionStyle: BrnCommonActionSheetItemStyle.alert,
+      itemClickProxies.add(ItemClickProxy(
+        title: "移动到回收站",
+        actionStyle: "alert",
+        onClick: () {
+          Future.delayed(const Duration(milliseconds: 200), () {
+            _viewModel.moveItemToTrash(ctx, item);
+          });
+        },
       ));
     }
+
+    if (!isItemDeleted) {
+      itemClickProxies.add(ItemClickProxy(
+        title: "更改所属集合",
+        onClick: () {
+          Future.delayed(const Duration(milliseconds: 200), () {
+            _viewModel.showChangeCollectionSelector(ctx, item);
+          });
+        },
+      ));
+    }
+
+    List<BrnCommonActionSheetItem> itemActions = itemClickProxies.map((ele) {
+      var actionStyle = BrnCommonActionSheetItemStyle.normal;
+      if (ele.actionStyle != null && ele.actionStyle == "alert") {
+        actionStyle = BrnCommonActionSheetItemStyle.alert;
+      }
+      return BrnCommonActionSheetItem(
+        ele.title,
+        desc: ele.desc,
+        actionStyle: actionStyle,
+      );
+    }).toList();
+
+
 
     // itemActions.add(BrnCommonActionSheetItem(
     //   '下载所有附件',
@@ -564,29 +604,7 @@ class _LibraryPageState extends State<LibraryPage> {
             actions: itemActions,
             cancelTitle: "取消",
             clickCallBack: (int index, BrnCommonActionSheetItem actionEle) {
-              switch (index) {
-                case 0: // 在线查看
-                  _viewModel.viewItemOnline(context, item);
-                  break;
-                case 1: // 收藏或取消收藏
-                  if (isStared) {
-                    _viewModel.removeStar(item: item);
-                  } else {
-                    _viewModel.addToStaredItem(item);
-                  }
-                  break;
-                case 2: // 删除或还原
-                  if (isItemDeleted) {
-                    _viewModel.restoreItem(context, item);
-                  } else {
-                    // 延迟显示删除提示框，否则加载不出来
-                    Future.delayed(const Duration(milliseconds: 200), (){
-                      _showTrashItemConfirmDialog(ctx, item);
-                    });
-                  }
-                  break;
-                default:
-              }
+              itemClickProxies[index].onClick?.call();
             },
           );
         });

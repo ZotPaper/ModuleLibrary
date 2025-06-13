@@ -3,6 +3,7 @@ import 'package:module_library/LibZoteroStorage/entity/Item.dart';
 import 'package:module_library/ModuleItemDetail/page/item_details_page.dart';
 import 'package:module_library/ModuleLibrary/page/LibraryPage.dart';
 import 'package:module_library/ModuleLibrary/page/launch_page.dart';
+import 'package:module_library/ModuleLibrary/page/select_collection_page/collection_select_page.dart';
 import 'package:module_library/ModuleLibrary/viewmodels/library_viewmodel.dart';
 import 'package:module_library/ModuleTagManager/page/item_tagsmanager_page.dart';
 import 'package:provider/provider.dart';
@@ -50,6 +51,13 @@ class MyApp extends StatelessWidget {
             // 可以抛出错误或跳转到错误页面
             throw Exception('Invalid argument type for itemDetailPage');
           }
+        },
+        'collectionSelector': (context) {
+          final arguments = ModalRoute.of(context)?.settings.arguments;
+          if (arguments is List<String>) {
+            return CollectionSelector(parentCollections: arguments);
+          }
+          return CollectionSelector();
         },
       },
     );

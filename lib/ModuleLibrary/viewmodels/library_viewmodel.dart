@@ -280,7 +280,7 @@ class LibraryViewModel with ChangeNotifier {
     // var entries = await _getEntriesInCollection(itemKey);
     title = collection.name;
 
-    var res = await zoteroDataSql.getItemsInCollection(collection.key);
+    var res = zoteroDB.getItemsFromCollection(collection.key);
     // 对数据进行排序
     sortItems(res);
     var entriesItems = res.map((ele) {
@@ -650,5 +650,27 @@ class LibraryViewModel with ChangeNotifier {
     BrnToast.show("恢复条目${item.itemKey}成功", context);
     refreshInCurrent();
   }
+
+  void showChangeCollectionSelector(BuildContext ctx, Item item) {
+
+    print("====默认选中的：${item.collections}");
+    Future res = Navigator.of(ctx).pushNamed("collectionSelector", arguments: item.collections);
+    res.then((value) {
+      if (value is List<String>) {
+        BrnToast.show("选中了${value.length}个集合", ctx);
+      }
+    });
+  }
+
+  /// 创建副本
+  // void duplicateItem(BuildContext ctx, Item item) {
+  //   Item duplicatedItem = item;
+  //   duplicatedItem.getTitle()
+  //
+  //   zoteroDB.addItem(duplicatedItem);
+  //
+  //
+  //   refreshInCurrent();
+  // }
 
 }
