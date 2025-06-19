@@ -6,10 +6,12 @@ import 'package:module_library/LibZoteroApi/Model/ZoteroSettingsResponse.dart';
 import 'package:module_library/ModuleLibrary/model/list_entry.dart';
 import 'package:module_library/ModuleLibrary/model/page_type.dart';
 import 'package:module_library/ModuleLibrary/my_library_filter.dart';
+import 'package:module_library/ModuleLibrary/utils/my_logger.dart';
 import 'package:module_library/ModuleLibrary/viewmodels/zotero_database.dart';
 import 'package:module_library/ModuleTagManager/item_tagmanager.dart';
 import '../../LibZoteroStorage/entity/Collection.dart';
 import '../../LibZoteroStorage/entity/Item.dart';
+import '../../LibZoteroStorage/entity/ItemCollection.dart';
 import '../../ModuleSync/zotero_sync_manager.dart';
 import '../api/ZoteroDataHttp.dart';
 import '../api/ZoteroDataSql.dart';
@@ -652,14 +654,27 @@ class LibraryViewModel with ChangeNotifier {
   }
 
   void showChangeCollectionSelector(BuildContext ctx, Item item) {
-
-    print("====默认选中的：${item.collections}");
+    // debugPrint("====默认选中的：${item.collections}");
     Future res = Navigator.of(ctx).pushNamed("collectionSelector", arguments: item.collections);
     res.then((value) {
       if (value is List<String>) {
-        BrnToast.show("选中了${value.length}个集合", ctx);
+        _changeParentCollections(ctx, item, value);
       }
     });
+  }
+
+  void _changeParentCollections(BuildContext ctx, Item item, List<String> value) {
+    MyLogger.d("选中了${value.length}个集合");
+
+    Set<String> collectionKeys = value.toSet();
+
+    // 更新内存中的数据
+    zoteroDB.updateParentCollections(item, value.toSet());
+    // 更新数据库
+    zoteroDataSql.itemCollectionDao.updateParentCollections(item.itemKey, collectionKeys);
+
+    // 刷新当前页面
+    refreshInCurrent();
   }
 
   /// 创建副本

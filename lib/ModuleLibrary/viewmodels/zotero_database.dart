@@ -370,5 +370,48 @@ class ZoteroDB {
     _items.add(item);
   }
 
+  /// 更新条目所属于的Collection合集
+  void updateParentCollections(Item item, Set<String> parentCollections) {
+    // 更新item的parentCollections
+    item.collections = parentCollections.toList();
+    List<String> deleted = [];
+
+    // 找出删除的
+    itemsFromCollections?.forEach((collectionKey, value) {
+      var itemKeys = value.map((ele) {
+        return ele.itemKey;
+      });
+
+      // 找出删除的
+      if (itemKeys.contains(item.itemKey) && !parentCollections.contains(collectionKey)) {
+        deleted.add(collectionKey);
+
+        value.remove(item);
+        MyLogger.d("从ZoteroDB中删除了ItemCollection[itemKey:${item.itemKey}, collectionKey:$collectionKey] ");
+
+      }
+    });
+
+    // 找到新加的
+    for (var collectionKey in parentCollections) {
+      var items = itemsFromCollections?[collectionKey];
+      if (items == null) {
+        items = [];
+        items.add(item);
+        itemsFromCollections?[collectionKey] = items;
+        MyLogger.d("从ZoteroDB中新增了ItemCollection[itemKey:${item.itemKey}, collectionKey:$collectionKey] ");
+      } else {
+        // item不存在的时候添加
+        var itemKeys = items.map((ele) {
+          return ele.itemKey;
+        });
+        if (!itemKeys.contains(item.itemKey)) {
+          items.add(item);
+          MyLogger.d("从ZoteroDB中新增了ItemCollection[itemKey:${item.itemKey}, collectionKey:$collectionKey] ");
+        }
+      }
+    }
+
+  }
 
 }

@@ -107,7 +107,9 @@ class _CollectionSelectorState extends State<CollectionSelector> {
           isSelected: collection.isSelected,
           childOnRight: false,
           onValueChangedAtIndex: (index, value) {
-            changeCollectionChecked(collection, value);
+            setState(() {
+              changeCollectionChecked(collection, value);
+            });
           },
         ),
         onTap: () {
@@ -141,7 +143,9 @@ class _CollectionSelectorState extends State<CollectionSelector> {
   void changeCollectionChecked(CollectionSelection collection, bool checked) {
     collection.isSelected = checked;
     if (checked) {
-      selectedCollections.add(collection.collection.key);
+      if (!selectedCollections.contains(collection.collection.key)) {
+        selectedCollections.add(collection.collection.key);
+      }
     } else {
       selectedCollections.remove(collection.collection.key);
     }
