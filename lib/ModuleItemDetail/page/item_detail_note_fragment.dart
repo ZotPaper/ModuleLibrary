@@ -76,7 +76,6 @@ class _ItemDetailNoteFragmentState extends State<ItemDetailNoteFragment> with Si
   Widget _addAttachmentButton() {
     return InkWell(
       onTap: () {
-
       },
       child: Container(
         height: 42,

@@ -138,4 +138,16 @@ class TagColor {
       _$TagColorFromJson(json);
 
   Map<String, dynamic> toJson() => _$TagColorToJson(this);
+
+  @override
+  int get hashCode => Object.hash(name, color);
+
+  @override
+  bool operator ==(Object other) {
+    if (identical(this, other)) return true;
+
+    return other is TagColor &&
+        other.name == name &&
+        other.color == color;
+  }
 }

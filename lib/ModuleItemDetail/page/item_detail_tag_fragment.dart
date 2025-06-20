@@ -1,6 +1,10 @@
+import 'dart:collection';
+
 import 'package:flutter/cupertino.dart';
 import 'package:flutter/material.dart';
 import 'package:module_library/LibZoteroStorage/entity/ItemTag.dart';
+import 'package:module_library/ModuleLibrary/page/tags_selector_page/tags_selector_page.dart';
+import 'package:module_library/ModuleSync/zotero_sync_manager.dart';
 import 'package:module_library/ModuleTagManager/item_tagmanager.dart';
 
 import '../../LibZoteroApi/Model/ZoteroSettingsResponse.dart';
@@ -82,7 +86,7 @@ class _ItemDetailTagFragmentState extends State<ItemDetailTagFragment> with Sing
   Widget _addTagButton() {
     return InkWell(
       onTap: () {
-
+        _navigateToAddTag();
       },
       child: Container(
         height: 42,
@@ -121,6 +125,38 @@ class _ItemDetailTagFragmentState extends State<ItemDetailTagFragment> with Sing
     setState(() {
       showedTags.addAll(res);
     });
+  }
+
+  Future<void> _navigateToAddTag() async {
+    // var importantTags = await tagManger.getStyledTags();
+
+    Set<TagColor> styledTags = LinkedHashSet();
+    Set<TagColor> unStyledTags = LinkedHashSet();
+
+    // 获取所有标签
+    for (var itemTag in ZoteroSyncManager.instance.zoteroDB.itemTags) {
+      var tag = await tagManger.foundInImportantTag(itemTag.tag);
+      if (tag != null) {
+        styledTags.add(tag);
+      } else {
+        unStyledTags.add(TagColor(name: itemTag.tag, color: ''));
+      }
+    }
+
+    List<TagColor> allTags = [];
+    allTags.addAll(styledTags);
+    allTags.addAll(unStyledTags);
+
+    // 获取当前选中的标签
+
+    Navigator.push(
+      context,
+      MaterialPageRoute(
+        builder: (context) => TagSelectorPage(
+            tags: allTags,
+        ),
+      ),
+    );
   }
 
 }
