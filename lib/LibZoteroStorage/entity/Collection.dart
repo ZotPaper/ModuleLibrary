@@ -10,7 +10,7 @@ class Collection {
   final String key;
   final int version;
   final String name;
-  final String parentCollection;
+  String parentCollection;
   final int groupId;
 
 

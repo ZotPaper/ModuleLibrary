@@ -555,7 +555,7 @@ class _LibraryPageState extends State<LibraryPage> {
         title: "更改所属集合",
         onClick: () {
           Future.delayed(const Duration(milliseconds: 200), () {
-            _viewModel.showChangeCollectionSelector(ctx, item);
+            _viewModel.showChangeCollectionSelector(ctx, item: item);
           });
         },
       ));
@@ -613,21 +613,46 @@ class _LibraryPageState extends State<LibraryPage> {
 
   /// 显示合集操作面板
   void _showCollectionEntryOperatePanel(BuildContext context, Collection collection) {
-    List<BrnCommonActionSheetItem> itemActions = [];
+    List<ItemClickProxy> itemClickProxies = [];
 
     bool isStared = _viewModel.isCollectionStarred(collection);
     if (isStared) {
-      itemActions.add(BrnCommonActionSheetItem(
-        '从收藏夹中移除',
-        actionStyle: BrnCommonActionSheetItemStyle.alert,
+      itemClickProxies.add(ItemClickProxy(
+        title: "从收藏夹中移除",
+        actionStyle: 'alert',
+        onClick: () {
+          _viewModel.removeStar(collection: collection);
+        },
       ));
     } else {
-      itemActions.add(BrnCommonActionSheetItem(
-        '添加到收藏夹',
-        actionStyle: BrnCommonActionSheetItemStyle.normal,
+      itemClickProxies.add(ItemClickProxy(
+        title: "添加到收藏夹",
+        onClick: () {
+          _viewModel.addToStar(collection);
+        },
       ));
-
     }
+
+    itemClickProxies.add(ItemClickProxy(
+      title: "更改所属集合",
+      onClick: () {
+        Future.delayed(const Duration(milliseconds: 200), () {
+          _viewModel.showChangeCollectionSelector(context, collection: collection);
+        });
+      },
+    ));
+
+    List<BrnCommonActionSheetItem> itemActions = itemClickProxies.map((ele) {
+      var actionStyle = BrnCommonActionSheetItemStyle.normal;
+      if (ele.actionStyle != null && ele.actionStyle == "alert") {
+        actionStyle = BrnCommonActionSheetItemStyle.alert;
+      }
+      return BrnCommonActionSheetItem(
+        ele.title,
+        desc: ele.desc,
+        actionStyle: actionStyle,
+      );
+    }).toList();
 
     var title = collection.name;
 
@@ -641,19 +666,7 @@ class _LibraryPageState extends State<LibraryPage> {
             actions: itemActions,
             cancelTitle: "取消",
             clickCallBack: (int index, BrnCommonActionSheetItem actionEle) {
-              switch (index) {
-                case 0:
-                  if (isStared) {
-                    _viewModel.removeStar(collection: collection);
-                  } else {
-                    _viewModel.addToStar(collection);
-                  }
-                  break;
-                case 1:
-                  break;
-                default:
-
-              }
+              itemClickProxies[index].onClick?.call();
             },
           );
         });

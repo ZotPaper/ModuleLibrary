@@ -9,8 +9,11 @@ import '../../../LibZoteroStorage/entity/Collection.dart';
 class CollectionSelector extends StatefulWidget {
 
   List<String> initialSelected = [];
+  final bool isMultiSelect;
+
   CollectionSelector({
     List<String>? parentCollections,
+    this.isMultiSelect = true,
   }): initialSelected = parentCollections ?? [];
 
   @override
@@ -32,16 +35,17 @@ class _CollectionSelectorState extends State<CollectionSelector> {
       selectedCollections.add(collectionKey);
     }
 
-    print("默认选中的：${widget.initialSelected}");
+    print("是否支持多选: ${widget.isMultiSelect} , 默认选中的：${widget.initialSelected}");
 
     List<CollectionSelection> res = [];
     // 递归遍历整个集合，映射父子关系
+
+    // todo 处理单选和多选的情况
 
     var topCollections = zoteroDB.collections.where((it) {
       return !it.hasParent();
     }).toList();
     recurseCollection(res, topCollections);
-
 
     setState(() {
       collections.addAll(res);
@@ -141,14 +145,32 @@ class _CollectionSelectorState extends State<CollectionSelector> {
   }
 
   void changeCollectionChecked(CollectionSelection collection, bool checked) {
-    collection.isSelected = checked;
-    if (checked) {
-      if (!selectedCollections.contains(collection.collection.key)) {
-        selectedCollections.add(collection.collection.key);
+    if (widget.isMultiSelect) {
+      collection.isSelected = checked;
+      if (checked) {
+        if (!selectedCollections.contains(collection.collection.key)) {
+          selectedCollections.add(collection.collection.key);
+        }
+      } else {
+        selectedCollections.remove(collection.collection.key);
       }
     } else {
-      selectedCollections.remove(collection.collection.key);
+      uncheckAllCollections(collections);
+      collection.isSelected = checked;
+
+      selectedCollections.clear();
+      selectedCollections.add(collection.collection.key);
     }
+  }
+
+  void uncheckAllCollections(List<CollectionSelection>? collections) {
+    if (collections == null || collections.isEmpty) return;
+
+    for (var it in collections) {
+      it.isSelected = false;
+      uncheckAllCollections(it.children);
+    }
+
   }
 }
 

@@ -4,6 +4,7 @@ import 'package:module_library/ModuleItemDetail/page/item_details_page.dart';
 import 'package:module_library/ModuleLibrary/page/LibraryPage.dart';
 import 'package:module_library/ModuleLibrary/page/launch_page.dart';
 import 'package:module_library/ModuleLibrary/page/select_collection_page/collection_select_page.dart';
+import 'package:module_library/ModuleLibrary/utils/my_logger.dart';
 import 'package:module_library/ModuleLibrary/viewmodels/library_viewmodel.dart';
 import 'package:module_library/ModuleTagManager/page/item_tagsmanager_page.dart';
 import 'package:provider/provider.dart';
@@ -54,8 +55,17 @@ class MyApp extends StatelessWidget {
         },
         'collectionSelector': (context) {
           final arguments = ModalRoute.of(context)?.settings.arguments;
-          if (arguments is List<String>) {
-            return CollectionSelector(parentCollections: arguments);
+          if (arguments is Map<String, dynamic>) {
+            List<String> collectionKeys = [];
+            var multiSelect = true;
+
+            try {
+              collectionKeys = arguments['initialSelected'] as List<String>;
+              multiSelect = arguments['isMultiSelect'] as bool;
+            } catch (e) {
+              MyLogger.e('Error: $e');
+            }
+            return CollectionSelector(parentCollections: collectionKeys, isMultiSelect: multiSelect,);
           }
           return CollectionSelector();
         },

@@ -414,4 +414,9 @@ class ZoteroDB {
 
   }
 
+  void updateParentCollection(Collection collection, String parentCollectionKey) {
+    collection.parentCollection = parentCollectionKey;
+
+  }
+
 }

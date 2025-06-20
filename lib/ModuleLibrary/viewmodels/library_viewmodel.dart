@@ -653,12 +653,34 @@ class LibraryViewModel with ChangeNotifier {
     refreshInCurrent();
   }
 
-  void showChangeCollectionSelector(BuildContext ctx, Item item) {
+  void showChangeCollectionSelector(BuildContext ctx, {Item? item, Collection? collection}) {
     // debugPrint("====默认选中的：${item.collections}");
-    Future res = Navigator.of(ctx).pushNamed("collectionSelector", arguments: item.collections);
+    List<String> collectionKeys = [];
+
+    var multiSelect = true;
+    if (item != null) {
+      collectionKeys = item.collections;
+    } else if (collection != null) {
+      collectionKeys = [collection.parentCollection];
+      multiSelect = false;
+    }
+
+    Future res = Navigator.of(ctx).pushNamed("collectionSelector", arguments: <String, dynamic> {
+      "initialSelected": collectionKeys,
+      "isMultiSelect": multiSelect,
+    });
     res.then((value) {
       if (value is List<String>) {
-        _changeParentCollections(ctx, item, value);
+        if (item != null) {
+          _changeParentCollections(ctx, item, value);
+        } else if (collection != null) {
+
+          var parentCollectionKey = "";
+          if (value.isNotEmpty) {
+            parentCollectionKey = value[0];
+          }
+          _changeParentCollectionsOfCollection(ctx, collection, parentCollectionKey);
+        }
       }
     });
   }
@@ -672,6 +694,18 @@ class LibraryViewModel with ChangeNotifier {
     zoteroDB.updateParentCollections(item, value.toSet());
     // 更新数据库
     zoteroDataSql.itemCollectionDao.updateParentCollections(item.itemKey, collectionKeys);
+
+    // 刷新当前页面
+    refreshInCurrent();
+  }
+
+  void _changeParentCollectionsOfCollection(BuildContext ctx, Collection collection, String parentCollectionKey) {
+    MyLogger.d("改变Collection[${collection.name}]的父集合为$parentCollectionKey");
+
+    // 更新内存中的数据
+    zoteroDB.updateParentCollection(collection, parentCollectionKey);
+    // 更新数据库
+    zoteroDataSql.collectionsDao.updateParentCollection(collection, parentCollectionKey);
 
     // 刷新当前页面
     refreshInCurrent();

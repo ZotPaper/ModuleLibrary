@@ -52,5 +52,9 @@ class CollectionsDao {
       whereArgs: [key],
     );
   }
+
+  Future<int> updateParentCollection(Collection collection, String parentCollectionKey) {
+    return updateCollection(collection);
+  }
 }
 
