@@ -245,9 +245,9 @@ class ZoteroDataHttp {
           creators.add(Creator(
               id: 0,
               parent: itemKey,
-              firstName: getJsonValue(creatorJson, "firstName"),
-              lastName: getJsonValue(creatorJson, "lastName"),
-              creatorType: getJsonValue(creatorJson, "creatorType"),
+              firstName: getJsonValue(creatorJson, "firstName") ?? "",
+              lastName: getJsonValue(creatorJson, "lastName") ?? "",
+              creatorType: getJsonValue(creatorJson, "creatorType") ?? "",
               order: order++));
         }
       } else if (key == "tags") {
