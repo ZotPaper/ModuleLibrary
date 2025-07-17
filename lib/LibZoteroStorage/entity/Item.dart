@@ -184,4 +184,8 @@ class Item {
     }
     return extension;
   }
+
+  bool hasAttachments() {
+    return attachments.isNotEmpty;
+  }
 }

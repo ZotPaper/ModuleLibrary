@@ -15,7 +15,6 @@ class _BlankPageState extends State<BlankPage> with SingleTickerProviderStateMix
     super.initState();
     _controller = AnimationController(vsync: this);
   }
-
   @override
   void dispose() {
     _controller.dispose();
