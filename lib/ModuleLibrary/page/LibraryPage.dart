@@ -13,6 +13,7 @@ import 'package:module_library/ModuleLibrary/res/ResColor.dart';
 import 'package:module_library/ModuleLibrary/utils/sheet_item_helper.dart';
 import 'package:module_library/ModuleLibrary/viewmodels/library_viewmodel.dart';
 import 'package:module_library/ModuleTagManager/item_tagmanager.dart';
+import 'package:module_library/routers.dart';
 import 'package:provider/provider.dart';
 import 'package:pull_to_refresh/pull_to_refresh.dart';
 
@@ -676,7 +677,7 @@ class _LibraryPageState extends State<LibraryPage> {
     // BrnToast.show("item: ${item.getTitle()}", context);
     // 跳转到详情页
     try {
-      Navigator.of(context).pushNamed("itemDetailPage", arguments: item);
+      MyRouter.instance.pushNamed(context, "itemDetailPage", arguments: { "item": item });
     } catch (e) {
       debugPrint(e.toString());
       BrnToast.show("跳转详情页失败", context);
@@ -684,7 +685,7 @@ class _LibraryPageState extends State<LibraryPage> {
   }
 
   void _navigationTagManager() {
-    Navigator.of(context).pushNamed("tagsManagerPage");
+    MyRouter.instance.pushNamed(context, "tagsManagerPage");
   }
 
   void _onRefresh() async{

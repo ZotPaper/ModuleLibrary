@@ -1,6 +1,7 @@
 import 'package:flutter/cupertino.dart';
 import 'package:flutter/material.dart';
 import 'package:module_library/ModuleLibrary/page/sync_page/sync_viewmodel.dart';
+import 'package:module_library/routers.dart';
 
 import '../../res/ResColor.dart';
 import '../launch_page.dart';
@@ -65,11 +66,7 @@ class _SyncPageFragmentState extends State<SyncPageFragment>
                   // 确保在帧结束后执行导航
                   WidgetsBinding.instance.addPostFrameCallback((_) {
                     debugPrint('执行页面跳转');
-                    Navigator.of(context).pushReplacement(
-                      MaterialPageRoute(
-                        builder: (context) => const LaunchPage(),
-                      ),
-                    );
+                    MyRouter.instance.pushReplacementNamed(context, "launchPage");
                   });
                 }
                 return Text(_loadingMessage);
