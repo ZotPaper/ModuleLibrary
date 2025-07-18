@@ -1,3 +1,4 @@
+import 'package:bruno/bruno.dart';
 import 'package:flutter/cupertino.dart';
 import 'package:flutter/material.dart';
 import 'LibZoteroStorage/entity/Item.dart';
@@ -32,7 +33,14 @@ class MyRouter {
       return;
     }
 
-    return Navigator.of(context).pushNamed(routeName, arguments: arguments);
+    try {
+      return Navigator.of(context).pushNamed(routeName, arguments: arguments);
+    } catch (e) {
+      MyLogger.e('Error: $e');
+      BrnToast.show("跳转到目标页面失败：$routeName", context);
+      return null;
+    }
+
   }
 
   dynamic pushReplacementNamed(BuildContext context, String routeName, {Map<String, dynamic>? arguments}) {

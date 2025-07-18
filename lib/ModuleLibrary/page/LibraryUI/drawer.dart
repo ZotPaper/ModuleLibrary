@@ -2,6 +2,7 @@ import 'package:flutter/cupertino.dart';
 import 'package:flutter/material.dart';
 import 'package:module_library/LibZoteroStorage/entity/Collection.dart';
 
+import '../../../routers.dart';
 import '../../res/ResColor.dart';
 
 typedef DrawerItemTapCallback = void Function(DrawerBtn DrawerBtn);
@@ -183,7 +184,7 @@ class _CustomDrawerState extends State<CustomDrawer> {
       color: ResColor.bgColor,
       child: InkWell(
         onTap: () {
-          debugPrint("点击了标题栏");
+          _jumpToAccountSetting();
         },
         child: Container(
           padding: const EdgeInsets.all(10),
@@ -202,7 +203,9 @@ class _CustomDrawerState extends State<CustomDrawer> {
               const SizedBox(width: 10),
               Expanded(child: Text(text)),
               IconButton(
-                onPressed: () {},
+                onPressed: () {
+                  _jumpToSettings();
+                },
                 icon: const Icon(Icons.settings_outlined),
               ),
             ],
@@ -215,5 +218,13 @@ class _CustomDrawerState extends State<CustomDrawer> {
   @override
   Widget build(BuildContext context) {
     return pageDrawer(context);
+  }
+
+  void _jumpToSettings() {
+    MyRouter.instance.pushNamed(context, "settingsPage");
+  }
+
+  void _jumpToAccountSetting() {
+    MyRouter.instance.pushNamed(context, "settingsPage", arguments: {"initTab": 'account'});
   }
 }    
