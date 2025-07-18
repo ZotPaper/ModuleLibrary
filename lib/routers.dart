@@ -6,6 +6,7 @@ import 'ModuleItemDetail/page/item_details_page.dart';
 import 'ModuleLibrary/page/LibraryPage.dart';
 import 'ModuleLibrary/page/launch_page.dart';
 import 'ModuleLibrary/page/select_collection_page/collection_select_page.dart';
+import 'ModuleLibrary/page/sync_page/sync_page.dart';
 import 'ModuleLibrary/utils/my_logger.dart';
 import 'ModuleTagManager/page/item_tagsmanager_page.dart';
 
@@ -41,6 +42,7 @@ class MyRouter {
       return null;
     }
 
+    return null;
   }
 
   dynamic pushReplacementNamed(BuildContext context, String routeName, {Map<String, dynamic>? arguments}) {
@@ -49,7 +51,15 @@ class MyRouter {
       return;
     }
 
-    return Navigator.of(context).pushReplacementNamed(routeName, arguments: arguments);
+    try {
+      return Navigator.of(context).pushReplacementNamed(routeName, arguments: arguments);
+    } catch (e) {
+      MyLogger.e('Error: $e');
+      BrnToast.show("跳转到目标页面失败：$routeName", context);
+      return null;
+    }
+
+    return null;
   }
 
 }
@@ -58,6 +68,7 @@ Map<String, WidgetBuilder> libraryRouters() {
   return {
     'launchPage': (context) => const LaunchPage(),
     'libraryPage': (context) => const LibraryPage(),
+    'syncingPage': (context) => const SyncPageFragment(),
     'tagsManagerPage': (context) => const TagsManagerPage(),
     'itemDetailPage': (context) {
       final arguments = ModalRoute.of(context)?.settings.arguments;

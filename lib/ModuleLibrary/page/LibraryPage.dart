@@ -34,8 +34,6 @@ class _LibraryPageState extends State<LibraryPage> {
   late LibraryViewModel _viewModel;
   final GlobalKey<ScaffoldState> _scaffoldKey = GlobalKey<ScaffoldState>();
 
-  var actionKey = GlobalKey();
-
   BrnSearchTextController searchController = BrnSearchTextController();
   TextEditingController textController = TextEditingController();
 
