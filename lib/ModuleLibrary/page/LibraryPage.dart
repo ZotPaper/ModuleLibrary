@@ -34,6 +34,8 @@ class _LibraryPageState extends State<LibraryPage> {
   late LibraryViewModel _viewModel;
   final GlobalKey<ScaffoldState> _scaffoldKey = GlobalKey<ScaffoldState>();
 
+  var actionKey = GlobalKey();
+
   BrnSearchTextController searchController = BrnSearchTextController();
   TextEditingController textController = TextEditingController();
 
@@ -118,16 +120,7 @@ class _LibraryPageState extends State<LibraryPage> {
                 _viewModel.handleCollectionTap(collection);
               }, // 如果有需要再实现
             ),
-            appBar: pageAppBar(
-              title: _viewModel.title,
-              leadingIconTap: () {
-                _scaffoldKey.currentState?.openDrawer();
-              },
-              filterMenuTap: () {},
-              tagsTap: () {
-                _navigationTagManager();
-              },
-            ),
+            appBar: _buildAppBar(),
             body: _viewModel.isLoading
                 ? const Center(child: CircularProgressIndicator())
                 : _buildPageContent(),
@@ -136,6 +129,20 @@ class _LibraryPageState extends State<LibraryPage> {
       ),
     );
   }
+
+  PreferredSizeWidget _buildAppBar() {
+    return pageAppBar(
+      title: _viewModel.title,
+      leadingIconTap: () {
+        _scaffoldKey.currentState?.openDrawer();
+      },
+      filterMenuTap: () {},
+      tagsTap: () {
+        _navigationTagManager();
+      },
+    );
+  }
+
 
   Widget _buildPageContent() {
     if (_viewModel.curPage == PageType.sync) {
