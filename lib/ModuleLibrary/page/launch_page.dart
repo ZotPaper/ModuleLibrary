@@ -1,10 +1,10 @@
 import 'package:flutter/cupertino.dart';
 import 'package:flutter/material.dart';
-import 'package:module_library/ModuleLibrary/page/LibraryPage.dart';
-import 'package:module_library/ModuleLibrary/page/sync_page/sync_page.dart';
 import 'package:module_library/routers.dart';
 
+import '../../utils/local_zotero_credential.dart';
 import '../share_pref.dart';
+import '../utils/my_logger.dart';
 
 class LaunchPage extends StatefulWidget {
   const LaunchPage({super.key});
@@ -36,13 +36,17 @@ class _LaunchPageState extends State<LaunchPage> with SingleTickerProviderStateM
 
   Future<void> _initializeApp() async {
     try {
-      final isFirstStart = await _checkFirstStart();
+      await SharedPref.init();
+      /// todo 判断是否本地保存了用户信息
+      final isUserLoggedIn = await LocalZoteroCredential.isLoggedIn();
 
       if (!mounted) return;
 
-      if (isFirstStart == true) {
+      if (!isUserLoggedIn) {
+        /// 跳转到同步设置页面
         _jumpToSyncSetupPage();
       } else {
+        /// 跳转到主页面
         _jumpToLibraryPage();
       }
     } catch (e, stackTrace) {
@@ -52,21 +56,36 @@ class _LaunchPageState extends State<LaunchPage> with SingleTickerProviderStateM
     }
   }
 
-
-  Future<bool> _checkFirstStart() async {
-    await SharedPref.init();
-    return SharedPref.getBool(PrefString.isFirst, true);
-  }
-
-  void _jumpToSyncPage() {
+  void _jumpToSyncingPage() {
     MyRouter.instance.pushReplacementNamed(context, "syncingPage");
   }
 
   void _jumpToSyncSetupPage() {
-    MyRouter.instance.pushReplacementNamed(context, "syncSetupPage");
+    try {
+      MyRouter.instance.pushReplacementNamed(context, "syncSetupPage");
+    } catch (e) {
+      MyLogger.e('Error: $e');
+      // 测试账号登录
+      testAccountLogin();
+    }
   }
 
   void _jumpToLibraryPage() {
     MyRouter.instance.pushReplacementNamed(context, "libraryPage");
+  }
+
+  /// 测试账号登录
+  void testAccountLogin() {
+    // 是否是debug模式
+    String userId = "16074844";
+    String apiKey = "znrrHVJZMhSd8I9TWUxZjAFC";
+
+
+    String userName = "testUserName";
+
+    LocalZoteroCredential.saveCredential(apiKey, userId, userName).then((onValue){
+      _jumpToSyncingPage();
+    });
+
   }
 }

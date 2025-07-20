@@ -2,6 +2,7 @@ import 'package:flutter/cupertino.dart';
 import 'package:flutter/material.dart';
 import 'package:module_library/ModuleLibrary/page/sync_page/sync_viewmodel.dart';
 import 'package:module_library/routers.dart';
+import 'package:provider/provider.dart';
 
 import '../../res/ResColor.dart';
 import '../launch_page.dart';
@@ -23,7 +24,7 @@ class _SyncPageFragmentState extends State<SyncPageFragment>
   @override
   void initState() {
     super.initState();
-    _viewModel = SyncViewModel();
+    _viewModel = Provider.of<SyncViewModel>(context, listen: false);
     _controller = AnimationController(vsync: this);
 
     _viewModel.init();

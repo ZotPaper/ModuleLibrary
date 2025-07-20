@@ -2,22 +2,14 @@ import 'dart:async';
 import 'package:flutter/material.dart';
 import 'package:flutter/cupertino.dart';
 import 'package:module_library/ModuleSync/zotero_sync_manager.dart';
-
-import '../../../LibZoteroStorage/entity/Collection.dart';
-import '../../../LibZoteroStorage/entity/Item.dart';
-import '../../../LibZoteroStorage/entity/ItemData.dart';
-import '../../../LibZoteroStorage/entity/ItemInfo.dart';
-import '../../api/ZoteroDataHttp.dart';
-import '../../api/ZoteroDataSql.dart';
+import '../../../utils/local_zotero_credential.dart';
 import '../../share_pref.dart';
+import '../../utils/my_logger.dart';
 
 class SyncViewModel with ChangeNotifier {
 
-  // final String _userId = "16082509";
-  // final String _apiKey = "KsmSAwR7P4fXjh6QNjRETcqy";
-
-  final String _userId = "16074844";
-  final String _apiKey = "znrrHVJZMhSd8I9TWUxZjAFC";
+  String _userId = "";
+  String _apiKey = "";
 
   final ZoteroSyncManager zoteroSyncManager = ZoteroSyncManager.instance;
 
@@ -32,13 +24,15 @@ class SyncViewModel with ChangeNotifier {
   SyncViewModel() : super();
 
   void init() async {
-    await SharedPref.init();
-    bool isFirstStart = SharedPref.getBool(PrefString.isFirst, true);
+    // 获取本地保存的 Zotero 用户信息
+    await fetchZoteroUserCredential();
 
     zoteroSyncManager.init(_userId, _apiKey);
 
-    if (isFirstStart) {
-      debugPrint("=============isFirstStart");
+    // 判断是否初次启动,没有就开始完整同步数据
+    bool isNeverSynced = await zoteroSyncManager.isNeverSynced();
+    if (isNeverSynced) {
+      debugPrint("=============isNeverSynced userId: $_userId apiKey: $_apiKey");
       // 初次启动，从网络获取数据并保存到数据库
       await _performCompleteSync();
     }
@@ -54,17 +48,20 @@ class SyncViewModel with ChangeNotifier {
     );
   }
 
-  void dispose() {
-  }
 
   void _navigateToLibrary() {
     _navigationController.add("libraryPage");
   }
 
   Future<void> _onSyncComplete() async {
-    await SharedPref.setBool(PrefString.isFirst, false);
+    // await SharedPref.setBool(PrefString.isFirst, false);
     // 跳转到 Library 页面
     _navigateToLibrary();
+  }
+
+  Future<void> fetchZoteroUserCredential() async {
+    _userId = await LocalZoteroCredential.getUserId();
+    _apiKey = await LocalZoteroCredential.getApiKey();
   }
 
 

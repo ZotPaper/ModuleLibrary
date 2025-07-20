@@ -16,6 +16,8 @@ class MyRouter {
   factory MyRouter() => instance;
   MyRouter._internal();
 
+  bool _enableExceptionCatch = false;
+
   Function(BuildContext, String, Map<String, dynamic>?)? _onInterceptNavigatior;
 
   Function(BuildContext, String, Map<String, dynamic>?)? _onInterceptNavigatiorReplacement;
@@ -38,6 +40,11 @@ class MyRouter {
       return Navigator.of(context).pushNamed(routeName, arguments: arguments);
     } catch (e) {
       MyLogger.e('Error: $e');
+
+      if (!_enableExceptionCatch) {
+        rethrow;
+      }
+
       BrnToast.show("跳转到目标页面失败：$routeName", context);
       return null;
     }
@@ -55,6 +62,11 @@ class MyRouter {
       return Navigator.of(context).pushReplacementNamed(routeName, arguments: arguments);
     } catch (e) {
       MyLogger.e('Error: $e');
+
+      if (!_enableExceptionCatch) {
+        rethrow;
+      }
+
       BrnToast.show("跳转到目标页面失败：$routeName", context);
       return null;
     }

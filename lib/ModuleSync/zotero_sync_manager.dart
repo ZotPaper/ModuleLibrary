@@ -242,6 +242,17 @@ class ZoteroSyncManager {
     _loadingItemsFinished = false;
     _loadingTrashFinished = false;
 
+    // Mark as synced
+    markDataSynced();
+  }
+
+  Future<bool> isNeverSynced() async {
+    var isFirstRun = SharedPref.getBool(PrefString.isFirst, true);
+    return isFirstRun;
+  }
+
+  Future<bool> markDataSynced() async {
+    return SharedPref.setBool(PrefString.isFirst, false);
   }
 }
 

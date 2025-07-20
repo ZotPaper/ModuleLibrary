@@ -9,6 +9,7 @@ import 'package:module_library/ModuleLibrary/my_library_filter.dart';
 import 'package:module_library/ModuleLibrary/utils/my_logger.dart';
 import 'package:module_library/ModuleLibrary/viewmodels/zotero_database.dart';
 import 'package:module_library/ModuleTagManager/item_tagmanager.dart';
+import 'package:module_library/utils/local_zotero_credential.dart';
 import '../../LibZoteroStorage/entity/Collection.dart';
 import '../../LibZoteroStorage/entity/Item.dart';
 import '../../LibZoteroStorage/entity/ItemCollection.dart';
@@ -28,8 +29,8 @@ class LibraryViewModel with ChangeNotifier {
 
   final ZoteroDataSql zoteroDataSql = ZoteroDataSql();
 
-  final String _userId = "16074844";
-  final String _apiKey = "znrrHVJZMhSd8I9TWUxZjAFC";
+  String _userId = "";
+  String _apiKey = "";
 
   PageType curPage = PageType.library;
 
@@ -82,15 +83,20 @@ class LibraryViewModel with ChangeNotifier {
   }
 
   void init() async {
-    setLoading(true);
-    await SharedPref.init();
-    bool isFirstStart = SharedPref.getBool(PrefString.isFirst, true);
+    bool isLoggedIn = await LocalZoteroCredential.isLoggedIn();
+    debugPrint("=============isLoggedIn: $isLoggedIn");
 
-    if (isFirstStart) {
-      debugPrint("=============isFirstStart");
+    setLoading(true);
+    if (!isLoggedIn) {
       // 切换到同步页面
       navigateToPage(PageType.sync);
     } else {
+      // 获取本地保存的apikey和userId
+      await fetchZoteroUserCredential();
+
+      MyLogger.d("fetch saved loginInfo locally: [userId: $_userId, apiKey: $_apiKey]");
+
+      // 初始化同步管理器
       if (!zoteroSyncManager.isConfigured()) {
         zoteroSyncManager.init(_userId, _apiKey);
       }
@@ -111,6 +117,10 @@ class LibraryViewModel with ChangeNotifier {
     _initialized = true;
   }
 
+  Future<void> fetchZoteroUserCredential() async {
+    _userId = await LocalZoteroCredential.getUserId();
+    _apiKey = await LocalZoteroCredential.getApiKey();
+  }
 
   void navigateToPage(PageType page) {
     curPage = page;
