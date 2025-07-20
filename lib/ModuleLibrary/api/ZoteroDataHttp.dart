@@ -7,6 +7,7 @@ import 'package:module_library/LibZoteroStorage/entity/Item.dart';
 import 'package:module_library/LibZoteroStorage/entity/ItemData.dart';
 import 'package:module_library/LibZoteroStorage/entity/ItemInfo.dart';
 import 'package:module_library/LibZoteroStorage/entity/ItemTag.dart';
+import 'package:module_library/ModuleLibrary/utils/my_logger.dart';
 import 'package:module_library/ModuleLibrary/viewmodels/zotero_database.dart';
 
 import '../../LibZoteroApi/Model/DeletedEntriesPojo.dart';
@@ -105,13 +106,13 @@ class ZoteroDataHttp {
         // syncChangeListener?.makeToastAlert("Updated ${downloaded} items.")
       }
     }
-    zoteroDB.destroyDownloadProgress();
 
     // 下载完成数据后，更新本地的文库版本号
     final newLibraryVersion = response.LastModifiedVersion;
-    await zoteroDB.setItemsVersion(newLibraryVersion);
-    debugPrint(
-        "Moyear==== 下载完成数据后，更新本地的文库版本号: $newLibraryVersion");
+    if (lastModifiedVersion != newLibraryVersion) {
+      await zoteroDB.setItemsVersion(newLibraryVersion);
+      MyLogger.d("下载完成数据后，更新本地的文库版本号: $newLibraryVersion 旧版本号: $lastModifiedVersion");
+    }
     return items;
   }
 
@@ -362,7 +363,7 @@ class ZoteroDataHttp {
 
   void _cacheDownloadProgress(ZoteroDB zoteroDB,
       ZoteroAPIItemsResponse response, int downloadedCount, int total) {
-    debugPrint("Moyear=== 缓存下载进度：${response
+    MyLogger.d("缓存下载进度：${response
         .LastModifiedVersion} $downloadedCount/$total");
     zoteroDB.setDownloadProgress(
         ItemsDownloadProgress(

@@ -115,6 +115,9 @@ class ZoteroSyncManager {
 
         // _downloadingItems = items;
 
+        // 下载完成的时候删除缓存下载进度信息
+        zoteroDB.destroyDownloadProgress();
+
         _loadingItemsFinished = true;
         _finishSingleStep();
       },

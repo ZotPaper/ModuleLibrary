@@ -1,6 +1,7 @@
 
 import 'package:flutter/cupertino.dart';
 import 'package:module_library/LibZoteroStorage/entity/ItemTag.dart';
+import 'package:module_library/ModuleLibrary/share_pref.dart';
 import 'package:module_library/ModuleLibrary/utils/my_logger.dart';
 import 'package:shared_preferences/shared_preferences.dart';
 
@@ -15,7 +16,9 @@ class ZoteroDB {
   // todo 单例模式
   static final ZoteroDB _instance = ZoteroDB._internal();
   factory ZoteroDB() => _instance;
-  ZoteroDB._internal();
+  ZoteroDB._internal() {
+    _loadSavedDownloadProgress();
+  }
 
   // 所有的条目数据
   final List<Item> _items = [];
@@ -330,13 +333,30 @@ class ZoteroDB {
   }
 
   void setDownloadProgress(ItemsDownloadProgress progress) {
+    var last = getDownloadProgress();
+    // TODO: Save to prefs
+    if (progress.nDownloaded != (last?.nDownloaded ?? -1)) {
+      SharedPref.setInt("itemsToDownload", progress.total);
+    }
+
+    if (progress.total != (last?.total ?? -1)) {
+      SharedPref.setInt("itemsDownloaded", progress.nDownloaded);
+    }
+    // if (progress.libraryVersion != (last?.libraryVersion ?? -1)) {
+    //   setItemsVersion(progress.libraryVersion);
+    // }
+
     downloadedItemsInfo['downloadedAmount'] = progress.nDownloaded;
     downloadedItemsInfo['total'] = progress.total;
     downloadedItemsInfo['downloadVersion'] = progress.libraryVersion;
   }
 
+
+
   void destroyDownloadProgress() {
     downloadedItemsInfo.clear();
+
+    // todo: save to prefs
   }
 
   ItemsDownloadProgress? getDownloadProgress() {
@@ -421,6 +441,14 @@ class ZoteroDB {
   void updateParentCollection(Collection collection, String parentCollectionKey) {
     collection.parentCollection = parentCollectionKey;
 
+  }
+
+  Future<void> _loadSavedDownloadProgress() async {
+    var total = SharedPref.getInt("itemsToDownload", 0);
+    var progress = SharedPref.getInt("itemsDownloaded", 0);
+    var libraryVersion = await getLibraryVersion();
+
+    setDownloadProgress(ItemsDownloadProgress(libraryVersion, progress, total));
   }
 
 }
