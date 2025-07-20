@@ -1,5 +1,6 @@
 import 'package:flutter/cupertino.dart';
 import 'package:flutter/material.dart';
+import 'package:module_library/LibZoteroStorage/entity/Item.dart';
 import 'package:module_library/ModuleLibrary/page/sync_page/sync_viewmodel.dart';
 import 'package:module_library/routers.dart';
 import 'package:provider/provider.dart';
@@ -80,7 +81,7 @@ class _SyncPageFragmentState extends State<SyncPageFragment>
   }
 
 
-  void _onUpdateProgress(int progress, int total) {
+  void _onUpdateProgress(int progress, int total, List<Item>? items) {
     debugPrint('接收到进度更新: $progress/$total');
     // 更新进度
     _loadingMessage = "正在同步数据: ${progress}/${total}";

@@ -426,16 +426,17 @@ class LibraryViewModel with ChangeNotifier {
   // 开始与服务器同步
   void startSync({Function? onSyncCompleteCallback}) {
     zoteroSyncManager.startCompleteSync(
-      onProgressCallback: (progress, total) {
-        debugPrint("Moyear=== LibraryPage同步Item进度：$progress/$total");
+      onProgressCallback: (progress, total, items) {
+        MyLogger.d("Moyear=== LibraryPage同步Item进度：$progress/$total");
+        MyLogger.d("Moyear=== 获取Item数量：${items?.length}");
 
         // 通知下载进度
         syncProgress = SyncProgress(progress, total);
         notifyListeners();
         // _onProgressCallback?.call(progress, total);
       },
-      onFinishCallback: (items) async {
-        debugPrint("Moyear=== LibraryPage同步加载Item完成，条目数量：${items.length}");
+      onFinishCallback: (total) async {
+        debugPrint("Moyear=== LibraryPage同步加载Item完成，条目数量：${total}");
 
         await _loadDataFromLocalDatabase();
 

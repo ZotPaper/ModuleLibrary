@@ -3,6 +3,7 @@ import 'package:flutter/cupertino.dart';
 import 'package:module_library/LibZoteroApi/Model/CollectionPojo.dart';
 import 'package:module_library/LibZoteroApi/Model/KeyInfo.dart';
 import 'package:module_library/LibZoteroApi/Model/zotero_items_response.dart';
+import 'package:module_library/ModuleLibrary/utils/my_logger.dart';
 
 import '../ModuleLibrary/model/zotero_item_downloaded.dart';
 import 'Model/DeletedEntriesPojo.dart';
@@ -22,7 +23,7 @@ class ZoteroAPI {
   /// 获取用户所有条目信息
   /// 注意：此接口返回的接口默认是分页的
   Future<ZoteroAPIItemsResponse?> getItems(String userId, {int ifModifiedSinceVersion = -1, int startIndex = 0 }) async {
-    debugPrint('Moyear==== 获取用户所有条目信息 userId: $userId, ifModifiedSinceVersion: $ifModifiedSinceVersion, startIndex: $startIndex');
+    MyLogger.d('Moyear==== 获取用户所有条目信息 userId: $userId, ifModifiedSinceVersion: $ifModifiedSinceVersion, startIndex: $startIndex');
 
     final itemRes = await service.getItems(userId, ifModifiedSinceVersion, startIndex);
 
@@ -34,12 +35,8 @@ class ZoteroAPI {
         throw Exception('请求失败，状态码: ${itemRes.statusCode}');
       }
     } else if (itemRes.statusCode == 200) {
-
-
       return itemRes;
     }
-
-
     return null;
   }
 
@@ -159,6 +156,8 @@ class ZoteroAPI {
         int since = 0,
         int index = 0,
       }) async {
+    MyLogger.d("发送网络请求getTrashedItemsForUser，user: $user ifModifiedSinceVersion: $ifModifiedSinceVersion since: $since index: $index");
+
     final itemRes = await service.getTrashedItemsForUser(
         ifModifiedSinceVersion, user, since, index);
     if (itemRes.statusCode != 200) {

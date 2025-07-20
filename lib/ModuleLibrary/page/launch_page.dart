@@ -37,7 +37,7 @@ class _LaunchPageState extends State<LaunchPage> with SingleTickerProviderStateM
   Future<void> _initializeApp() async {
     try {
       await SharedPref.init();
-      /// todo 判断是否本地保存了用户信息
+      /// 判断是否本地保存了用户信息
       final isUserLoggedIn = await LocalZoteroCredential.isLoggedIn();
 
       if (!mounted) return;
@@ -80,6 +80,8 @@ class _LaunchPageState extends State<LaunchPage> with SingleTickerProviderStateM
     String userId = "16074844";
     String apiKey = "znrrHVJZMhSd8I9TWUxZjAFC";
 
+    // String userId = "8120462";
+    // String apiKey = "H95AVvqDvU72LC4qj9Azc5do";
 
     String userName = "testUserName";
 

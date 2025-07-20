@@ -7,7 +7,7 @@ class ZoteroDatabase {
   static final ZoteroDatabase _instance = ZoteroDatabase._internal();
   factory ZoteroDatabase() => _instance;
   ZoteroDatabase._internal();
-  static const String _databaseName = 'zotero.db';
+  static const String _databaseName = 'zoteroDB.db';
   static const int _databaseVersion = 1;
   static Database? _database;
   Future<Database> get database async {

@@ -132,11 +132,15 @@ class ZoteroDB {
     for (var collection in collections) {
       if (collection.hasParent()) {
         // Find the parent collection and add the sub-collection
-        var parentCollection = collections?.firstWhere(
-              (col) => col.key == collection.parentCollection
-        );
+        try {
+          Collection? parentCollection = collections.firstWhere(
+                (col) => col.key == collection.parentCollection
+          );
 
-        parentCollection?.addSubCollection(collection);
+          parentCollection.addSubCollection(collection);
+        } catch (e) {
+          MyLogger.d("Error in _populateCollectionChildren: $e");
+        }
       }
     }
   }

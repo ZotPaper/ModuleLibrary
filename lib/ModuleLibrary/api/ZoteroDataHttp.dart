@@ -27,8 +27,8 @@ class ZoteroDataHttp {
   /// 获取zotero所有的条目,
   /// 注意：是全量数据
   Future<List<Item>> getItems(ZoteroDB zoteroDB,
-      {Function(int progress, int total)? onProgress,
-        Function(List<Item>)? onFinish,
+      {Function(int progress, int total, List<Item>?)? onProgress,
+        Function(int total)? onFinish,
         Function(int errorCode, String msg)? onError}) async {
     final lastModifiedVersion = await zoteroDB.getLibraryVersion();
 
@@ -56,10 +56,11 @@ class ZoteroDataHttp {
 
     // 如果没有数据，则直接返回，调用onFinish
     if (response.data.isEmpty) {
-      onFinish?.call([]);
+      onFinish?.call(-1);
       return [];
     }
 
+    // 这里的item是每一次下载的条目数据
     final items = <Item>[];
     final total = response.totalResults;
     List<int> downloadedCount = [0];
@@ -70,7 +71,10 @@ class ZoteroDataHttp {
     // 缓存下载进度, 主要是为了避免后续重复下载
     _cacheDownloadProgress(zoteroDB, response, downloadedCount[0], total);
     // 检查进度，并且把结果回调出去
-    _checkProgress(downloadedCount, total, items, onProgress, onFinish);
+    _checkProgress(downloadedCount, total, items.toList(), onProgress, onFinish);
+
+    // 清除临时暂存的数据
+    items.clear();
 
     // 继续下载剩余页面
     while (downloadedCount[0] < total) {
@@ -86,7 +90,10 @@ class ZoteroDataHttp {
       // 缓存下载进度, 主要是为了避免后续重复下载
       _cacheDownloadProgress(zoteroDB, response, downloadedCount[0], total);
       // 检查进度，并且把结果回调出去
-      _checkProgress(downloadedCount, total, items, onProgress, onFinish);
+      _checkProgress(downloadedCount, total, items.toList(), onProgress, onFinish);
+
+      // 清除临时暂存的数据
+      items.clear();
     }
 
     if (lastModifiedVersion > -1) {
@@ -113,11 +120,11 @@ class ZoteroDataHttp {
       List<Item> items,
       int total,
       List<int> downloadedCount,
-      Function(int progress, int total)? onProgress,
-      Function(List<Item>)? onFinish) async {
+      Function(int progress, int total, List<Item>?)? onProgress,
+      Function(int total)? onFinish) async {
     for (int i = 0; i < pageData.length; i++) {
       var itemJson = pageData[i] ?? "";
-      debugPrint("Moyear==== index $i itemJson: $itemJson");
+      // debugPrint("Moyear==== index $i itemJson: $itemJson");
 
       Item item = organizeItem(itemJson);
       items.add(item);
@@ -131,12 +138,14 @@ class ZoteroDataHttp {
   void _checkProgress(List<int> downloadedCount,
       int total,
       List<Item> items,
-      Function(int progress, int total)? onProgress,
-      Function(List<Item>)? onFinish) async {
+      Function(int progress, int total, List<Item>? items)? onProgress,
+      Function(int total)? onFinish) async {
     if (downloadedCount[0] == total) {
-      onFinish?.call(items);
+      // 为了保证最后不漏数据
+      onProgress?.call(downloadedCount[0], total, items);
+      onFinish?.call(total);
     } else {
-      onProgress?.call(downloadedCount[0], total);
+      onProgress?.call(downloadedCount[0], total, items);
     }
   }
 
@@ -285,8 +294,8 @@ class ZoteroDataHttp {
   /// 获取zotero所有的条目,
   /// 注意：是全量数据
   Future<List<Item>> getTrashedItems(ZoteroDB zoteroDB,
-      {Function(int progress, int total)? onProgress,
-        Function(List<Item>)? onFinish,
+      {Function(int progress, int total, List<Item>?)? onProgress,
+        Function(int total)? onFinish,
         Function(int errorCode, String msg)? onError}) async {
     final lastTrashVersion = await zoteroDB.getTrashVersion();
 
@@ -294,13 +303,13 @@ class ZoteroDataHttp {
     final response = await service.getTrashedItemsForUser(
         userId, ifModifiedSinceVersion: lastTrashVersion);
     if (response == null) {
-      onFinish?.call([]);
+      onFinish?.call(-1);
       return [];
     }
 
     // 如果没有数据，则直接返回，调用onFinish
     if (response.data.isEmpty) {
-      onFinish?.call([]);
+      onFinish?.call(-1);
       return [];
     }
 
@@ -313,7 +322,9 @@ class ZoteroDataHttp {
     await _processPage(
         response.data, items, total, downloadedCount, onProgress, onFinish);
     // 检查进度，并且把结果回调出去
-    _checkProgress(downloadedCount, total, items, onProgress, onFinish);
+    _checkProgress(downloadedCount, total, items.toList(), onProgress, onFinish);
+    // 清除临时暂存的数据
+    items.clear();
 
     // 继续下载剩余页面
     while (downloadedCount[0] < total) {
@@ -326,7 +337,9 @@ class ZoteroDataHttp {
           pagedResponse.data, items, total, downloadedCount, onProgress,
           onFinish);
       // 检查进度，并且把结果回调出去
-      _checkProgress(downloadedCount, total, items, onProgress, onFinish);
+      _checkProgress(downloadedCount, total, items.toList(), onProgress, onFinish);
+      // 清除临时暂存的数据
+      items.clear();
     }
 
     final newTrashVersion = response.LastModifiedVersion;

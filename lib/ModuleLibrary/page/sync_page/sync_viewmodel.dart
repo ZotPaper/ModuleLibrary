@@ -2,6 +2,7 @@ import 'dart:async';
 import 'package:flutter/material.dart';
 import 'package:flutter/cupertino.dart';
 import 'package:module_library/ModuleSync/zotero_sync_manager.dart';
+import '../../../LibZoteroStorage/entity/Item.dart';
 import '../../../utils/local_zotero_credential.dart';
 import '../../share_pref.dart';
 import '../../utils/my_logger.dart';
@@ -13,7 +14,7 @@ class SyncViewModel with ChangeNotifier {
 
   final ZoteroSyncManager zoteroSyncManager = ZoteroSyncManager.instance;
 
-  Function(int progress, int total)? onProgressCallback;
+  Function(int progress, int total, List<Item>?)? onProgressCallback;
 
   // 1. 使用 BehaviorSubject 发送路由跳转指令
   final StreamController<String> _navigationController = StreamController();
@@ -42,7 +43,7 @@ class SyncViewModel with ChangeNotifier {
   Future<void> _performCompleteSync() async {
     zoteroSyncManager.startCompleteSync(
       onProgressCallback: onProgressCallback,
-      onFinishCallback: (items) {
+      onFinishCallback: (total) {
         _onSyncComplete();
       },
     );

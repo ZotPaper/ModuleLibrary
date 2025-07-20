@@ -39,8 +39,8 @@ class ZoteroSyncManager {
     return _isSyncing;
   }
 
-  Function(int progress, int total)? _onProgressCallback;
-  Function(List<Item> items)? _onFinishCallback;
+  Function(int progress, int total, List<Item>?)? _onProgressCallback;
+  Function(int total)? _onFinishCallback;
 
   void init(String userId, String apiKey) {
     _userId = userId;
@@ -55,8 +55,8 @@ class ZoteroSyncManager {
   }
 
   Future<void> startCompleteSync({
-    Function(int progress, int total)? onProgressCallback,
-    Function(List<Item> items)? onFinishCallback,
+    Function(int progress, int total, List<Item>?)? onProgressCallback,
+    Function(int total)? onFinishCallback,
   }) async {
     if (!isConfigured()) {
       throw Exception("请先配置用户id和apiKey");
@@ -71,6 +71,8 @@ class ZoteroSyncManager {
     _onFinishCallback = onFinishCallback;
 
     _isSyncing = true;
+    // 标记已经同步过了，主要用于第一次同步中断时避免重复同步的情况
+    markDataSynced();
 
     // todo 考虑原子性
     // 获取所有集合
@@ -93,17 +95,25 @@ class ZoteroSyncManager {
 
   /// 从zotero中获取所有条目
   Future<void> _loadAllItems() async {
-    var items = await zoteroHttp.getItems(
+    await zoteroHttp.getItems(
       zoteroDB,
-      onProgress: (progress, total) {
-        debugPrint("SyncManager加载Item进度：$progress/$total");
-        // 通知下载进度
-        _onProgressCallback?.call(progress, total);
-      },
-      onFinish: (items) {
-        debugPrint("SyncManager加载Item完成，条目数量：${items.length}");
+      onProgress: (progress, total, items) {
+        MyLogger.d("SyncManager加载Item进度：$progress/$total");
 
-        _downloadingItems = items;
+        if (items != null) {
+          _downloadingItems.addAll(items);
+          zoteroDataSql.saveItems(items);
+        }
+
+        MyLogger.d("SyncManager加载items数量：${items?.length}");
+
+        // 通知下载进度
+        _onProgressCallback?.call(progress, total, items);
+      },
+      onFinish: (total) {
+        MyLogger.d("SyncManager加载Item完成，条目数量：$total");
+
+        // _downloadingItems = items;
 
         _loadingItemsFinished = true;
         _finishSingleStep();
@@ -115,26 +125,33 @@ class ZoteroSyncManager {
 
     // todo 记录到数据库中，提花大
     // _showItems.addAll(_items);
-    await zoteroDataSql.saveItems(items);
+    // await zoteroDataSql.saveItems(items);
   }
 
   /// 获取zotero回收站中的条目
   Future _loadTrashedItems() async {
+    List<Item> res = [];
+
     await zoteroHttp.getTrashedItems(zoteroDB,
-      onProgress: (progress, total) {
-        debugPrint("SyncManager加载回收站中的Item进度：$progress/$total");
+      onProgress: (progress, total, items) {
+        MyLogger.d("SyncManager加载回收站中的Item进度：$progress/$total");
+        if (items != null) {
+          res.addAll(items);
+          MyLogger.d("SyncManager加载回收站中的Items数量：${items?.length}");
+        }
         // 通知下载进度
         // onProgressCallback?.call(progress, total);
       },
-      onFinish: (items) {
+      onFinish: (total) {
+        MyLogger.d("SyncManager加载回收站中的数据成功，数量为：$total");
         /// 处理回收站中的条目
-        _handleItemsOfTrash(items).then((res) {
+        _handleItemsOfTrash(res).then((res) {
           _loadingTrashFinished = true;
           _finishSingleStep();
         });
       },
       onError: (errorCode, msg) {
-        debugPrint("加载错误：$msg");
+        debugPrint("SyncManager加载回收站错误：$msg");
       },
     );
   }
@@ -234,16 +251,14 @@ class ZoteroSyncManager {
   }
 
   void _finishLibrarySync() {
-    _onFinishCallback?.call(_downloadingItems);
+    // todo
+    _onFinishCallback?.call(_downloadingItems.length);
     _isSyncing = false;
 
     _loadingZoteroSettingFinished = false;
     _loadingCollectionsFinished = false;
     _loadingItemsFinished = false;
     _loadingTrashFinished = false;
-
-    // Mark as synced
-    markDataSynced();
   }
 
   Future<bool> isNeverSynced() async {
