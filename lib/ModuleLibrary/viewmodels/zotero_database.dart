@@ -342,9 +342,11 @@ class ZoteroDB {
     if (progress.total != (last?.total ?? -1)) {
       SharedPref.setInt("itemsDownloaded", progress.nDownloaded);
     }
-    // if (progress.libraryVersion != (last?.libraryVersion ?? -1)) {
-    //   setItemsVersion(progress.libraryVersion);
-    // }
+
+    final lastVersion = last?.libraryVersion ?? -1;
+    if (lastVersion < 0 && progress.libraryVersion != lastVersion) {
+      setItemsVersion(progress.libraryVersion);
+    }
 
     downloadedItemsInfo['downloadedAmount'] = progress.nDownloaded;
     downloadedItemsInfo['total'] = progress.total;
@@ -357,6 +359,9 @@ class ZoteroDB {
     downloadedItemsInfo.clear();
 
     // todo: save to prefs
+    SharedPref.setInt("itemsToDownload", -1);
+    SharedPref.setInt("itemsDownloaded", -1);
+
   }
 
   ItemsDownloadProgress? getDownloadProgress() {
@@ -449,10 +454,11 @@ class ZoteroDB {
     var libraryVersion = await getLibraryVersion();
 
     setDownloadProgress(ItemsDownloadProgress(libraryVersion, progress, total));
+
+    MyLogger.d("_loadSavedDownloadProgress itemToDownload: $total, itemDownloaded: $progress, libraryVersion: $libraryVersion");
   }
 
-  setCollectionsVersion(int newCollectionsVersion) {
-
+  Future setCollectionsVersion(int newCollectionsVersion) async {
 
   }
 

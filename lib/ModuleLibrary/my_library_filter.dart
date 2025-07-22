@@ -15,7 +15,7 @@ class MyItemFilter {
   final List<FilterInfo> _starredItems = [];
   final List<FilterInfo> _shieldedItems = [];
 
-  late final Directory _workspace;
+  Directory _workspace = Directory('');
 
   bool _isInit = false;
   bool isInit() => _isInit;

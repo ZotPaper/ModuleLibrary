@@ -77,19 +77,19 @@ class ZoteroSyncManager {
 
     // todo 考虑原子性
     // 获取所有集合
-    await _loadAllCollections();
+    _loadAllCollections();
     // 获取所有条目
-    await _loadAllItems();
+    _loadAllItems();
     // 获取所有已删除的条目
-    await _loadTrashedItems();
-    await _loadZoteroSettings(zoteroDB);
+    _loadTrashedItems();
+    _loadZoteroSettings(zoteroDB);
   }
 
   /// 从zotero中获取所有集合
   Future<void> _loadAllCollections() async {
     List<Collection> res = [];
     // todo 便利获取所有的集合
-    await zoteroHttp.getCollections(
+    zoteroHttp.getCollections(
         zoteroDB,
         onProgress: (progress, total, collections) {
           if (collections != null) {
@@ -113,7 +113,7 @@ class ZoteroSyncManager {
 
   /// 从zotero中获取所有条目
   Future<void> _loadAllItems() async {
-    await zoteroHttp.getItems(
+    zoteroHttp.getItems(
       zoteroDB,
       onProgress: (progress, total, items) {
         MyLogger.d("SyncManager加载Item进度：$progress/$total");
@@ -143,17 +143,13 @@ class ZoteroSyncManager {
         debugPrint("加载错误：$msg");
       },
     );
-
-    // todo 记录到数据库中，提花大
-    // _showItems.addAll(_items);
-    // await zoteroDataSql.saveItems(items);
   }
 
   /// 获取zotero回收站中的条目
   Future _loadTrashedItems() async {
     List<Item> res = [];
 
-    await zoteroHttp.getTrashedItems(zoteroDB,
+    zoteroHttp.getTrashedItems(zoteroDB,
       onProgress: (progress, total, items) {
         MyLogger.d("SyncManager加载回收站中的Item进度：$progress/$total");
         if (items != null) {
