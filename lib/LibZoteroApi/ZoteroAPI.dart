@@ -2,10 +2,10 @@ import 'package:dio/dio.dart';
 import 'package:flutter/cupertino.dart';
 import 'package:module_library/LibZoteroApi/Model/CollectionPojo.dart';
 import 'package:module_library/LibZoteroApi/Model/KeyInfo.dart';
+import 'package:module_library/LibZoteroApi/Model/zotero_collections_response.dart';
 import 'package:module_library/LibZoteroApi/Model/zotero_items_response.dart';
 import 'package:module_library/ModuleLibrary/utils/my_logger.dart';
 
-import '../ModuleLibrary/model/zotero_item_downloaded.dart';
 import 'Model/DeletedEntriesPojo.dart';
 import 'Model/GroupPojo.dart';
 import 'Model/ZoteroSettingsResponse.dart';
@@ -185,7 +185,9 @@ class ZoteroAPI {
     return null;
   }
 
-  Future<List<CollectionPOJO>> getCollections(
+  /// 获取用户收藏的集合
+  /// 注意⚠️：这个接口默认返回的是分页数据，而不是全量数据
+  Future<ZoteroAPICollectionsResponse?> getCollections(
       int ifModifiedSinceVersion, String user, int index) async {
 
     final itemRes =
@@ -193,28 +195,16 @@ class ZoteroAPI {
     if (itemRes.statusCode != 200) {
       if (itemRes.statusCode == 304) {
         debugPrint('Moyear==== 304 集合列表已经是最新了.');
-        return [];
+        return itemRes;
       } else {
         throw Exception('请求失败，状态码: ${itemRes.statusCode}');
       }
 
       // todo 解决304问题
     } else if (itemRes.statusCode == 200) {
-      final List<dynamic> data = itemRes.data;
-      final List<CollectionPOJO> collections = [];
-      for (var one in data) {
-        var inData = getJsonValue(one, 'data');
-        collections.add(CollectionPOJO(
-            key: getJsonValue(one, 'key'),
-            version: getJsonValue(one, 'version'),
-            collectionData: CollectionData(
-                name: getJsonValue(inData, 'name'),
-                parentCollection:
-                    getJsonValue(inData, 'parentCollection').toString())));
-      }
-      return collections;
+      return itemRes;
     }
-    return [];
+    return null;
   }
 
   Future<dynamic> getFileForUser(String user, String itemKey) async {

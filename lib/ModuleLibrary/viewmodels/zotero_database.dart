@@ -451,4 +451,26 @@ class ZoteroDB {
     setDownloadProgress(ItemsDownloadProgress(libraryVersion, progress, total));
   }
 
+  setCollectionsVersion(int newCollectionsVersion) {
+
+
+  }
+
+  CollectionsDownloadProgress? getCollectionsDownloadProgress() {
+    final nDownload = downloadedItemsInfo['collections_downloadedAmount'] ?? 0;
+    if (nDownload == 0) return null;
+
+    final total = downloadedItemsInfo['collections_total'] ?? 0;
+    final downloadVersion = downloadedItemsInfo['collections_downloadVersion'] ?? 0;
+    if (total == nDownload) return null;
+
+    return CollectionsDownloadProgress(downloadVersion, nDownload, total);
+  }
+
+  void setCollectionsDownloadProgress(CollectionsDownloadProgress collectionsDownloadProgress) {
+    downloadedItemsInfo['collections_downloadedAmount'] = collectionsDownloadProgress.nDownloaded;
+    downloadedItemsInfo['collections_total'] = collectionsDownloadProgress.total;
+    downloadedItemsInfo['collections_downloadVersion'] = collectionsDownloadProgress.libraryVersion;
+  }
+
 }

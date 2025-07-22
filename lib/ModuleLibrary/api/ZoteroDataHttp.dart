@@ -45,12 +45,16 @@ class ZoteroDataHttp {
     }
 
     // todo 检查本地版本号和远程版本号是否一致，不一致的话说明发生了冲突
-    if (downloadedProgress != null &&
+    if (downloadedProgress != null && downloadedProgress.libraryVersion > 0 &&
         response.LastModifiedVersion != downloadedProgress.libraryVersion) {
       // Due to possible miss-syncs, we cannot continue the download.
       // we will raise an exception which will tell the activity to redownload without the
       // progress object.
-      throw Exception("Cannot continue, our version ${downloadedProgress
+      // throw Exception("Cannot continue, our version ${downloadedProgress
+      //     .libraryVersion} doesn't match Server's ${response
+      //     .LastModifiedVersion}");
+
+      onError?.call(1, "Cannot continue, our version ${downloadedProgress
           .libraryVersion} doesn't match Server's ${response
           .LastModifiedVersion}");
     }
@@ -135,7 +139,29 @@ class ZoteroDataHttp {
     // _checkProgress(downloadedCount, total, items, onProgress, onFinish);
   }
 
-  /// 检查下载进度，并且把结果回调出去
+  /// 处理 Collections 分页数据
+  Future<void> _processCollectionsPage(List<dynamic> pageData,
+      List<Collection> collections,
+      int total,
+      List<int> downloadedCount,
+      Function(int progress, int total, List<Collection>?)? onProgress,
+      Function(int total)? onFinish) async {
+    for (int i = 0; i < pageData.length; i++) {
+      var collectionPOJO = pageData[i];
+      if (collectionPOJO != null) {
+        Collection collection = Collection(
+            key: collectionPOJO.key,
+            version: collectionPOJO.version,
+            parentCollection: collectionPOJO.collectionData.parentCollection,
+            groupId: NO_GROUP_ID,
+            name: collectionPOJO.collectionData.name);
+        collections.add(collection);
+        downloadedCount[0]++;
+      }
+    }
+  }
+
+  /// 检查条目Item下载进度，并且把结果回调出去
   void _checkProgress(List<int> downloadedCount,
       int total,
       List<Item> items,
@@ -150,23 +176,126 @@ class ZoteroDataHttp {
     }
   }
 
-  Future<List<Collection>> getCollections(ZoteroDB zoteroDB,
-      { int index = 0}) async {
+  /// 检查合集Collection的下载进度，并且把结果回调出去
+  void _checkCollectionProgress(List<int> downloadedCount,
+      int total,
+      List<Collection> collections,
+      Function(int progress, int total, List<Collection>? collections)? onProgress,
+      Function(int total)? onFinish) async {
+    if (downloadedCount[0] == total) {
+      // 为了保证最后不漏数据
+      onProgress?.call(downloadedCount[0], total, collections);
+      onFinish?.call(total);
+    } else {
+      onProgress?.call(downloadedCount[0], total, collections);
+    }
+  }
+
+
+  Future getCollections(ZoteroDB zoteroDB,
+      {
+        Function(int progress, int total, List<Collection>?)? onProgress,
+        Function(int total)? onFinish,
+        Function(int errorCode, String msg)? onError
+      }) async {
     final lastModifiedVersion = await zoteroDB.getLibraryVersion();
 
-    final itemRes =
-    await service.getCollections(lastModifiedVersion, userId, index);
-    List<Collection> collections = [];
+    final downloadedProgress = zoteroDB.getCollectionsDownloadProgress();
+    int startIndex = downloadedProgress?.nDownloaded ?? 0;
 
-    for (var collectionPOJO in itemRes) {
-      collections.add(Collection(
-          key: collectionPOJO.key,
-          version: collectionPOJO.version,
-          parentCollection: collectionPOJO.collectionData.parentCollection,
-          groupId: NO_GROUP_ID,
-          name: collectionPOJO.collectionData.name));
+    try {
+      // 发送请求下载数据，注意默认返回最多为25条（依赖后端而定），所以需要分页下载
+      final response = await service.getCollections(lastModifiedVersion, userId, startIndex);
+      if (response == null) {
+        onFinish?.call(-1);
+        return;
+      }
+
+      // todo 检查本地版本号和远程版本号是否一致，不一致的话说明发生了冲突
+      if (downloadedProgress != null && response?.LastModifiedVersion != downloadedProgress.libraryVersion) {
+        // Due to possible miss-syncs, we cannot continue the download.
+        // we will raise an exception which will tell the activity to redownload without the
+        // progress object.
+        throw Exception("Cannot continue, our version ${downloadedProgress
+            .libraryVersion} doesn't match Server's ${response.LastModifiedVersion}");
+      }
+
+      // // 如果没有数据，则直接返回，调用onFinish
+      // if (response.isEmpty) {
+      //   onFinish?.call(-1);
+      //   return [];
+      // }
+
+      // 这里的collections是每一次下载的集合数据
+      final collections = <Collection>[];
+      final total = response.totalResults; // Collections API 可能不返回总数，这里使用当前批次的长度
+      List<int> downloadedCount = [0];
+
+      // 处理第一页数据
+      await _processCollectionsPage(
+          response.data, collections, total, downloadedCount, onProgress, onFinish);
+      
+      // 缓存下载进度, 主要是为了避免后续重复下载
+      if (response.data.isNotEmpty) {
+        _cacheCollectionsDownloadProgress(zoteroDB, response.LastModifiedVersion, downloadedCount[0], total);
+      }
+      
+      // 检查进度，并且把结果回调出去
+      _checkCollectionProgress(downloadedCount, total, collections.toList(), onProgress, onFinish);
+
+      // 清除临时暂存的数据
+      collections.clear();
+
+      // 继续下载剩余页面 (如果有更多数据)
+      bool hasMoreData = response.data.length >= 25; // 假设每页25条，如果返回数量等于页面大小，可能还有更多数据
+      while (hasMoreData && downloadedCount[0] < total) {
+        final pagedResponse = await service.getCollections(
+            lastModifiedVersion, userId, downloadedCount[0]);
+        if (pagedResponse == null || pagedResponse.data.isEmpty) {
+          break;
+        }
+        
+        await _processCollectionsPage(
+            pagedResponse.data, collections, total, downloadedCount, onProgress, onFinish);
+        
+        // 缓存下载进度, 主要是为了避免后续重复下载
+        if (pagedResponse.data.isNotEmpty) {
+          _cacheCollectionsDownloadProgress(zoteroDB, pagedResponse.LastModifiedVersion, downloadedCount[0], total);
+        }
+        
+        // 检查进度，并且把结果回调出去
+        _checkCollectionProgress(downloadedCount, total, collections.toList(), onProgress, onFinish);
+
+        // 清除临时暂存的数据
+        collections.clear();
+        
+        // 如果返回的数据少于预期页面大小，说明没有更多数据了
+        hasMoreData = pagedResponse.data.length >= 25;
+      }
+
+      if (lastModifiedVersion > -1) {
+        if (downloadedCount[0] == 0) {
+          debugPrint("Moyear==== Collections already up to date.");
+        } else {
+          debugPrint("Moyear==== Updated ${downloadedCount[0]} collections.");
+        }
+      }
+
+      // 下载完成数据后，更新本地的集合版本号
+      if (response.data.isNotEmpty) {
+        final newCollectionsVersion = response.LastModifiedVersion;
+        if (lastModifiedVersion != newCollectionsVersion) {
+          await zoteroDB.setCollectionsVersion(newCollectionsVersion);
+          MyLogger.d("下载完成数据后，更新本地的集合版本号: $newCollectionsVersion 旧版本号: $lastModifiedVersion");
+        }
+      }
+      
+      return collections;
+    } catch (e) {
+      MyLogger.d("获取Collections时发生错误: $e");
+      onError?.call(-1, e.toString());
+      return [];
     }
-    return collections;
   }
 
   List<Map<String, dynamic>> prepareData(Map<String, dynamic> jsonMap) {
@@ -368,6 +497,18 @@ class ZoteroDataHttp {
     zoteroDB.setDownloadProgress(
         ItemsDownloadProgress(
           response.LastModifiedVersion,
+          downloadedCount,
+          total,
+        )
+    );
+  }
+
+  void _cacheCollectionsDownloadProgress(ZoteroDB zoteroDB,
+      int version, int downloadedCount, int total) {
+    MyLogger.d("缓存Collections下载进度：$version $downloadedCount/$total");
+    zoteroDB.setCollectionsDownloadProgress(
+        CollectionsDownloadProgress(
+          version,
           downloadedCount,
           total,
         )

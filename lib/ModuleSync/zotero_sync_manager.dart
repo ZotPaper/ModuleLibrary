@@ -1,4 +1,5 @@
 import 'package:flutter/cupertino.dart';
+import 'package:module_library/LibZoteroStorage/entity/Collection.dart';
 import 'package:module_library/ModuleLibrary/utils/my_logger.dart';
 
 import '../LibZoteroApi/Model/ZoteroSettingsResponse.dart';
@@ -86,11 +87,28 @@ class ZoteroSyncManager {
 
   /// 从zotero中获取所有集合
   Future<void> _loadAllCollections() async {
-    var collections = await zoteroHttp.getCollections(zoteroDB);
-    await zoteroDataSql.saveCollections(collections);
+    List<Collection> res = [];
+    // todo 便利获取所有的集合
+    await zoteroHttp.getCollections(
+        zoteroDB,
+        onProgress: (progress, total, collections) {
+          if (collections != null) {
+            res.addAll(collections);
+          }
+        },
+        onFinish: (total) async {
+          await zoteroDataSql.saveCollections(res);
+          _loadingCollectionsFinished = true;
+          _finishSingleStep();
+        },
+        onError: (errorCode, msg) {
+          MyLogger.e("SyncManager加载集合错误：$msg");
+          // 下载错误，跳过
+          _loadingCollectionsFinished = true;
+          _finishSingleStep();
+        },
+    );
 
-    _loadingCollectionsFinished = true;
-    _finishSingleStep();
   }
 
   /// 从zotero中获取所有条目

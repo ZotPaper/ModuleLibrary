@@ -1,6 +1,8 @@
 
 // 定义一些辅助类型
 import 'package:dio/dio.dart';
+import 'package:flutter/foundation.dart';
+import 'package:module_library/LibZoteroApi/Model/zotero_collections_response.dart';
 import 'package:module_library/LibZoteroApi/Model/zotero_items_response.dart';
 import 'package:module_library/LibZoteroApi/NetworkConstants.dart';
 
@@ -30,6 +32,19 @@ class ZoteroAPIService {
     _dio =Dio(BaseOptions(baseUrl: baseUrl,headers: {
       'Zotero-API-Key': api,
     },));
+
+    if (kDebugMode) {
+      // 添加日志拦截器（核心配置）
+      _dio.interceptors.add(LogInterceptor(
+        request: true,        // 打印请求信息
+        requestHeader: true,  // 打印请求头
+        requestBody: true,    // 打印请求体
+        responseHeader: true, // 打印响应头
+        responseBody: true,   // 打印响应体
+        error: true,          // 打印错误信息
+        logPrint: (log) => print(log), // 输出到控制台
+      ));
+    }
   }
 
 
@@ -265,7 +280,7 @@ class ZoteroAPIService {
   }
 
   // 获取用户的集合
-  Future<Response<dynamic>> getCollections(
+  Future<ZoteroAPICollectionsResponse> getCollections(
       int ifModifiedSinceVersion, String user, int index) async {
     try {
       final headers = {
@@ -277,13 +292,31 @@ class ZoteroAPIService {
       final response = await _dio.get('/users/$user/collections',
           options: Options(headers: headers),
           queryParameters: queryParameters);
-      return Response(
-        response.data, response.statusCode!,
-      );
+
+      // final List<dynamic> data = response.data;
+
+      final isCache = response.statusCode == 304;
+      // final int LastModifiedVersion = response.headers.map['zotero-schema-version'] == null ? 0 : int.parse(response.headers.map['zotero-schema-version']!.first);
+      final int LastModifiedVersion = int.tryParse(response.headers.value("Last-Modified-Version") ?? "-1") ?? -1;
+      final totalRes = int.tryParse(response.headers.value("total-results") ?? "-1") ?? -1;
+
+      final List<dynamic> data = response.data;
+      final List<CollectionPOJO> collections = [];
+      for (var one in data) {
+        var inData = getJsonValue(one, 'data');
+        collections.add(CollectionPOJO(
+            key: getJsonValue(one, 'key'),
+            version: getJsonValue(one, 'version'),
+            collectionData: CollectionData(
+                name: getJsonValue(inData, 'name'),
+                parentCollection:
+                getJsonValue(inData, 'parentCollection').toString())));
+      }
+      return ZoteroAPICollectionsResponse(collections,  response.statusCode!, totalRes, LastModifiedVersion, isCache);
     } on DioException catch (e) {
       if (e.response?.statusCode == 304) {
         // Use cached data
-        return Response([], 304,);
+        return ZoteroAPICollectionsResponse([], 304, 0, ifModifiedSinceVersion, true);
       }
       throw Exception('请求发生错误: $e');
     }
@@ -460,6 +493,39 @@ class ZoteroAPIService {
           null, e.response!.statusCode!, headers: e.response!.headers,
         );
       }
+    }
+  }
+
+  /// 安全获取嵌套 JSON 值
+  ///
+  /// [json] - 要提取值的 JSON 对象
+  /// [path] - 路径字符串，用点号分隔（如 'user.address.city' ）
+  /// [defaultValue] - 当路径不存在时返回的默认值
+  dynamic getJsonValue(dynamic json, String path, {dynamic defaultValue}) {
+    if (json == null || path.isEmpty) return defaultValue;
+
+    try {
+      var keys = path.split('.');
+      dynamic current = json;
+
+      for (var key in keys) {
+        if (current is Map && current.containsKey(key)) {
+          current = current[key];
+        } else if (current is List && int.tryParse(key) != null) {
+          int index = int.parse(key);
+          if (index >= 0 && index < current.length) {
+            current = current[index];
+          } else {
+            return defaultValue;
+          }
+        } else {
+          return defaultValue;
+        }
+      }
+
+      return current ?? defaultValue;
+    } catch (e) {
+      return defaultValue;
     }
   }
 }
