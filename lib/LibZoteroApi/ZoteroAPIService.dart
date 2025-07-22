@@ -5,6 +5,7 @@ import 'package:flutter/foundation.dart';
 import 'package:module_library/LibZoteroApi/Model/zotero_collections_response.dart';
 import 'package:module_library/LibZoteroApi/Model/zotero_items_response.dart';
 import 'package:module_library/LibZoteroApi/NetworkConstants.dart';
+import 'package:pretty_dio_logger/pretty_dio_logger.dart';
 
 import 'Model/CollectionPojo.dart';
 import 'Model/DeletedEntriesPojo.dart';
@@ -35,15 +36,17 @@ class ZoteroAPIService {
 
     if (kDebugMode) {
       // 添加日志拦截器（核心配置）
-      _dio.interceptors.add(LogInterceptor(
-        request: true,        // 打印请求信息
-        requestHeader: true,  // 打印请求头
-        requestBody: true,    // 打印请求体
-        responseHeader: true, // 打印响应头
-        responseBody: true,   // 打印响应体
-        error: true,          // 打印错误信息
-        logPrint: (log) => print(log), // 输出到控制台
-      ));
+      // 配置PrettyDioLogger
+      _dio.interceptors.add(
+        PrettyDioLogger(
+          requestHeader: true,
+          requestBody: true,
+          responseBody: true,
+          responseHeader: false,
+          compact: false,
+          error: true,
+        ),
+      );
     }
   }
 

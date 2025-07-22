@@ -31,6 +31,7 @@ dependencies:
   flutter:
     sdk: flutter
   dio: ^5.0.0
+  pretty_dio_logger: ^1.2.0  # 请确保使用最新版本
   json_annotation: ^4.9.0
   # The following adds the Cupertino Icons font to your application.
   # Use with the CupertinoIcons class for iOS style icons.
