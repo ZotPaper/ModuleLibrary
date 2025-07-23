@@ -68,7 +68,7 @@ class ZoteroDataHttp {
     // 这里的item是每一次下载的条目数据
     final items = <Item>[];
     final total = response.totalResults;
-    List<int> downloadedCount = [0];
+    List<int> downloadedCount = [starIndex];
 
     // 处理第一页数据
     await _processPage(

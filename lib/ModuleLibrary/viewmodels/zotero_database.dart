@@ -1,8 +1,8 @@
 
 import 'package:flutter/cupertino.dart';
 import 'package:module_library/LibZoteroStorage/entity/ItemTag.dart';
-import 'package:module_library/ModuleLibrary/share_pref.dart';
 import 'package:module_library/ModuleLibrary/utils/my_logger.dart';
+import 'package:module_library/utils/zotero_sync_progress_helper.dart';
 import 'package:shared_preferences/shared_preferences.dart';
 
 import '../../LibZoteroStorage/entity/Collection.dart';
@@ -17,6 +17,7 @@ class ZoteroDB {
   static final ZoteroDB _instance = ZoteroDB._internal();
   factory ZoteroDB() => _instance;
   ZoteroDB._internal() {
+    /// 加载上次保存的下载进度，避免重复加载
     _loadSavedDownloadProgress();
   }
 
@@ -47,8 +48,6 @@ class ZoteroDB {
   final List<ItemTag> _itemTags = [];
   List<ItemTag> get itemTags => _itemTags;
 
-  /// 本地下载的条目信息，用于下载变化的部分
-  Map<String, int> downloadedItemsInfo = {};
 
   // 判断是否已经加载了数据
   bool isPopulated() {
@@ -277,30 +276,23 @@ class ZoteroDB {
     return null;
   }
 
-
-
-
+  /// 本地持久化保存，当前本次数据的版本号
+  /// todo 考虑要不要集成到database里面
   Future<void> setItemsVersion(int libraryVersion) async {
     final prefs = await SharedPreferences.getInstance();
     await prefs.setInt('ItemsLibraryVersion', libraryVersion);
-    debugPrint('setting library version $libraryVersion');
+    MyLogger.d('setting library version $libraryVersion');
   }
 
-  Future<void> clearItemsVersion() async {
-    try {
-      final prefs = await SharedPreferences.getInstance();
-      await prefs.remove('ItemsLibraryVersion');
-    } catch (e) {
-      debugPrint('error clearing items version from local db.');
-    }
-  }
-
+  /// 设置本地持久化保存的当前的zotero设置版本号
+  /// todo 考虑要不要集成到database里面
   Future<void> setZoteroSettingVersion(int settingVersion) async {
     final prefs = await SharedPreferences.getInstance();
     await prefs.setInt('ZoteroSettingVersion', settingVersion);
     debugPrint('setting zotero setting version $settingVersion');
   }
 
+  /// 获取本地持久化保存的当前的zotero设置版本号
   Future<int> getZoteroSettingVersion() async {
     final prefs = await SharedPreferences.getInstance();
     return prefs.getInt('ZoteroSettingVersion') ?? -1;
@@ -333,46 +325,15 @@ class ZoteroDB {
   }
 
   void setDownloadProgress(ItemsDownloadProgress progress) {
-    var last = getDownloadProgress();
-    // TODO: Save to prefs
-    if (progress.nDownloaded != (last?.nDownloaded ?? -1)) {
-      SharedPref.setInt("itemsToDownload", progress.total);
-    }
-
-    if (progress.total != (last?.total ?? -1)) {
-      SharedPref.setInt("itemsDownloaded", progress.nDownloaded);
-    }
-
-    final lastVersion = last?.libraryVersion ?? -1;
-    if (lastVersion < 0 && progress.libraryVersion != lastVersion) {
-      setItemsVersion(progress.libraryVersion);
-    }
-
-    downloadedItemsInfo['downloadedAmount'] = progress.nDownloaded;
-    downloadedItemsInfo['total'] = progress.total;
-    downloadedItemsInfo['downloadVersion'] = progress.libraryVersion;
+    ZoteroSyncProgressHelper.setItemsDownloadProgress(progress);
   }
 
-
-
   void destroyDownloadProgress() {
-    downloadedItemsInfo.clear();
-
-    // todo: save to prefs
-    SharedPref.setInt("itemsToDownload", -1);
-    SharedPref.setInt("itemsDownloaded", -1);
-
+    ZoteroSyncProgressHelper.destroyDownloadProgress();
   }
 
   ItemsDownloadProgress? getDownloadProgress() {
-    final nDownload = downloadedItemsInfo['downloadedAmount'] ?? 0;
-    if (nDownload == 0) return null;
-
-    final total = downloadedItemsInfo['total'] ?? 0;
-    final downloadVersion = downloadedItemsInfo['downloadVersion'] ?? 0;
-    if (total == nDownload) return null;
-
-    return ItemsDownloadProgress(downloadVersion, nDownload, total);
+    return ZoteroSyncProgressHelper.getItemsDownloadProgress();
   }
 
   /// 移动条目到回收站
@@ -440,22 +401,28 @@ class ZoteroDB {
         }
       }
     }
-
   }
 
   void updateParentCollection(Collection collection, String parentCollectionKey) {
     collection.parentCollection = parentCollectionKey;
-
   }
 
+  /// 加载上次保存的下载进度，避免重复加载
   Future<void> _loadSavedDownloadProgress() async {
-    var total = SharedPref.getInt("itemsToDownload", 0);
-    var progress = SharedPref.getInt("itemsDownloaded", 0);
-    var libraryVersion = await getLibraryVersion();
+    var lastSavedDownloadProgress = await ZoteroSyncProgressHelper.getLastSavedDownloadProgress();
+    MyLogger.d("_loadSavedDownloadProgress itemToDownload: ${lastSavedDownloadProgress.total}, itemDownloaded: ${lastSavedDownloadProgress.nDownloaded}, libraryVersion: ${lastSavedDownloadProgress.libraryVersion}");
 
-    setDownloadProgress(ItemsDownloadProgress(libraryVersion, progress, total));
+    // 确保下数据正确，避免-1和0的差异导致异常
+    int lastDownload = 0;
+    int lastTotal = 0;
+    if (lastSavedDownloadProgress.total > 0) {
+      lastTotal = lastSavedDownloadProgress.total;
+    }
+    if (lastSavedDownloadProgress.nDownloaded > 0) {
+      lastDownload = lastSavedDownloadProgress.nDownloaded;
+    }
 
-    MyLogger.d("_loadSavedDownloadProgress itemToDownload: $total, itemDownloaded: $progress, libraryVersion: $libraryVersion");
+    setDownloadProgress(ItemsDownloadProgress(lastSavedDownloadProgress.libraryVersion, lastDownload, lastTotal));
   }
 
   Future setCollectionsVersion(int newCollectionsVersion) async {
@@ -463,20 +430,12 @@ class ZoteroDB {
   }
 
   CollectionsDownloadProgress? getCollectionsDownloadProgress() {
-    final nDownload = downloadedItemsInfo['collections_downloadedAmount'] ?? 0;
-    if (nDownload == 0) return null;
-
-    final total = downloadedItemsInfo['collections_total'] ?? 0;
-    final downloadVersion = downloadedItemsInfo['collections_downloadVersion'] ?? 0;
-    if (total == nDownload) return null;
-
-    return CollectionsDownloadProgress(downloadVersion, nDownload, total);
+    return ZoteroSyncProgressHelper.getCollectionsDownloadProgress();
   }
 
   void setCollectionsDownloadProgress(CollectionsDownloadProgress collectionsDownloadProgress) {
-    downloadedItemsInfo['collections_downloadedAmount'] = collectionsDownloadProgress.nDownloaded;
-    downloadedItemsInfo['collections_total'] = collectionsDownloadProgress.total;
-    downloadedItemsInfo['collections_downloadVersion'] = collectionsDownloadProgress.libraryVersion;
+    ZoteroSyncProgressHelper.setCollectionsDownloadProgress(collectionsDownloadProgress);
   }
+
 
 }
