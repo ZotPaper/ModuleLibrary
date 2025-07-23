@@ -167,21 +167,31 @@ class LibraryViewModel with ChangeNotifier {
 
   /// 从本地数据库中获取数据
   Future<void> _loadDataFromLocalDatabase() async {
+    MyLogger.d("_loadDataFromLocalDatabase 从本地数据库中获取数据}");
+
     var collections = await zoteroDataSql.getCollections();
     // 把collections保存到内存中
     zoteroDB.setCollections(collections);
+
+    MyLogger.d("_loadDataFromLocalDatabase getCollections 获取所有的集合数据完成✅");
 
     _items = await zoteroDataSql.getItems();
     // 把items保存到内存中
     zoteroDB.setItems(_items);
 
+    MyLogger.d("_loadDataFromLocalDatabase getItems 获取所有的条目数据完成✅");
+
     // 加载回收站数据
     var deletedItems = await zoteroDataSql.getDeletedTrashes();
     zoteroDB.setTrashedItems(deletedItems);
 
+    MyLogger.d("_loadDataFromLocalDatabase getDeletedTrashes 获取所有的集合数据完成✅");
+
     // 加载所有的标签数据
     var allTags = await zoteroDataSql.getAllTags();
     zoteroDB.setItemTags(allTags);
+
+    MyLogger.d("_loadDataFromLocalDatabase getAllTags 获取所有的集合数据完成✅");
 
     // 初始化过滤器
     MyItemFilter.instance.init();
