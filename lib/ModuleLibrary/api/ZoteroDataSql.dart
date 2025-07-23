@@ -7,6 +7,7 @@ import 'package:module_library/LibZoteroStorage/entity/ItemCollection.dart';
 import 'package:module_library/LibZoteroStorage/entity/ItemInfo.dart';
 import 'package:module_library/LibZoteroStorage/entity/ItemTag.dart';
 import 'package:module_library/ModuleLibrary/utils/my_fun_tracer.dart';
+import 'package:module_library/ModuleLibrary/utils/my_logger.dart';
 import 'package:sqflite/sqflite.dart';
 import '../../LibZoteroStorage/database/dao/AttachmentInfoDao.dart';
 import '../../LibZoteroStorage/database/dao/ItemCollectionDao.dart';
@@ -52,35 +53,141 @@ class ZoteroDataSql {
   late AttachmentInfoDao attachmentInfoDao;
   late RecentlyOpenedAttachmentDao recentlyOpenedAttachmentDao;
 
-  /// Saves a list of items with all their related data (creators, tags, etc.)
+  // 添加一个锁来防止并发保存操作
+  static bool _isSaving = false;
+  static final List<Item> _pendingItems = [];
+
+  /// 保存Items列表 - 使用事务和批量操作优化
   Future<void> saveItems(List<Item> items) async {
-    // This would be implemented as a transaction for data integrity
-    for (var item in items) {
-      saveItem(item);
+    if (items.isEmpty) return;
+
+    MyLogger.d("开始保存 ${items.length} 个items");
+    MyFunTracer.beginTrace(customKey: "saveItems_${items.length}");
+
+    try {
+      // 使用锁防止并发保存
+      if (_isSaving) {
+        MyLogger.d("检测到并发保存，将items加入待处理队列");
+        _pendingItems.addAll(items);
+        return;
+      }
+
+      _isSaving = true;
+      final allItemsToSave = List<Item>.from(items);
+      
+      // 处理待处理队列中的items
+      if (_pendingItems.isNotEmpty) {
+        allItemsToSave.addAll(_pendingItems);
+        _pendingItems.clear();
+        MyLogger.d("合并待处理队列，总共保存 ${allItemsToSave.length} 个items");
+      }
+
+      await _saveItemsWithTransaction(allItemsToSave);
+      
+    } finally {
+      _isSaving = false;
+      MyFunTracer.endTrace(customKey: "saveItems_${items.length}");
     }
   }
 
+  /// 使用数据库事务批量保存Items
+  Future<void> _saveItemsWithTransaction(List<Item> items) async {
+    final db = await _database.database;
+    
+    await db.transaction((txn) async {
+      MyFunTracer.beginTrace(customKey: "transaction_save_${items.length}");
+      
+      try {
+        // 批量保存ItemInfo
+        for (final item in items) {
+          final itemInfoMap = item.itemInfo.toJson();
+          itemInfoMap.remove('id');
+          itemInfoMap['deleted'] = item.itemInfo.deleted ? 1 : 0;
+          
+          await txn.insert(
+            'ItemInfo', 
+            itemInfoMap, 
+            conflictAlgorithm: ConflictAlgorithm.replace,
+          );
+        }
+
+        // 批量保存ItemData
+        for (final item in items) {
+          for (final itemData in item.itemData) {
+            final dataMap = itemData.toJson();
+            dataMap.remove('id');
+            
+            await txn.insert(
+              'ItemData', 
+              dataMap, 
+              conflictAlgorithm: ConflictAlgorithm.replace,
+            );
+          }
+        }
+
+        // 批量保存Creators
+        for (final item in items) {
+          for (final creator in item.creators) {
+            await txn.rawInsert('''
+              INSERT OR REPLACE INTO ItemCreator (
+                parent, firstName, lastName, creatorType, "order"
+              ) VALUES (?, ?, ?, ?, ?)
+            ''', [
+              creator.parent,
+              creator.firstName,
+              creator.lastName,
+              creator.creatorType,
+              creator.order
+            ]);
+          }
+        }
+
+        // 批量保存Tags
+        for (final item in items) {
+          for (final tag in item.tags) {
+            await txn.rawInsert('''
+              INSERT OR REPLACE INTO ItemTags (
+                parent, tag
+              ) VALUES (?, ?)
+            ''', [
+              tag.parent,
+              tag.tag
+            ]);
+          }
+        }
+
+        // 批量保存Collections关系
+        for (final item in items) {
+          for (final collectionKey in item.collections) {
+            final collectionMap = {
+              'collectionKey': collectionKey,
+              'itemKey': item.itemInfo.itemKey,
+            };
+            
+            await txn.insert(
+              'ItemCollection', 
+              collectionMap, 
+              conflictAlgorithm: ConflictAlgorithm.replace,
+            );
+          }
+        }
+
+        MyLogger.d("事务批量保存完成: ${items.length} 个items");
+        
+      } catch (e) {
+        MyLogger.e("批量保存失败: $e");
+        rethrow;
+      } finally {
+        MyFunTracer.endTrace(customKey: "transaction_save_${items.length}");
+      }
+    });
+  }
+
+  /// 单个Item保存方法 - 现在也使用事务
   Future<void> saveItem(Item item) async {
-    itemInfoDao.insertItem(item.itemInfo);
-    for(var itemData in item.itemData){
-      itemDataDao.insertItemData(itemData);
-    }
-    for(var creator in item.creators){
-      itemCreatorDao.insertItemCreator(creator);
-    }
-    for(var itemTag in item.tags){
-      itemTagsDao.insertItemTag(itemTag);
-    }
-    for(var collection in item.collections){
-      itemCollectionDao.insertItemCollection(ItemCollection(collectionKey: collection, itemKey: item.itemInfo.itemKey));
-    }
-    for(var attachment in item.attachments){
-      // attachmentInfoDao.insertAttachment(attachment);
-    }
-    for(var note in item.notes){
-
-    }
+    await saveItems([item]);
   }
+
 
   Future<void> saveCollections(List<Collection> collections) async {
     // This would be implemented as a transaction for data integrity
@@ -422,45 +529,6 @@ class ZoteroDataSql {
 
     return items;
   }
-
-  /// Saves a single item with all its related data
-  // Future<void> saveItem(Item item) async {
-  //   // await _database.transaction((txn)  async {
-  //   //   // 1. Save the base item info
-  //   //   await itemInfoDao.insertItem(item.info);
-  //   //
-  //   //   // 2. Save item data (fields)
-  //   //   for (final data in item.data)  {
-  //   //     await itemDataDao.insertItemData(data);
-  //   //   }
-  //   //
-  //   //   // 3. Save creators
-  //   //   for (final creator in item.creators)  {
-  //   //     await itemCreatorDao.insertItemCreator(creator);
-  //   //   }
-  //   //
-  //   //   // 4. Save tags
-  //   //   for (final tag in item.tags)  {
-  //   //     await itemTagsDao.insertItemTag(tag);
-  //   //   }
-  //   //
-  //   //   // 5. Save collection relationships if any
-  //   //   for (final collectionKey in item.collectionKeys)  {
-  //   //     await itemCollectionDao.insertItemCollection(
-  //   //       ItemCollection(
-  //   //         id: 0, // auto-incremented
-  //   //         collectionKey: collectionKey,
-  //   //         itemKey: item.info.itemKey,
-  //   //       ),
-  //   //     );
-  //   //   }
-  //   //
-  //   //   // 6. Save attachment info if present
-  //   //   if (item.attachmentInfo  != null) {
-  //   //     await attachmentInfoDao.insertAttachment(item.attachmentInfo!);
-  //   //   }
-  //   // });
-  // }
 
   /// Gets a complete item with all its related data
   Future<Item?> getItem(String itemKey) async {

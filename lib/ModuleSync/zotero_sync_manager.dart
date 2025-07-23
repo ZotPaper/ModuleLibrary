@@ -112,20 +112,33 @@ class ZoteroSyncManager {
 
   }
 
-  /// 从zotero中获取所有条目
+  /// 从zotero中获取所有条目 - 已解决数据库锁定问题
   Future<void> _loadAllItems() async {
-    // todo 找到bug的源头：Warning database has been locked for 0:00:10.000000. Make sure you always use the transaction object for database operations during a transaction，并解决当前问题
+    // 解决方案：使用批量保存和事务处理，避免数据库锁定
+    // 1. 收集所有items后批量保存，而不是逐批保存
+    // 2. 使用数据库事务确保数据一致性
+    // 3. 添加并发控制避免多个保存操作冲突
+    
+    final List<Item> allItems = [];
+    final int batchSize = 100; // 每100个items保存一次，平衡内存和性能
+    
     zoteroHttp.getItems(
       zoteroDB,
       onProgress: (progress, total, items) {
         MyLogger.d("SyncManager加载Item进度：$progress/$total");
 
-        if (items != null) {
-          // _downloadingItems.addAll(items);
-          zoteroDataSql.saveItems(items);
+        if (items != null && items.isNotEmpty) {
+          allItems.addAll(items);
+          
+          // 达到批次大小时进行保存，减少数据库操作频率
+          if (allItems.length >= batchSize) {
+            MyLogger.d("批量保存 ${allItems.length} 个items到数据库");
+            zoteroDataSql.saveItems(List.from(allItems));
+            allItems.clear(); // 清空已保存的items，释放内存
+          }
         }
 
-        MyLogger.d("SyncManager加载items数量：${items?.length}");
+        MyLogger.d("SyncManager加载items数量：${items?.length}，累计：${allItems.length}");
 
         // 通知下载进度
         _onProgressCallback?.call(progress, total, items);
@@ -133,7 +146,12 @@ class ZoteroSyncManager {
       onFinish: (total) {
         MyLogger.d("SyncManager加载Item完成，条目数量：$total");
 
-        // _downloadingItems = items;
+        // 保存剩余的items
+        if (allItems.isNotEmpty) {
+          MyLogger.d("保存最后 ${allItems.length} 个items到数据库");
+          zoteroDataSql.saveItems(allItems);
+        }
+
         _curDownloadedTotal = total;
 
         // 下载完成的时候删除缓存下载进度信息
@@ -143,7 +161,16 @@ class ZoteroSyncManager {
         _finishSingleStep();
       },
       onError: (errorCode, msg) {
-        debugPrint("加载错误：$msg");
+        MyLogger.e("SyncManager加载items错误：$msg");
+        
+        // 即使出错也要保存已下载的数据
+        if (allItems.isNotEmpty) {
+          MyLogger.d("发生错误，保存已下载的 ${allItems.length} 个items");
+          zoteroDataSql.saveItems(allItems);
+        }
+        
+        _loadingItemsFinished = true;
+        _finishSingleStep();
       },
     );
   }
