@@ -6,6 +6,7 @@ import 'package:module_library/LibZoteroApi/Model/zotero_collections_response.da
 import 'package:module_library/LibZoteroApi/Model/zotero_items_response.dart';
 import 'package:module_library/ModuleLibrary/utils/my_logger.dart';
 
+import '../ModuleLibrary/utils/my_fun_tracer.dart';
 import 'Model/DeletedEntriesPojo.dart';
 import 'Model/GroupPojo.dart';
 import 'Model/ZoteroSettingsResponse.dart';
@@ -23,9 +24,13 @@ class ZoteroAPI {
   /// 获取用户所有条目信息
   /// 注意：此接口返回的接口默认是分页的
   Future<ZoteroAPIItemsResponse?> getItems(String userId, {int ifModifiedSinceVersion = -1, int startIndex = 0 }) async {
+    MyFunTracer.beginTrace();
     MyLogger.d('Moyear==== 获取用户所有条目信息 userId: $userId, ifModifiedSinceVersion: $ifModifiedSinceVersion, startIndex: $startIndex');
 
+    // todo 解决网络中断导致的报错问题
     final itemRes = await service.getItems(userId, ifModifiedSinceVersion, startIndex);
+
+    MyFunTracer.endTrace();
 
     if (itemRes.statusCode != 200) {
       if (itemRes.statusCode == 304) {

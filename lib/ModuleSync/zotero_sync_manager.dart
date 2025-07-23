@@ -33,7 +33,8 @@ class ZoteroSyncManager {
 
   var _loadingZoteroSettingFinished = false;
 
-  List<Item> _downloadingItems = [];
+  /// 本次Sync下载的条目总数量
+  var _curDownloadedTotal = -1;
 
   bool _isSyncing = false;
   bool isSyncing() {
@@ -113,13 +114,14 @@ class ZoteroSyncManager {
 
   /// 从zotero中获取所有条目
   Future<void> _loadAllItems() async {
+    // todo 找到bug的源头：Warning database has been locked for 0:00:10.000000. Make sure you always use the transaction object for database operations during a transaction，并解决当前问题
     zoteroHttp.getItems(
       zoteroDB,
       onProgress: (progress, total, items) {
         MyLogger.d("SyncManager加载Item进度：$progress/$total");
 
         if (items != null) {
-          _downloadingItems.addAll(items);
+          // _downloadingItems.addAll(items);
           zoteroDataSql.saveItems(items);
         }
 
@@ -132,6 +134,7 @@ class ZoteroSyncManager {
         MyLogger.d("SyncManager加载Item完成，条目数量：$total");
 
         // _downloadingItems = items;
+        _curDownloadedTotal = total;
 
         // 下载完成的时候删除缓存下载进度信息
         zoteroDB.destroyDownloadProgress();
@@ -269,7 +272,8 @@ class ZoteroSyncManager {
 
   void _finishLibrarySync() {
     // todo
-    _onFinishCallback?.call(_downloadingItems.length);
+    _onFinishCallback?.call(_curDownloadedTotal);
+    _curDownloadedTotal = -1;
     _isSyncing = false;
 
     _loadingZoteroSettingFinished = false;

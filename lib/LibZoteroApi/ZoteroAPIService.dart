@@ -41,7 +41,7 @@ class ZoteroAPIService {
         PrettyDioLogger(
           requestHeader: true,
           requestBody: true,
-          responseBody: true,
+          responseBody: false,
           responseHeader: false,
           compact: false,
           error: true,

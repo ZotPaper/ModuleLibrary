@@ -324,8 +324,8 @@ class ZoteroDB {
     await prefs.setInt('TrashLibraryVersion', version);
   }
 
-  void setDownloadProgress(ItemsDownloadProgress progress) {
-    ZoteroSyncProgressHelper.setItemsDownloadProgress(progress);
+  Future<void> setDownloadProgress(ItemsDownloadProgress progress) async {
+    await ZoteroSyncProgressHelper.setItemsDownloadProgress(progress);
   }
 
   void destroyDownloadProgress() {
