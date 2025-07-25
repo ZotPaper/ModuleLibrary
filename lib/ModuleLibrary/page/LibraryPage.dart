@@ -249,14 +249,14 @@ class _LibraryPageState extends State<LibraryPage> {
             children: [
               Container(
                 width: double.infinity,
-                child: Text(item.getTitle(), maxLines: 2),
+                child: Text(item.getTitle(), maxLines: 2, style: TextStyle(color: ResColor.textMain),),
               ),
               Container(
                 width: double.infinity,
                 child: Text(
                   item.getAuthor(),
                   maxLines: 1,
-                  style: const TextStyle(color: Colors.grey),
+                  style: TextStyle(color: Colors.grey.shade500),
                 ),
               ),
               _itemImportantTags(item),
@@ -266,7 +266,7 @@ class _LibraryPageState extends State<LibraryPage> {
         if (item.attachments.isNotEmpty) _attachmentIndicator(item),
         IconButton(onPressed: () {
           _showItemEntryOperatePanel(context, item);
-        }, icon: const Icon(Icons.more_vert)),
+        }, icon: Icon(Icons.more_vert, color: Colors.grey.shade500,)),
       ],
     );
   }
@@ -283,14 +283,14 @@ class _LibraryPageState extends State<LibraryPage> {
             children: [
               SizedBox(
                 width: double.infinity,
-                child: Text(collection.name, maxLines: 2),
+                child: Text(collection.name, maxLines: 2, style: TextStyle(color: ResColor.textMain)),
               ),
               SizedBox(
                 width: double.infinity,
                 child: Text(
                   "$sizeSub条子项",
                   maxLines: 1,
-                  style: const TextStyle(color: Colors.grey),
+                  style: TextStyle(color: Colors.grey.shade500),
                 ),
               ),
             ],
@@ -298,7 +298,7 @@ class _LibraryPageState extends State<LibraryPage> {
         ),
         IconButton(onPressed: () {
           _showCollectionEntryOperatePanel(context, collection);
-        }, icon: const Icon(Icons.more_vert)),
+        }, icon: Icon(Icons.more_vert, color: Colors.grey.shade500,)),
       ],
     );
   }
