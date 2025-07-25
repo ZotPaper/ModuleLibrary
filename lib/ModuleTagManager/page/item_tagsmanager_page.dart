@@ -268,31 +268,6 @@ class _ItemDetailTagFragmentState extends State<TagsManagerPage> {
           // BrnToast.show('输入内容 : $text', context);
         },
       ),
-
-
-      // TextField(
-      //   controller: _searchController,
-      //   decoration: InputDecoration(
-      //     hintText: '搜索标签...',
-      //     prefixIcon: const Icon(Icons.search),
-      //     suffixIcon: _searchQuery.isNotEmpty
-      //         ? IconButton(
-      //             icon: const Icon(Icons.clear),
-      //             onPressed: () {
-      //               _searchController.clear();
-      //               _onSearchChanged('');
-      //             },
-      //           )
-      //         : null,
-      //     border: OutlineInputBorder(
-      //       borderRadius: BorderRadius.circular(8),
-      //       borderSide: BorderSide.none,
-      //     ),
-      //     filled: true,
-      //     fillColor: Colors.grey.shade100,
-      //   ),
-      //   onChanged: _onSearchChanged,
-      // ),
     );
   }
 
