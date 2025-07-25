@@ -36,6 +36,8 @@ class _ItemDetailTagFragmentState extends State<TagsManagerPage> {
   String _searchQuery = '';
   final TextEditingController _searchController = TextEditingController();
 
+  final focusNode = FocusNode();
+
   final TagManager _tagManager = TagManager();
   final ZoteroDB _zoteroDB = ZoteroDB();
 
@@ -183,7 +185,12 @@ class _ItemDetailTagFragmentState extends State<TagsManagerPage> {
           ),
         ],
       ),
-      body: _buildBody(),
+      body: GestureDetector(
+        onTap: () {
+          focusNode.unfocus();
+        },
+        child: _buildBody()
+      ),
     );
   }
 
@@ -236,30 +243,56 @@ class _ItemDetailTagFragmentState extends State<TagsManagerPage> {
   /// 搜索栏
   Widget _buildSearchBar() {
     return Container(
-      padding: const EdgeInsets.all(16),
-      child: TextField(
+      padding: const EdgeInsets.only(bottom: 8),
+      child: BrnSearchText(
+        focusNode: focusNode,
         controller: _searchController,
-        decoration: InputDecoration(
-          hintText: '搜索标签...',
-          prefixIcon: const Icon(Icons.search),
-          suffixIcon: _searchQuery.isNotEmpty
-              ? IconButton(
-                  icon: const Icon(Icons.clear),
-                  onPressed: () {
-                    _searchController.clear();
-                    _onSearchChanged('');
-                  },
-                )
-              : null,
-          border: OutlineInputBorder(
-            borderRadius: BorderRadius.circular(8),
-            borderSide: BorderSide.none,
-          ),
-          filled: true,
-          fillColor: Colors.grey.shade100,
-        ),
-        onChanged: _onSearchChanged,
+        // searchController: scontroller..isActionShow = true,
+        onTextClear: () {
+          return false;
+        },
+        autoFocus: false,
+        onActionTap: () {
+          // scontroller.isClearShow = false;
+          // scontroller.isActionShow = false;
+          focusNode.unfocus();
+          // BrnToast.show('取消', context);
+        },
+        onTextCommit: (text) {
+          _onSearchChanged(text);
+          // _viewModel.setFilterText(text);
+        },
+        onTextChange: (text) {
+          _onSearchChanged(text);
+          // _viewModel.setFilterText(text);
+          // BrnToast.show('输入内容 : $text', context);
+        },
       ),
+
+
+      // TextField(
+      //   controller: _searchController,
+      //   decoration: InputDecoration(
+      //     hintText: '搜索标签...',
+      //     prefixIcon: const Icon(Icons.search),
+      //     suffixIcon: _searchQuery.isNotEmpty
+      //         ? IconButton(
+      //             icon: const Icon(Icons.clear),
+      //             onPressed: () {
+      //               _searchController.clear();
+      //               _onSearchChanged('');
+      //             },
+      //           )
+      //         : null,
+      //     border: OutlineInputBorder(
+      //       borderRadius: BorderRadius.circular(8),
+      //       borderSide: BorderSide.none,
+      //     ),
+      //     filled: true,
+      //     fillColor: Colors.grey.shade100,
+      //   ),
+      //   onChanged: _onSearchChanged,
+      // ),
     );
   }
 
@@ -588,12 +621,12 @@ class _ItemDetailTagFragmentState extends State<TagsManagerPage> {
   void _onTagTap(TagColor tag) {
     MyLogger.d("标签点击: ${tag.name}");
     // TODO: 实现标签详情或编辑功能
-    ScaffoldMessenger.of(context).showSnackBar(
-      SnackBar(
-        content: Text('标签: ${tag.name}'),
-        duration: const Duration(seconds: 1),
-      ),
-    );
+    // ScaffoldMessenger.of(context).showSnackBar(
+    //   SnackBar(
+    //     content: Text('标签: ${tag.name}'),
+    //     duration: const Duration(seconds: 1),
+    //   ),
+    // );
   }
 
   /// 标签长按处理
@@ -611,7 +644,8 @@ class _ItemDetailTagFragmentState extends State<TagsManagerPage> {
       title: "编辑标签",
       onClick: () {
         // _viewModel.viewItemOnline(context, item);
-        Navigator.pop(context);
+        // Navigator.pop(context);
+        BrnToast.show("编辑标签, 功能待实现～", context);
         _editTag(tag);
       },
     ));
@@ -620,7 +654,8 @@ class _ItemDetailTagFragmentState extends State<TagsManagerPage> {
       title: "更改颜色",
       onClick: () {
         // _viewModel.removeStar(item: item);
-        Navigator.pop(context);
+        // Navigator.pop(context);
+        BrnToast.show("更改颜色, 功能待实现～", context);
         _changeTagColor(tag);
       },
     ));
@@ -631,7 +666,8 @@ class _ItemDetailTagFragmentState extends State<TagsManagerPage> {
       actionStyle: "alert",
       onClick: () {
         // _viewModel.removeStar(item: item);
-        Navigator.pop(context);
+        BrnToast.show("删除标签, 功能待实现～", context);
+        // Navigator.pop(context);
         _deleteTag(tag);
       },
     ));
@@ -691,12 +727,13 @@ class _ItemDetailTagFragmentState extends State<TagsManagerPage> {
   void _onAddTag() {
     MyLogger.d("添加新标签");
     // TODO: 实现添加标签功能
-    ScaffoldMessenger.of(context).showSnackBar(
-      const SnackBar(
-        content: Text('添加标签功能开发中...'),
-        duration: Duration(seconds: 2),
-      ),
-    );
+    BrnToast.show("添加标签功能开发中...", context);
+    // ScaffoldMessenger.of(context).showSnackBar(
+    //   const SnackBar(
+    //     content: Text('添加标签功能开发中...'),
+    //     duration: Duration(seconds: 2),
+    //   ),
+    // );
   }
 
   /// 编辑标签
