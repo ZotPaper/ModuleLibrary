@@ -266,7 +266,7 @@ class _LibraryPageState extends State<LibraryPage> {
         if (item.attachments.isNotEmpty) _attachmentIndicator(item),
         IconButton(onPressed: () {
           _showItemEntryOperatePanel(context, item);
-        }, icon: Icon(Icons.more_vert, color: Colors.grey.shade500,)),
+        }, icon: Icon(Icons.more_vert_sharp, color: Colors.grey.shade400, size: 20,)),
       ],
     );
   }
@@ -298,7 +298,7 @@ class _LibraryPageState extends State<LibraryPage> {
         ),
         IconButton(onPressed: () {
           _showCollectionEntryOperatePanel(context, collection);
-        }, icon: Icon(Icons.more_vert, color: Colors.grey.shade500,)),
+        }, icon: Icon(Icons.more_vert_sharp, color: Colors.grey.shade400, size: 20,)),
       ],
     );
   }
@@ -309,8 +309,8 @@ class _LibraryPageState extends State<LibraryPage> {
       return SvgPicture.asset(
         'assets/items/opened_folder.svg',
         package: 'module_library',
-        width: 18,
-        height: 18,
+        width: 16,
+        height: 16,
         // color: Colors.blue, // 可选颜色
       );
     }
@@ -323,9 +323,9 @@ class _LibraryPageState extends State<LibraryPage> {
     return Container(
       height: 42,
       width: 42,
-      padding: const EdgeInsets.all(8),
+      padding: const EdgeInsets.all(10),
       decoration: BoxDecoration(
-        color: Colors.grey[200],
+        color: Colors.grey[100],
         borderRadius: BorderRadius.circular(26),
       ),
       child: _iconItemWidget(entry),
@@ -503,7 +503,13 @@ class _LibraryPageState extends State<LibraryPage> {
     }
 
     // Return the appropriate SVG image
-    return SvgPicture.asset(iconPath, height: 14, width: 14, package: 'module_library',);
+    return SvgPicture.asset(
+      iconPath,
+      height: 14,
+      width: 14,
+      package: 'module_library',
+      colorFilter: ColorFilter.mode(ResColor.textMain, BlendMode.srcIn),
+    );
   }
 
   /// 显示条目操作面板
