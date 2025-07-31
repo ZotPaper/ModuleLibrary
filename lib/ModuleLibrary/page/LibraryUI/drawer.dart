@@ -170,7 +170,7 @@ class _CustomDrawerState extends State<CustomDrawer>
                   crossAxisAlignment: CrossAxisAlignment.start,
                   children: [
                     const Text(
-                      "OneMrOliver",
+                      "ZotPaper",
                       style: TextStyle(
                         color: Colors.white,
                         fontSize: 16,
