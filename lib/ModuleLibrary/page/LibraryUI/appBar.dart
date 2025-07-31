@@ -13,8 +13,8 @@ PreferredSizeWidget pageAppBar(
         onPressed: () {
           leadingIconTap();
         },
-        icon: Icon(Icons.list)),
-    toolbarHeight: 40,
+        icon: Icon(Icons.menu, color: ResColor.textMain,)),
+    toolbarHeight: 46,
     // TRY THIS: Try changing the color here to a specific color (to
     // Colors.amber, perhaps?) and trigger a hot reload to see the AppBar
     // change color while the other colors stay the same.
@@ -24,12 +24,19 @@ PreferredSizeWidget pageAppBar(
     title: Center(
       child: Text(
         title,
-        style: TextStyle(fontSize: 16),
+        style: TextStyle(fontSize: 16, color: ResColor.textMain),
       ),
     ),
+
+    actionsIconTheme: IconThemeData(color: ResColor.textMain),
     actions: [
       PopupMenuButton<String>(
         color: ResColor.bgColor,
+        // splashRadius: 20,
+        shadowColor: const Color(0x88FFFFFF),
+        shape: const RoundedRectangleBorder(
+          borderRadius: BorderRadius.all(Radius.circular(10)),
+        ),
         onSelected: (String result) {
           // 处理选项点击事件
           switch (result) {
@@ -44,13 +51,13 @@ PreferredSizeWidget pageAppBar(
           }
         },
         itemBuilder: (BuildContext context) => <PopupMenuEntry<String>>[
-          const PopupMenuItem<String>(
+          PopupMenuItem<String>(
             value: 'Filter Menu',
-            child: Text('筛选'),
+            child: Text('筛选', style: TextStyle(color: ResColor.textMain)),
           ),
-          const PopupMenuItem<String>(
+          PopupMenuItem<String>(
             value: 'Tags',
-            child: Text('标签'),
+            child: Text('标签', style: TextStyle(color: ResColor.textMain)),
           ),
         ],
       ),
