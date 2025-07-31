@@ -120,7 +120,7 @@ class _LibraryPageState extends State<LibraryPage> {
             ),
             appBar: _buildAppBar(),
             body: _viewModel.isLoading
-                ? const Center(child: CircularProgressIndicator())
+                ? _buildLoadingContent()
                 : _buildPageContent(),
           );
         }
@@ -770,6 +770,36 @@ class _LibraryPageState extends State<LibraryPage> {
         Navigator.of(ctx).pop();
       },
     );
+  }
+
+  Widget _buildLoadingContent() {
+    return Center(
+        child: Column(
+          mainAxisAlignment: MainAxisAlignment.center,
+          crossAxisAlignment: CrossAxisAlignment.center,
+          children: [
+            ConstrainedBox(
+                constraints: const BoxConstraints(maxHeight: 300, maxWidth: 300),
+                child: Image.asset(
+                  "assets/intro_zotpaper.webp",
+                  package: "module_library",
+                  fit: BoxFit.contain,
+                )
+            ),
+            const SizedBox(height: 60,),
+            Text("正在加载本地数据中...", style: TextStyle(fontSize: 14, color: ResColor.textMain)),
+            const SizedBox(height: 12,),
+            SizedBox(
+              height: 24,
+              width: 24,
+              child: CircularProgressIndicator(
+                color: ResColor.textMain,
+                strokeWidth: 2,
+              ),
+            ),
+          ],
+        ));
+    // return const Center(child: CircularProgressIndicator());
   }
 
 
