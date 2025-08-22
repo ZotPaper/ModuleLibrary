@@ -5,15 +5,16 @@ import '../../res/ResColor.dart';
 
 PreferredSizeWidget pageAppBar(
     {required String title,
-      required Function leadingIconTap,
+      Function? leadingIconTap,
     required Function filterMenuTap,
     required Function tagsTap}) {
   return AppBar(
-    leading: IconButton(
+    leading: leadingIconTap != null ? IconButton(
         onPressed: () {
           leadingIconTap();
         },
-        icon: Icon(Icons.menu, color: ResColor.textMain,)),
+        icon: Icon(Icons.menu, color: ResColor.textMain,)) : null,
+    automaticallyImplyLeading: leadingIconTap != null,
     toolbarHeight: 46,
     // TRY THIS: Try changing the color here to a specific color (to
     // Colors.amber, perhaps?) and trigger a hot reload to see the AppBar

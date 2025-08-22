@@ -18,6 +18,7 @@ import 'package:provider/provider.dart';
 import 'package:pull_to_refresh/pull_to_refresh.dart';
 
 import '../utils/color_utils.dart';
+import '../utils/device_utils.dart';
 import 'LibraryUI/appBar.dart';
 import 'LibraryUI/drawer.dart';
 import 'package:flutter_svg/flutter_svg.dart';
@@ -80,6 +81,8 @@ class _LibraryPageState extends State<LibraryPage> {
 
   @override
   Widget build(BuildContext context) {
+    final bool isTablet = DeviceUtils.shouldShowFixedDrawer(context);
+    
     return PopScope(
       canPop: false,
       onPopInvokedWithResult: (bool didPop, result) {
@@ -107,33 +110,82 @@ class _LibraryPageState extends State<LibraryPage> {
       child: ListenableBuilder(
         listenable: _viewModel,
         builder: (context, snapshot) {
-          return Scaffold(
-            backgroundColor: ResColor.bgColor,
-            key: _scaffoldKey,
-            drawerEnableOpenDragGesture: false,
-            drawer: CustomDrawer(
-              collections: _viewModel.displayedCollections,
-              onItemTap: _viewModel.handleDrawerItemTap,
-              onCollectionTap: (collection) {
-                _viewModel.handleCollectionTap(collection);
-              }, // 如果有需要再实现
-            ),
-            appBar: _buildAppBar(),
-            body: _viewModel.isLoading
-                ? _buildLoadingContent()
-                : _buildPageContent(),
-          );
+          if (isTablet) {
+            // 平板布局：固定侧边栏 + 主内容区
+            return _buildTabletLayout();
+          } else {
+            // 手机布局：传统Scaffold + Drawer
+            return _buildPhoneLayout();
+          }
         }
       ),
     );
   }
 
-  PreferredSizeWidget _buildAppBar() {
+  /// 手机布局：传统Scaffold + Drawer
+  Widget _buildPhoneLayout() {
+    return Scaffold(
+      backgroundColor: ResColor.bgColor,
+      key: _scaffoldKey,
+      drawerEnableOpenDragGesture: false,
+      drawer: CustomDrawer(
+        collections: _viewModel.displayedCollections,
+        onItemTap: _viewModel.handleDrawerItemTap,
+        onCollectionTap: (collection) {
+          _viewModel.handleCollectionTap(collection);
+        },
+      ),
+      appBar: _buildAppBar(showMenuButton: true),
+      body: _viewModel.isLoading
+          ? _buildLoadingContent()
+          : _buildPageContent(),
+    );
+  }
+
+  /// 平板布局：固定侧边栏 + 主内容区
+  Widget _buildTabletLayout() {
+    final drawerWidth = DeviceUtils.getDrawerWidth(context);
+    
+    return Scaffold(
+      backgroundColor: ResColor.bgColor,
+      body: Row(
+        children: [
+          // 固定侧边栏
+          SizedBox(
+            width: drawerWidth,
+            child: DrawerContent(
+              collections: _viewModel.displayedCollections,
+              onItemTap: _viewModel.handleDrawerItemTap,
+              onCollectionTap: (collection) {
+                _viewModel.handleCollectionTap(collection);
+              },
+              isFixed: true,
+            ),
+          ),
+          // 主内容区
+          Expanded(
+            child: Column(
+              children: [
+                _buildAppBar(showMenuButton: false),
+                Expanded(
+                  child: _viewModel.isLoading
+                      ? _buildLoadingContent()
+                      : _buildPageContent(),
+                ),
+              ],
+            ),
+          ),
+        ],
+      ),
+    );
+  }
+
+  PreferredSizeWidget _buildAppBar({bool showMenuButton = true}) {
     return pageAppBar(
       title: _viewModel.title,
-      leadingIconTap: () {
+      leadingIconTap: showMenuButton ? () {
         _scaffoldKey.currentState?.openDrawer();
-      },
+      } : null,
       filterMenuTap: () {},
       tagsTap: () {
         _navigationTagManager();

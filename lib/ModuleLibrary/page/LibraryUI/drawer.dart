@@ -23,9 +23,28 @@ class CustomDrawer extends StatefulWidget {
   State<CustomDrawer> createState() => _CustomDrawerState();
 }
 
+/// 可复用的侧边栏内容组件
+class DrawerContent extends StatefulWidget {
+  final DrawerItemTapCallback onItemTap;
+  final List<Collection> collections;
+  final Function onCollectionTap;
+  final bool isFixed; // 是否为固定侧边栏（平板模式）
+
+  const DrawerContent({
+    super.key,
+    required this.onItemTap,
+    required this.collections,
+    required this.onCollectionTap,
+    this.isFixed = false,
+  });
+
+  @override
+  State<DrawerContent> createState() => _DrawerContentState();
+}
+
 enum DrawerBtn { home, favourites, library, unfiled, publications, trash }
 
-class _CustomDrawerState extends State<CustomDrawer>
+class _DrawerContentState extends State<DrawerContent>
     with TickerProviderStateMixin {
   String _selectDrawerTitle = '';
   bool _isCollectionsExpanded = true;
@@ -60,48 +79,50 @@ class _CustomDrawerState extends State<CustomDrawer>
     super.dispose();
   }
 
-  Widget pageDrawer(BuildContext context) {
-    return Drawer(
-      shape: const RoundedRectangleBorder(
-        borderRadius: BorderRadius.zero,
-      ),
-      elevation: 0,
-      child: Container(
-        decoration: BoxDecoration(
-          gradient: LinearGradient(
-            begin: Alignment.topCenter,
-            end: Alignment.bottomCenter,
-            colors: [
-              Colors.white,
-              Colors.grey.shade50,
-            ],
-          ),
+  @override
+  Widget build(BuildContext context) {
+    return Container(
+      decoration: BoxDecoration(
+        gradient: LinearGradient(
+          begin: Alignment.topCenter,
+          end: Alignment.bottomCenter,
+          colors: [
+            Colors.white,
+            Colors.grey.shade50,
+          ],
         ),
-        child: SafeArea(
-          child: Column(
-            children: [
-              _buildUserHeader(),
-              Expanded(
-                child: FadeTransition(
-                  opacity: _animationController,
-                  child: ListView(
-                    padding: const EdgeInsets.symmetric(horizontal: 8),
-                    children: [
-                      const SizedBox(height: 8),
-                      _buildSectionHeader('导航'),
-                      ...firstGroup(),
-                      const SizedBox(height: 16),
-                      _buildCollectionsSection(),
-                      const SizedBox(height: 16),
-                      _buildSectionHeader('其他'),
-                      ...thirdGroup(),
-                      const SizedBox(height: 20),
-                    ],
-                  ),
+        // 为固定侧边栏添加右侧边框
+        border: widget.isFixed ? Border(
+          right: BorderSide(
+            color: Colors.grey.shade200,
+            width: 1,
+          ),
+        ) : null,
+      ),
+      child: SafeArea(
+        child: Column(
+          children: [
+            _buildUserHeader(),
+            Expanded(
+              child: FadeTransition(
+                opacity: _animationController,
+                child: ListView(
+                  padding: const EdgeInsets.symmetric(horizontal: 8),
+                  children: [
+                    const SizedBox(height: 8),
+                    _buildSectionHeader('导航'),
+                    ...firstGroup(),
+                    const SizedBox(height: 16),
+                    _buildCollectionsSection(),
+                    const SizedBox(height: 16),
+                    _buildSectionHeader('其他'),
+                    ...thirdGroup(),
+                    const SizedBox(height: 20),
+                  ],
                 ),
               ),
-            ],
-          ),
+            ),
+          ],
         ),
       ),
     );
@@ -492,11 +513,6 @@ class _CustomDrawerState extends State<CustomDrawer>
     );
   }
 
-  @override
-  Widget build(BuildContext context) {
-    return pageDrawer(context);
-  }
-
   void _jumpToSettings() {
     MyRouter.instance.pushNamed(context, "settingsPage");
   }
@@ -504,5 +520,23 @@ class _CustomDrawerState extends State<CustomDrawer>
   void _jumpToAccountSetting() {
     MyRouter.instance
         .pushNamed(context, "settingsPage", arguments: {"initTab": 'account'});
+  }
+}
+
+class _CustomDrawerState extends State<CustomDrawer> {
+  @override
+  Widget build(BuildContext context) {
+    return Drawer(
+      shape: const RoundedRectangleBorder(
+        borderRadius: BorderRadius.zero,
+      ),
+      elevation: 0,
+      child: DrawerContent(
+        onItemTap: widget.onItemTap,
+        collections: widget.collections,
+        onCollectionTap: widget.onCollectionTap,
+        isFixed: false,
+      ),
+    );
   }
 }    
