@@ -1,4 +1,4 @@
-package com.example.xideng_flutter
+package com.moyear.zotpaper_flutter
 
 import io.flutter.embedding.android.FlutterActivity
 

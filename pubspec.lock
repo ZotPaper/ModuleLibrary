@@ -55,7 +55,7 @@ packages:
     source: hosted
     version: "2.1.1"
   bruno:
-    dependency: "direct main"
+    dependency: transitive
     description:
       path: "."
       ref: HEAD
@@ -184,7 +184,7 @@ packages:
     source: hosted
     version: "3.0.6"
   cupertino_icons:
-    dependency: "direct main"
+    dependency: transitive
     description:
       name: cupertino_icons
       sha256: ba631d1c7f7bef6b729a622b7b752645a2d076dba9976925b8f25725a30e1ee6
@@ -200,7 +200,7 @@ packages:
     source: hosted
     version: "2.3.7"
   dio:
-    dependency: "direct main"
+    dependency: transitive
     description:
       name: dio
       sha256: "253a18bbd4851fecba42f7343a1df3a9a4c1d31a2c1b37e221086b4fa8c8dbc9"
@@ -256,11 +256,11 @@ packages:
     dependency: transitive
     description:
       path: "."
-      ref: "4.6.5"
-      resolved-ref: "6df80cc1ea425cde1bac7d0265407977221061df"
+      ref: "5.0.2"
+      resolved-ref: "622e243416a04aae74845fc42444c5cd09eb15b0"
       url: "https://github.com/alibaba/flutter_boost.git"
     source: git
-    version: "4.6.5"
+    version: "5.0.2"
   flutter_dotenv:
     dependency: transitive
     description:
@@ -299,7 +299,7 @@ packages:
     source: hosted
     version: "0.7.7+1"
   flutter_svg:
-    dependency: "direct main"
+    dependency: transitive
     description:
       name: flutter_svg
       sha256: d44bf546b13025ec7353091516f6881f1d4c633993cb109c3916c3a0159dadf1
@@ -413,7 +413,7 @@ packages:
     source: hosted
     version: "0.7.1"
   json_annotation:
-    dependency: "direct main"
+    dependency: transitive
     description:
       name: json_annotation
       sha256: "1ce844379ca14835a50d2f019a3099f419082cfdd231cd86a142af94dd5c6bb1"
@@ -421,7 +421,7 @@ packages:
     source: hosted
     version: "4.9.0"
   json_serializable:
-    dependency: "direct main"
+    dependency: transitive
     description:
       name: json_serializable
       sha256: c2fcb3920cf2b6ae6845954186420fca40bc0a8abcc84903b7801f17d7050d7c
@@ -556,7 +556,7 @@ packages:
     source: hosted
     version: "2.2.0"
   path:
-    dependency: "direct main"
+    dependency: transitive
     description:
       name: path
       sha256: "087ce49c3f0dc39180befefc60fdb4acd8f8620e5682fe2476afd0b3688bb4af"
@@ -580,7 +580,7 @@ packages:
     source: hosted
     version: "1.1.0"
   path_provider:
-    dependency: "direct main"
+    dependency: transitive
     description:
       name: path_provider
       sha256: "50c5dd5b6e1aaf6fb3a78b33f6aa3afca52bf903a8a5298f53101fdaee55bbcd"
@@ -668,7 +668,7 @@ packages:
     source: hosted
     version: "1.5.1"
   pretty_dio_logger:
-    dependency: "direct main"
+    dependency: transitive
     description:
       name: pretty_dio_logger
       sha256: "36f2101299786d567869493e2f5731de61ce130faa14679473b26905a92b6407"
@@ -676,7 +676,7 @@ packages:
     source: hosted
     version: "1.4.0"
   provider:
-    dependency: "direct main"
+    dependency: transitive
     description:
       name: provider
       sha256: "4abbd070a04e9ddc287673bf5a030c7ca8b685ff70218720abab8b092f53dd84"
@@ -716,7 +716,7 @@ packages:
     source: hosted
     version: "0.27.7"
   shared_preferences:
-    dependency: "direct main"
+    dependency: transitive
     description:
       name: shared_preferences
       sha256: "6e8bf70b7fef813df4e9a36f658ac46d107db4b4cfe1048b477d4e453a8159f5"
@@ -929,7 +929,7 @@ packages:
     source: hosted
     version: "1.4.0"
   url_launcher:
-    dependency: "direct main"
+    dependency: transitive
     description:
       name: url_launcher
       sha256: "9d06212b1362abc2f0f0d78e6f09f726608c74e3b9462e8368bb03314aa8d603"
