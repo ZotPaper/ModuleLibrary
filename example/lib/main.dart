@@ -1,14 +1,18 @@
 import 'package:flutter/material.dart';
+import 'package:module_base/initializer.dart';
+import 'package:module_base/stores/hive_stores.dart';
 import 'package:module_library/ModuleLibrary/page/launch_page.dart';
 import 'package:module_library/ModuleLibrary/page/sync_page/sync_viewmodel.dart';
 import 'package:module_library/ModuleLibrary/share_pref.dart';
+import 'package:module_library/ModuleLibrary/store/library_settings.dart';
 import 'package:module_library/ModuleLibrary/viewmodels/library_viewmodel.dart';
 import 'package:module_library/routers.dart';
 import 'package:provider/provider.dart';
 
 Future<void> main() async {
   WidgetsFlutterBinding.ensureInitialized();
-  await SharedPref.init();
+
+  await init();
 
   runApp(
     MultiProvider(
@@ -18,6 +22,12 @@ Future<void> main() async {
       ],
       child: MyApp(),
     ),);
+}
+
+Future<void> init() async {
+  BaseInitializer.addStore(Stores.KEY_LIBRARY, LibraryStore());
+  await BaseInitializer.init();
+  await SharedPref.init();
 }
 
 class MyApp extends StatelessWidget {

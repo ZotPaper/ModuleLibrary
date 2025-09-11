@@ -30,19 +30,8 @@ environment:
 dependencies:
   flutter:
     sdk: flutter
-  dio: ^5.0.0
-  pretty_dio_logger: ^1.2.0  # 请确保使用最新版本
-  json_annotation: ^4.9.0
-  # The following adds the Cupertino Icons font to your application.
-  # Use with the CupertinoIcons class for iOS style icons.
-  cupertino_icons: ^1.0.8
-  shared_preferences: ^2.3.3
 
-  json_serializable: ^6.8.0
   sqflite: ^2.2.8+4
-  path: ^1.8.3
-
-  provider: ^6.1.0  # 使用最新版本
 
   rxdart: ^0.27.7
 
@@ -53,23 +42,14 @@ dependencies:
   # rules and activating additional ones.
   flutter_lints: ^4.0.0
 
-  flutter_svg: ^2.0.7  # svg
-
-  url_launcher: ^6.2.6
-
-  # Bruno UI组件库
-  #  bruno: ^3.4.3
-  bruno:
-    #    path: /Users/moyear/StudioProjects/bruno-moyear
-    git:
-      url: https://github.com/moyearzhou/bruno-moyear.git
-#      ref: v3.4.3
-
   # 下拉刷新
   pull_to_refresh: ^2.0.0
 
-  # 获取储存路径
-  path_provider: ^2.0.15
+  module_base:
+    path: /Users/moyearzhou/StudioProjects/module_base
+  #    git:
+  #      url: https://github.com/moyearzhou/ModuleBase.git
+
 
 dev_dependencies:
   flutter_test:
