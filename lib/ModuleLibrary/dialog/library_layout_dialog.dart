@@ -6,6 +6,7 @@ import 'package:module_library/ModuleLibrary/dialog/sorting_direction_icon.dart'
 
 import '../store/library_settings.dart';
 import '../viewmodels/library_viewmodel.dart';
+import '../res/ResColor.dart';
 import 'package:provider/provider.dart';
 
 
@@ -24,8 +25,6 @@ class _LibraryLayoutDialogState extends State<LibraryLayoutDialog> {
   int? _selectedSortIndex;
 
   bool _isReverse = false;
-
-  Color defaultColor = Colors.grey;
 
   late LibraryViewModel _viewModel;
 
@@ -47,7 +46,7 @@ class _LibraryLayoutDialogState extends State<LibraryLayoutDialog> {
 
   final LibraryStore _setStore = Stores.get(Stores.KEY_LIBRARY) as LibraryStore;
 
-  static const double _maxDialogWidth = 600.0;
+  static const double _maxDialogWidth = 480.0;
 
   @override
   void initState() {
@@ -83,11 +82,6 @@ class _LibraryLayoutDialogState extends State<LibraryLayoutDialog> {
   }
 
   _setLibrarySort(int index, bool revere) {
-    // setState(() {
-    //   _selectedViewIndex = index;
-    //   _isReverse = revere;
-    // });
-
     _setStore.sortDirection.set(revere ? "DESCENDING" : "ASCENDING");
 
     if (index == 0) {
@@ -108,71 +102,237 @@ class _LibraryLayoutDialogState extends State<LibraryLayoutDialog> {
 
   @override
   Widget build(BuildContext context) {
-    defaultColor = Theme.of(context).textTheme.bodyMedium?.color ?? Colors.grey;
-
     return Dialog(
-      shape: RoundedRectangleBorder(
-        borderRadius: BorderRadius.circular(12),
-      ),
-      child: ConstrainedBox(
+      backgroundColor: Colors.transparent,
+      child: Container(
         constraints: const BoxConstraints(maxWidth: _maxDialogWidth),
-        child: Padding(
-          padding: const EdgeInsets.all(16),
+        decoration: BoxDecoration(
+          color: Theme.of(context).scaffoldBackgroundColor,
+          borderRadius: BorderRadius.circular(20),
+          boxShadow: [
+            BoxShadow(
+              color: Colors.black.withOpacity(0.1),
+              offset: const Offset(0, 4),
+              blurRadius: 20,
+              spreadRadius: 0,
+            ),
+          ],
+        ),
+        child: Column(
+          mainAxisSize: MainAxisSize.min,
+          children: [
+            // 标题栏
+            _buildDialogHeader(),
+            
+            // 内容区域
+            Padding(
+              padding: const EdgeInsets.fromLTRB(24, 0, 24, 24),
+              child: Column(
+                children: [
+                  _buildSortSection(),
+                  const SizedBox(height: 24),
+                  _buildFilterSection(),
+                ],
+              ),
+            ),
+          ],
+        ),
+      ),
+    );
+  }
+
+  Widget _buildDialogHeader() {
+    return Container(
+      padding: const EdgeInsets.symmetric(horizontal: 24, vertical: 12),
+      decoration: BoxDecoration(
+        color: ResColor.selectedBgColor.withOpacity(0.3),
+        borderRadius: const BorderRadius.only(
+          topLeft: Radius.circular(20),
+          topRight: Radius.circular(20),
+        ),
+      ),
+      child: Row(
+        children: [
+          Icon(
+            Icons.tune,
+            color: ResColor.selectedTextColor,
+            size: 24,
+          ),
+          const SizedBox(width: 12),
+          Expanded(
+            child: Text(
+              '排序与筛选',
+              style: TextStyle(
+                fontSize: 18,
+                fontWeight: FontWeight.w600,
+                color: ResColor.textMain,
+              ),
+            ),
+          ),
+          IconButton(
+            onPressed: () => Navigator.pop(context),
+            icon: Icon(
+              Icons.close,
+              color: ResColor.textMain.withOpacity(0.6),
+              size: 20,
+            ),
+            splashRadius: 20,
+            padding: EdgeInsets.zero,
+            constraints: const BoxConstraints(
+              minWidth: 32,
+              minHeight: 32,
+            ),
+          ),
+        ],
+      ),
+    );
+  }
+
+  Widget _buildSortSection() {
+    return Column(
+      crossAxisAlignment: CrossAxisAlignment.start,
+      children: [
+        Row(
+          children: [
+            Icon(
+              Icons.sort,
+              color: ResColor.selectedTextColor,
+              size: 20,
+            ),
+            const SizedBox(width: 8),
+            Text(
+              '排序方式',
+              style: TextStyle(
+                fontSize: 16,
+                fontWeight: FontWeight.w500,
+                color: ResColor.textMain,
+              ),
+            ),
+          ],
+        ),
+        const SizedBox(height: 16),
+        Container(
+          padding: const EdgeInsets.symmetric(vertical:12, horizontal: 8),
+          decoration: BoxDecoration(
+            color: ResColor.bgColor,
+            borderRadius: BorderRadius.circular(12),
+            border: Border.all(
+              color: ResColor.divideColor.withOpacity(0.3),
+              width: 1,
+            ),
+          ),
+          child: Row(
+            mainAxisAlignment: MainAxisAlignment.spaceBetween,
+            children: List.generate(_sortOptions.length, (index) {
+              return Expanded(
+                child: _buildSortOption(index),
+              );
+            }),
+          ),
+        ),
+      ],
+    );
+  }
+
+  Widget _buildFilterSection() {
+    return Column(
+      crossAxisAlignment: CrossAxisAlignment.start,
+      children: [
+        Row(
+          children: [
+            Icon(
+              Icons.filter_alt,
+              color: ResColor.selectedTextColor,
+              size: 20,
+            ),
+            const SizedBox(width: 8),
+            Text(
+              '筛选条件',
+              style: TextStyle(
+                fontSize: 16,
+                fontWeight: FontWeight.w500,
+                color: ResColor.textMain,
+              ),
+            ),
+          ],
+        ),
+        const SizedBox(height: 16),
+        Container(
+          decoration: BoxDecoration(
+            color: ResColor.bgColor,
+            borderRadius: BorderRadius.circular(12),
+            border: Border.all(
+              color: ResColor.divideColor.withOpacity(0.3),
+              width: 1,
+            ),
+          ),
           child: Column(
-            mainAxisSize: MainAxisSize.min,
             children: [
-              // const Text(
-              //   "视图",
-              //   style: TextStyle(fontSize: 18, fontWeight: FontWeight.normal),
-              // ),
-              // const SizedBox(height: 12),
-              // GridView.builder(
-              //   shrinkWrap: true,
-              //   gridDelegate: const SliverGridDelegateWithFixedCrossAxisCount(
-              //     crossAxisCount: 3, // 每行显示3个子项
-              //     crossAxisSpacing: 8, // 水平间距
-              //     mainAxisSpacing: 8, // 垂直间距
-              //   ),
-              //   itemCount: _viewOptions.length,
-              //   physics: const NeverScrollableScrollPhysics(),
-              //   itemBuilder: (context, index) {
-              //     return _buildViewOption(index);
-              //   },
-              // ),
-              // const SizedBox(height: 16),
-              const Align(
-                alignment: Alignment.center,
-                child: Text(
-                  "排序",
-                  style: TextStyle(color: Colors.grey, fontSize: 16),
-                ),
+              _buildFilterOption(
+                icon: Icons.picture_as_pdf_outlined,
+                title: "含PDF附件",
+                store: _setStore.showOnlyWithPdfs,
+                onChanged: (val) => _viewModel.filterItemsOnlyWithPdfs(val),
               ),
-              const SizedBox(height: 8),
-              Row(
-                mainAxisAlignment: MainAxisAlignment.spaceEvenly,
-                children: List.generate(_sortOptions.length, (index) {
-                  return _buildSortOption(index);
-                }),
+              Container(
+                height: 1,
+                color: ResColor.divideColor.withOpacity(0.3),
+                margin: const EdgeInsets.symmetric(horizontal: 16),
               ),
-              const SizedBox(height: 12),
-              const Align(
-                alignment: Alignment.center,
-                child: Text(
-                  "其他",
-                  style: TextStyle(color: Colors.grey, fontSize: 16),
-                ),
+              _buildFilterOption(
+                icon: Icons.note_alt_outlined,
+                title: "含笔记",
+                store: _setStore.showOnlyWithNotes,
+                onChanged: (val) => _viewModel.filterItemsOnlyWithNotes(val),
               ),
-              _buildOtherOptions(),
-              // Align(
-              //   alignment: Alignment.bottomRight,
-              //   child: TextButton(
-              //     onPressed: () => Navigator.pop(context),
-              //     child: const Text("关闭"),
-              //   ),
-              // )
             ],
           ),
         ),
+      ],
+    );
+  }
+
+  Widget _buildFilterOption({
+    required IconData icon,
+    required String title,
+    required dynamic store,
+    required Function(bool) onChanged,
+  }) {
+    return Container(
+      padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 12),
+      child: Row(
+        children: [
+          Container(
+            width: 36,
+            height: 36,
+            decoration: BoxDecoration(
+              color: ResColor.selectedBgColor.withOpacity(0.5),
+              borderRadius: BorderRadius.circular(8),
+            ),
+            child: Icon(
+              icon,
+              color: ResColor.selectedTextColor,
+              size: 20,
+            ),
+          ),
+          const SizedBox(width: 12),
+          Expanded(
+            child: Text(
+              title,
+              style: TextStyle(
+                fontSize: 15,
+                color: ResColor.textMain,
+                fontWeight: FontWeight.w400,
+              ),
+            ),
+          ),
+          StoreSwitch(
+            prop: store,
+            callback: (val) async {
+              onChanged(val);
+            },
+          ),
+        ],
       ),
     );
   }
@@ -191,12 +351,12 @@ class _LibraryLayoutDialogState extends State<LibraryLayoutDialog> {
             child: Column(
           children: [
             Icon(_viewOptions[index]["icon"],
-                size: 30, color: isSelected ? Colors.blue : Colors.grey),
+                size: 30, color: isSelected ? ResColor.selectedTextColor : ResColor.textMain.withOpacity(0.6)),
             const SizedBox(height: 4),
             Text(
               _viewOptions[index]["text"],
               style: TextStyle(
-                  fontSize: 12, color: isSelected ? Colors.blue : defaultColor),
+                  fontSize: 12, color: isSelected ? ResColor.selectedTextColor : ResColor.textMain.withOpacity(0.8)),
             ),
           ],
         )));
@@ -206,34 +366,59 @@ class _LibraryLayoutDialogState extends State<LibraryLayoutDialog> {
   Widget _buildSortOption(int index) {
     bool isSelected = _selectedSortIndex == index;
     return Column(
-      crossAxisAlignment: CrossAxisAlignment.center,
+      mainAxisSize: MainAxisSize.min,
       children: [
         Text(
           _sortOptions[index],
           style: TextStyle(
-              fontSize: 14, color: isSelected ? Colors.blue : defaultColor),
+            fontSize: 13,
+            fontWeight: isSelected ? FontWeight.w600 : FontWeight.w400,
+            color: isSelected ? ResColor.selectedTextColor : ResColor.textMain.withOpacity(0.8),
+          ),
+          textAlign: TextAlign.center,
         ),
-        const SizedBox(height: 4),
-        InkWell(
-          onTap: () {
-            _setLibrarySort(index, false);
-            setState(() {
-              _selectedSortIndex = index;
-              _isReverse = false;
-            });
-          },
-          child: SortingDirectionIcon(checked: (isSelected && !_isReverse), reverse: false)
-        ),
-        const SizedBox(height: 4),
-        InkWell(
-          onTap: () {
-            setState(() {
-              _selectedSortIndex = index;
-              _isReverse = true;
-            });
-            _setLibrarySort(index, true);
-          },
-          child: SortingDirectionIcon(checked: (isSelected && _isReverse), reverse: true)
+        const SizedBox(height: 8),
+        Column(
+          mainAxisAlignment: MainAxisAlignment.center,
+          children: [
+            // 升序按钮
+            InkWell(
+              onTap: () {
+                _setLibrarySort(index, false);
+                setState(() {
+                  _selectedSortIndex = index;
+                  _isReverse = false;
+                });
+              },
+              borderRadius: BorderRadius.circular(6),
+              child: Container(
+                padding: const EdgeInsets.all(4),
+                child: SortingDirectionIcon(
+                  checked: (isSelected && !_isReverse), 
+                  reverse: false,
+                ),
+              ),
+            ),
+            const SizedBox(width: 4),
+            // 降序按钮
+            InkWell(
+              onTap: () {
+                setState(() {
+                  _selectedSortIndex = index;
+                  _isReverse = true;
+                });
+                _setLibrarySort(index, true);
+              },
+              borderRadius: BorderRadius.circular(6),
+              child: Container(
+                padding: const EdgeInsets.all(4),
+                child: SortingDirectionIcon(
+                  checked: (isSelected && _isReverse), 
+                  reverse: true,
+                ),
+              ),
+            ),
+          ],
         ),
       ],
     );
