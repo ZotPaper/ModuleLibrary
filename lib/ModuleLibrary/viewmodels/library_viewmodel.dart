@@ -21,6 +21,8 @@ import '../share_pref.dart';
 import '../page/LibraryUI/drawer.dart';
 import 'package:rxdart/rxdart.dart';
 import 'package:url_launcher/url_launcher.dart';
+import '../store/library_settings.dart';
+import 'package:module_base/stores/hive_stores.dart';
 
 class LibraryViewModel with ChangeNotifier {
 
@@ -59,6 +61,9 @@ class LibraryViewModel with ChangeNotifier {
   final ZoteroDB zoteroDB = ZoteroDB();
 
   TagManager tagManager = TagManager();
+
+  // 添加LibraryStore实例
+  final LibraryStore _libraryStore = Stores.get(Stores.KEY_LIBRARY) as LibraryStore;
 
   LibraryViewModel() : super() {}
 
@@ -258,16 +263,19 @@ class LibraryViewModel with ChangeNotifier {
     }
   }
 
-  /// 获取我的文库页面的条目数据
+  /// 获取我的文库页面的条目数据 - 修改以支持筛选
   Future<List<ListEntry>> _getMyLibraryEntries() async {
     var res = zoteroDB.getDisplayableItems();
+    
+    // 应用筛选
+    res = _applyItemFilters(res);
+    
     // 对数据进行排序
     sortItems(res);
 
     return res.map((ele) {
       return ListEntry(item: ele);
     }).toList();
-
   }
 
   Future<List<ListEntry>> _getHomeListEntries() async {
@@ -276,6 +284,10 @@ class LibraryViewModel with ChangeNotifier {
       res.add(ListEntry(collection: element));
     });
     var allItems = zoteroDB.getDisplayableItems();
+    
+    // 应用筛选
+    allItems = _applyItemFilters(allItems);
+    
     sortItems(allItems);
 
     res.addAll(allItems.map((ele) {
@@ -284,10 +296,13 @@ class LibraryViewModel with ChangeNotifier {
     return res;
   }
 
-
-  /// 获取未分类的条目
+  /// 获取未分类的条目 - 修改以支持筛选
   Future<List<ListEntry>> _getUnfiledEntries() async {
     var res = zoteroDB.getUnfiledItems();
+    
+    // 应用筛选
+    res = _applyItemFilters(res);
+    
     // 对数据进行排序
     sortItems(res);
 
@@ -296,13 +311,17 @@ class LibraryViewModel with ChangeNotifier {
     }).toList();
   }
 
-  /// 处理侧边栏合集的点击事件
+  /// 处理侧边栏合集的点击事件 - 修改以支持筛选
   Future<void> handleCollectionTap(Collection collection, {bool addToViewStack = true}) async {
     // var itemKey = collection.key;
     // var entries = await _getEntriesInCollection(itemKey);
     title = collection.name;
 
     var res = zoteroDB.getItemsFromCollection(collection.key);
+    
+    // 应用筛选
+    res = _applyItemFilters(res);
+    
     // 对数据进行排序
     sortItems(res);
     var entriesItems = res.map((ele) {
@@ -342,9 +361,13 @@ class LibraryViewModel with ChangeNotifier {
     }
   }
 
-  /// 获取我的出版物
+  /// 获取我的出版物 - 修改以支持筛选
   Future<List<ListEntry>>_getPublicationsEntries() async {
     var res = zoteroDB.getMyPublicationItems();
+    
+    // 应用筛选
+    res = _applyItemFilters(res);
+    
     // 对数据进行排序
     sortItems(res);
 
@@ -355,10 +378,43 @@ class LibraryViewModel with ChangeNotifier {
 
   Future<List<ListEntry>> _getTrashEntries() async {
     var res = zoteroDB.getTrashedItems();
+    
+    // 应用筛选
+    res = _applyItemFilters(res);
+    
     sortItems(res);
     return res.map((ele) {
       return ListEntry(item: ele);
     }).toList();
+  }
+
+  /// 应用所有筛选条件
+  List<Item> _applyItemFilters(List<Item> items) {
+    List<Item> filteredItems = List.from(items);
+    
+    // 筛选只含PDF附件的条目
+    if (_libraryStore.showOnlyWithPdfs.get()) {
+      filteredItems = filteredItems.where((item) => _itemHasPdfAttachment(item)).toList();
+    }
+    
+    // 筛选只含笔记的条目
+    if (_libraryStore.showOnlyWithNotes.get()) {
+      filteredItems = filteredItems.where((item) => _itemHasNotes(item)).toList();
+    }
+    
+    return filteredItems;
+  }
+
+  /// 检查条目是否有PDF附件
+  bool _itemHasPdfAttachment(Item item) {
+    return item.attachments.any((attachment) => 
+      attachment.getFileExtension().toLowerCase() == "pdf"
+    );
+  }
+
+  /// 检查条目是否有笔记
+  bool _itemHasNotes(Item item) {
+    return item.notes.isNotEmpty;
   }
 
   /// 返回上一个浏览记录
@@ -388,9 +444,9 @@ class LibraryViewModel with ChangeNotifier {
 
   /// 对items进行排序
   List<Item> sortItems(List<Item> items) {
-    // 根据item进行排序
+    // 根据设置进行排序
     items.sort((a, b) {
-      return _compereItem(a, b);
+      return _compareItem(a, b);
     });
     return items;
   }
@@ -404,13 +460,42 @@ class LibraryViewModel with ChangeNotifier {
     return collections;
   }
 
-  /// 比较两个item
+  /// 比较两个item - 重新实现以支持多种排序方式
+  int _compareItem(Item item1, Item item2) {
+    String sortMethod = _libraryStore.sortMethod.get();
+    bool isDescending = _libraryStore.sortDirection.get() == "DESCENDING";
+    
+    int result = 0;
+    
+    switch (sortMethod) {
+      case "TITLE":
+        result = item1.getTitle().toLowerCase().compareTo(item2.getTitle().toLowerCase());
+        break;
+      case "AUTHOR":
+        result = item1.getAuthor().toLowerCase().compareTo(item2.getAuthor().toLowerCase());
+        break;
+      case "DATE":
+        result = item1.getSortableDateString().compareTo(item2.getSortableDateString());
+        break;
+      case "DATE_ADDED":
+        result = item1.getSortableDateAddedString().compareTo(item2.getSortableDateAddedString());
+        break;
+      default:
+        result = item1.getTitle().toLowerCase().compareTo(item2.getTitle().toLowerCase());
+    }
+    
+    return isDescending ? -result : result;
+  }
+
+  /// 比较两个item (保持原有的简单比较作为备用)
   int _compereItem(Item item1, Item item2) {
-    return item1.getTitle().toLowerCase().compareTo(item2.getTitle().toLowerCase());
+    return _compareItem(item1, item2);
   }
 
   int _compereCollection(Collection collection1, Collection collection2) {
-    return collection1.name.compareTo(collection2.name);
+    bool isDescending = _libraryStore.sortDirection.get() == "DESCENDING";
+    int result = collection1.name.compareTo(collection2.name);
+    return isDescending ? -result : result;
   }
 
   /// 在浏览器中查看条目
@@ -537,30 +622,31 @@ class LibraryViewModel with ChangeNotifier {
 
   Future<List<ListEntry>> _getMyStarredEntries() async {
     List<ListEntry> res = [];
+    List<Item> starredItems = [];
+    List<Collection> starredCollections = [];
+    
     MyItemFilter.instance.getMyStars().forEach((ele) {
       if (ele.isCollection) {
         var collection = zoteroDB.getCollectionByKey(ele.itemKey);
         if (collection != null) {
-          res.add(ListEntry(collection: collection));
+          starredCollections.add(collection);
         }
       } else {
         var item = zoteroDB.getItemByKey(ele.itemKey);
         if (item != null) {
-          res.add(ListEntry(item: item));
+          starredItems.add(item);
         }
       }
     });
 
-    // 排序
-    res.sort((a, b) {
-      if (a.isCollection() && b.isItem()) {
-        return -1;
-      } else if (a.isItem() && b.isCollection()) {
-        return 1;
-      } else {
-        return 0;
-      }
-    });
+    // 对收藏的集合进行排序
+    sortCollections(starredCollections);
+    res.addAll(starredCollections.map((collection) => ListEntry(collection: collection)));
+    
+    // 对收藏的条目应用筛选和排序
+    starredItems = _applyItemFilters(starredItems);
+    sortItems(starredItems);
+    res.addAll(starredItems.map((item) => ListEntry(item: item)));
 
     return res;
   }
@@ -742,5 +828,25 @@ class LibraryViewModel with ChangeNotifier {
   //
   //   refreshInCurrent();
   // }
+
+
+  /// 过滤条目，只显示pdf文件
+  void filterItemsOnlyWithPdfs(bool enableFilter) {
+    // 保存设置到store
+    _libraryStore.showOnlyWithPdfs.set(enableFilter);
+    
+    // 刷新当前页面以应用筛选
+    refreshInCurrent();
+  }
+
+  /// 筛选条目，只显示带笔记的条目
+  void filterItemsOnlyWithNotes(bool enableFilter) {
+    // 保存设置到store
+    _libraryStore.showOnlyWithNotes.set(enableFilter);
+    
+    // 刷新当前页面以应用筛选
+    refreshInCurrent();
+  }
+
 
 }

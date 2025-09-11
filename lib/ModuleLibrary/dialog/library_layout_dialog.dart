@@ -5,6 +5,8 @@ import 'package:module_base/view/store_switch.dart';
 import 'package:module_library/ModuleLibrary/dialog/sorting_direction_icon.dart';
 
 import '../store/library_settings.dart';
+import '../viewmodels/library_viewmodel.dart';
+import 'package:provider/provider.dart';
 
 
 class LibraryLayoutDialog extends StatefulWidget {
@@ -24,6 +26,8 @@ class _LibraryLayoutDialogState extends State<LibraryLayoutDialog> {
   bool _isReverse = false;
 
   Color defaultColor = Colors.grey;
+
+  late LibraryViewModel _viewModel;
 
   // 视图模式选项
   final List<Map<String, dynamic>> _viewOptions = [
@@ -48,6 +52,9 @@ class _LibraryLayoutDialogState extends State<LibraryLayoutDialog> {
   @override
   void initState() {
     super.initState();
+
+    // 在这里通过 Provider 获取 ViewModel
+    _viewModel = Provider.of<LibraryViewModel>(context, listen: false);
 
     setState(() {
 
@@ -94,6 +101,9 @@ class _LibraryLayoutDialogState extends State<LibraryLayoutDialog> {
     } else {
       _setStore.sortMethod.set("TITLE");
     }
+    
+    // 通知ViewModel刷新数据以应用新的排序设置
+    _viewModel.refreshInCurrent();
   }
 
   @override
@@ -246,7 +256,10 @@ class _LibraryLayoutDialogState extends State<LibraryLayoutDialog> {
       title: const Text("含PDF附件"),
       trailing: StoreSwitch(
         prop: _setStore.showOnlyWithPdfs,
-        callback: (val) async {},
+        callback: (val) async {
+          // 设置文库列表是否筛选只含PDF附件的Item（Colletion不进行筛选）
+          _viewModel.filterItemsOnlyWithPdfs(val);
+        },
       ),
     );
   }
@@ -257,7 +270,10 @@ class _LibraryLayoutDialogState extends State<LibraryLayoutDialog> {
       title: const Text("含笔记"),
       trailing: StoreSwitch(
         prop: _setStore.showOnlyWithNotes,
-        callback: (val) async {},
+        callback: (val) async {
+          // 设置文库列表是否筛选只含笔记的Item（Colletion不进行筛选）
+          _viewModel.filterItemsOnlyWithNotes(val);
+        },
       ),
     );
   }
