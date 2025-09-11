@@ -17,6 +17,7 @@ import 'package:module_library/routers.dart';
 import 'package:provider/provider.dart';
 import 'package:pull_to_refresh/pull_to_refresh.dart';
 
+import '../dialog/library_layout_dialog.dart';
 import '../utils/color_utils.dart';
 import '../utils/device_utils.dart';
 import 'LibraryUI/appBar.dart';
@@ -186,7 +187,9 @@ class _LibraryPageState extends State<LibraryPage> {
       leadingIconTap: showMenuButton ? () {
         _scaffoldKey.currentState?.openDrawer();
       } : null,
-      filterMenuTap: () {},
+      filterMenuTap: () {
+        _showFilterMenuDialog();
+      },
       tagsTap: () {
         _navigationTagManager();
       },
@@ -852,6 +855,13 @@ class _LibraryPageState extends State<LibraryPage> {
           ],
         ));
     // return const Center(child: CircularProgressIndicator());
+  }
+
+  void _showFilterMenuDialog() {
+    showDialog(context: context,
+        builder: (BuildContext context) {
+      return LibraryLayoutDialog();
+    });
   }
 
 
