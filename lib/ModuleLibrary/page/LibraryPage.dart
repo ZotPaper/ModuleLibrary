@@ -318,7 +318,7 @@ class _LibraryPageState extends State<LibraryPage> {
             ],
           ),
         ),
-        if (item.attachments.isNotEmpty) _attachmentIndicator(item),
+        if (_hasPdfAttachment(item)) _attachmentIndicator(item),
         IconButton(onPressed: () {
           _showItemEntryOperatePanel(context, item);
         }, icon: Icon(Icons.more_vert_sharp, color: Colors.grey.shade400, size: 20,)),
@@ -326,6 +326,11 @@ class _LibraryPageState extends State<LibraryPage> {
     );
   }
 
+  /// 条目是否有pdf附件
+  bool _hasPdfAttachment(Item item) {
+    return _viewModel.itemHasPdfAttachment(item);
+  }
+  
   Widget _widgetCollectionEntry(Collection collection)  {
     int sizeSub = _viewModel.getNumInCollection(collection);
 

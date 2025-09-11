@@ -412,6 +412,11 @@ class LibraryViewModel with ChangeNotifier {
     );
   }
 
+  /// 检查条目是否有PDF附件
+  bool itemHasPdfAttachment(Item item) {
+    return _itemHasPdfAttachment(item);
+  }
+
   /// 检查条目是否有笔记
   bool _itemHasNotes(Item item) {
     return item.notes.isNotEmpty;
