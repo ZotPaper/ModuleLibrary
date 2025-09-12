@@ -77,11 +77,11 @@ class _LaunchPageState extends State<LaunchPage> with SingleTickerProviderStateM
   /// 测试账号登录
   void testAccountLogin() {
     // 是否是debug模式
-    // String userId = "16074844";
-    // String apiKey = "znrrHVJZMhSd8I9TWUxZjAFC";
+    String userId = "16074844";
+    String apiKey = "znrrHVJZMhSd8I9TWUxZjAFC";
 
-    String userId = "8120462";
-    String apiKey = "H95AVvqDvU72LC4qj9Azc5do";
+    // String userId = "8120462";
+    // String apiKey = "H95AVvqDvU72LC4qj9Azc5do";
 
     String userName = "testUserName";
 

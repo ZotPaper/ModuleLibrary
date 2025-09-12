@@ -395,8 +395,12 @@ class _LibraryPageState extends State<LibraryPage> {
   Widget _attachmentIndicator(Item item) {
     return  InkWell(
       onTap: () {
-        // print("pdf tap");
-        _showItemInfo(context, item);
+        try {
+          _viewModel.openOrDownloadedPdf(context, item);
+        } catch (e) {
+          debugPrint("pdf tap error: $e");
+          BrnToast.show("$e", context);
+        }
       },
       child: Container(
         padding: EdgeInsets.all(4),

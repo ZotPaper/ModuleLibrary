@@ -1,8 +1,10 @@
 import 'dart:async';
 import 'dart:collection';
 import 'package:bruno/bruno.dart';
+import 'package:flutter/foundation.dart';
 import 'package:flutter/material.dart';
 import 'package:module_library/LibZoteroApi/Model/ZoteroSettingsResponse.dart';
+import 'package:module_library/LibZoteroAttachDownloader/zotero_attach_downloader_helper.dart';
 import 'package:module_library/ModuleLibrary/model/list_entry.dart';
 import 'package:module_library/ModuleLibrary/model/page_type.dart';
 import 'package:module_library/ModuleLibrary/my_library_filter.dart';
@@ -10,6 +12,7 @@ import 'package:module_library/ModuleLibrary/utils/my_logger.dart';
 import 'package:module_library/ModuleLibrary/viewmodels/zotero_database.dart';
 import 'package:module_library/ModuleTagManager/item_tagmanager.dart';
 import 'package:module_library/utils/local_zotero_credential.dart';
+import '../../LibZoteroAttachDownloader/default_attachment_storage.dart';
 import '../../LibZoteroStorage/entity/Collection.dart';
 import '../../LibZoteroStorage/entity/Item.dart';
 import '../../LibZoteroStorage/entity/ItemCollection.dart';
@@ -408,8 +411,13 @@ class LibraryViewModel with ChangeNotifier {
   /// 检查条目是否有PDF附件
   bool _itemHasPdfAttachment(Item item) {
     return item.attachments.any((attachment) => 
-      attachment.getFileExtension().toLowerCase() == "pdf"
+      isPdfAttachmentItem(attachment)
     );
+  }
+
+  /// 检查条目是否为pdf附件条目
+  bool isPdfAttachmentItem(Item item) {
+    return item.getFileExtension().toLowerCase() == "pdf";
   }
 
   /// 检查条目是否有PDF附件
@@ -851,6 +859,89 @@ class LibraryViewModel with ChangeNotifier {
     
     // 刷新当前页面以应用筛选
     refreshInCurrent();
+  }
+
+  /// 下载pdf
+  Future<void> openOrDownloadedPdf(BuildContext context, Item item) async {
+    // 找到item对应的pdf文件
+    Item? targetPdfAttachmentItem;
+    // 检测item自身是否是pdf文件
+    if (isPdfAttachmentItem(item)) {
+      targetPdfAttachmentItem = item;
+    } else {
+      // 检测item的附件中是否有pdf文件
+      if (itemHasPdfAttachment(item)) {
+        targetPdfAttachmentItem = item.attachments.firstWhere((element) => isPdfAttachmentItem(element));
+      }
+    }
+
+    if (targetPdfAttachmentItem == null) {
+      throw "没有找到pdf文件";
+    }
+
+    final downloadHelper = ZoteroAttachDownloaderHelper.instance;
+
+    if (!downloadHelper.isInitialized) {
+      downloadHelper.initialize(_userId, _apiKey);
+    }
+
+    bool isDownloaded = await DefaultAttachmentStorage.instance.attachmentExists(targetPdfAttachmentItem);
+    if (isDownloaded) {
+      // 打开pdf
+      BrnToast.show('${targetPdfAttachmentItem.getTitle()}已下载, 打开pdf功能待开发...', context);
+      MyLogger.d('${targetPdfAttachmentItem.getTitle()}已下载');
+      return;
+    }
+
+    downloadHelper.startDownloadAttachment(
+        targetPdfAttachmentItem,
+        onProgress: (info) {
+          // 显示下载进度
+          MyLogger.d('下载进度 ${ info.itemKey}: ${info.progressPercent.toStringAsFixed(1)}%');
+        },
+        onComplete: (info, success) {
+          if (success) {
+            BrnToast.show("下载完成附件: ${info.filename}", context);
+            MyLogger.d('下载完成 ${info.itemKey}: ${info.filename}');
+          }
+        },
+        onError: (info, error) {
+          if (error is DownloadException) {
+            switch (error.errorType) {
+              case DownloadErrorType.notFound:
+                BrnToast.show("在服务器找不到附件", context);
+                MyLogger.w('下载失败，附件[${info.itemKey}, ${info.filename}]不存在');
+                break;
+              case DownloadErrorType.network:
+                BrnToast.show("网络连接失败，请检查网络设置", context);
+                MyLogger.w('下载失败，网络错误: ${info.itemKey}');
+                break;
+              // case DownloadErrorType.unauthorized:
+              //   BrnToast.show("API密钥无效，请重新登录", context);
+              //   MyLogger.w('下载失败，认证错误: ${info.itemKey}');
+              //   break;
+              // case DownloadErrorType.forbidden:
+              //   BrnToast.show("无权限访问此附件", context);
+              //   MyLogger.w('下载失败，权限错误: ${info.itemKey}');
+              //   break;
+              // case DownloadErrorType.storage:
+              //   BrnToast.show("存储空间不足，请清理空间后重试", context);
+              //   MyLogger.w('下载失败，存储空间不足: ${info.itemKey}');
+              //   break;
+              case DownloadErrorType.timeout:
+                BrnToast.show("下载超时，请重试", context);
+                MyLogger.w('下载失败，超时: ${info.itemKey}');
+                break;
+              default:
+                BrnToast.show("下载出错: ${error.message}", context);
+                MyLogger.e('下载出错 ${info.itemKey}: ${error.message}');
+            }
+          } else {
+            // 处理其他类型的异常
+            BrnToast.show("下载出错: $error", context);
+            MyLogger.e('下载出错 ${info.itemKey}: $error');
+          }
+        });
   }
 
 
