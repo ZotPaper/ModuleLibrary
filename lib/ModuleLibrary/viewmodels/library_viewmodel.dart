@@ -70,9 +70,33 @@ class LibraryViewModel with ChangeNotifier {
   // 下载状态跟踪
   final Map<String, AttachmentDownloadInfo> _downloadStates = {};
   
+  // 文件存在状态缓存
+  final Map<String, bool> _fileExistsCache = {};
+  
   /// 获取附件下载状态
   AttachmentDownloadInfo? getDownloadStatus(String itemKey) {
     return _downloadStates[itemKey];
+  }
+  
+  /// 获取缓存的文件存在状态
+  bool? getCachedFileExists(String itemKey) {
+    return _fileExistsCache[itemKey];
+  }
+  
+  /// 异步检查并缓存文件存在状态
+  Future<bool> checkAndCacheFileExists(Item pdfAttachment) async {
+    final itemKey = pdfAttachment.itemKey;
+    
+    // 如果已经缓存且不在下载中，直接返回缓存值
+    if (_fileExistsCache.containsKey(itemKey) && !isAttachmentDownloading(itemKey)) {
+      return _fileExistsCache[itemKey]!;
+    }
+    
+    // 异步检查文件是否存在
+    final exists = await DefaultAttachmentStorage.instance.attachmentExists(pdfAttachment);
+    _fileExistsCache[itemKey] = exists;
+    
+    return exists;
   }
   
   /// 检查附件是否正在下载
@@ -956,7 +980,8 @@ class LibraryViewModel with ChangeNotifier {
         },
         onComplete: (info, success) {
           if (success) {
-            // 下载完成，移除下载状态
+            // 下载完成，更新文件存在状态缓存并移除下载状态
+            _fileExistsCache[info.itemKey] = true;
             _removeDownloadState(info.itemKey);
             BrnToast.show("下载完成附件: ${info.filename}", context);
             MyLogger.d('下载完成 ${info.itemKey}: ${info.filename}');
