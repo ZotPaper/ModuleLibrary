@@ -54,7 +54,6 @@ class LibraryViewModel with ChangeNotifier {
   final List<ListEntry> _displayListEntries = [];
   List<ListEntry> get displayEntries => _displayListEntries;
 
-
   /// 用于过滤的关键字
   String filterText = "";
 
@@ -67,6 +66,35 @@ class LibraryViewModel with ChangeNotifier {
 
   // 添加LibraryStore实例
   final LibraryStore _libraryStore = Stores.get(Stores.KEY_LIBRARY) as LibraryStore;
+
+  // 下载状态跟踪
+  final Map<String, AttachmentDownloadInfo> _downloadStates = {};
+  
+  /// 获取附件下载状态
+  AttachmentDownloadInfo? getDownloadStatus(String itemKey) {
+    return _downloadStates[itemKey];
+  }
+  
+  /// 检查附件是否正在下载
+  bool isAttachmentDownloading(String itemKey) {
+    final state = _downloadStates[itemKey];
+    return state?.status == DownloadStatus.downloading || 
+           state?.status == DownloadStatus.extracting;
+  }
+  
+  /// 更新下载状态
+  void _updateDownloadState(AttachmentDownloadInfo downloadInfo) {
+    _downloadStates[downloadInfo.itemKey] = downloadInfo;
+    MyLogger.d('更新下载状态: ${downloadInfo.itemKey} - ${downloadInfo.status} - ${downloadInfo.progressPercent}%');
+    notifyListeners(); // 通知UI更新
+  }
+  
+  /// 移除下载状态
+  void _removeDownloadState(String itemKey) {
+    _downloadStates.remove(itemKey);
+    MyLogger.d('移除下载状态: $itemKey');
+    notifyListeners();
+  }
 
   LibraryViewModel() : super() {}
 
@@ -861,7 +889,7 @@ class LibraryViewModel with ChangeNotifier {
     refreshInCurrent();
   }
 
-  /// 下载pdf
+  /// 下载pdf或取消下载
   Future<void> openOrDownloadedPdf(BuildContext context, Item item) async {
     // 找到item对应的pdf文件
     Item? targetPdfAttachmentItem;
@@ -885,6 +913,13 @@ class LibraryViewModel with ChangeNotifier {
       downloadHelper.initialize(_userId, _apiKey);
     }
 
+    // 检查是否正在下载，如果是则取消下载
+    if (isAttachmentDownloading(targetPdfAttachmentItem.itemKey)) {
+      await _cancelDownload(context, targetPdfAttachmentItem);
+      return;
+    }
+
+    // 检查是否已下载
     bool isDownloaded = await DefaultAttachmentStorage.instance.attachmentExists(targetPdfAttachmentItem);
     if (isDownloaded) {
       // 打开pdf
@@ -893,19 +928,48 @@ class LibraryViewModel with ChangeNotifier {
       return;
     }
 
-    downloadHelper.startDownloadAttachment(
+    // 开始下载
+    await _startDownload(context, targetPdfAttachmentItem);
+  }
+
+  /// 开始下载附件
+  Future<void> _startDownload(BuildContext context, Item targetPdfAttachmentItem) async {
+    final downloadHelper = ZoteroAttachDownloaderHelper.instance;
+
+    try {
+      // 立即设置初始下载状态，确保UI显示进度环
+      final initialDownloadInfo = AttachmentDownloadInfo(
+        itemKey: targetPdfAttachmentItem.itemKey,
+        filename: targetPdfAttachmentItem.getTitle(),
+        progress: 0,
+        total: 100,
+        status: DownloadStatus.downloading,
+      );
+      _updateDownloadState(initialDownloadInfo);
+      
+      await downloadHelper.startDownloadAttachment(
         targetPdfAttachmentItem,
         onProgress: (info) {
-          // 显示下载进度
-          MyLogger.d('下载进度 ${ info.itemKey}: ${info.progressPercent.toStringAsFixed(1)}%');
+          // 更新下载进度状态
+          _updateDownloadState(info);
+          MyLogger.d('下载进度 ${info.itemKey}: ${info.progressPercent.toStringAsFixed(1)}%');
         },
         onComplete: (info, success) {
           if (success) {
+            // 下载完成，移除下载状态
+            _removeDownloadState(info.itemKey);
             BrnToast.show("下载完成附件: ${info.filename}", context);
             MyLogger.d('下载完成 ${info.itemKey}: ${info.filename}');
+          } else {
+            // 下载失败，更新状态为失败
+            _updateDownloadState(info.copyWith(status: DownloadStatus.failed));
+            MyLogger.e('下载失败 ${info.itemKey}');
           }
         },
         onError: (info, error) {
+          // 下载错误，移除下载状态
+          _removeDownloadState(info.itemKey);
+          
           if (error is DownloadException) {
             switch (error.errorType) {
               case DownloadErrorType.notFound:
@@ -916,18 +980,6 @@ class LibraryViewModel with ChangeNotifier {
                 BrnToast.show("网络连接失败，请检查网络设置", context);
                 MyLogger.w('下载失败，网络错误: ${info.itemKey}');
                 break;
-              // case DownloadErrorType.unauthorized:
-              //   BrnToast.show("API密钥无效，请重新登录", context);
-              //   MyLogger.w('下载失败，认证错误: ${info.itemKey}');
-              //   break;
-              // case DownloadErrorType.forbidden:
-              //   BrnToast.show("无权限访问此附件", context);
-              //   MyLogger.w('下载失败，权限错误: ${info.itemKey}');
-              //   break;
-              // case DownloadErrorType.storage:
-              //   BrnToast.show("存储空间不足，请清理空间后重试", context);
-              //   MyLogger.w('下载失败，存储空间不足: ${info.itemKey}');
-              //   break;
               case DownloadErrorType.timeout:
                 BrnToast.show("下载超时，请重试", context);
                 MyLogger.w('下载失败，超时: ${info.itemKey}');
@@ -941,7 +993,55 @@ class LibraryViewModel with ChangeNotifier {
             BrnToast.show("下载出错: $error", context);
             MyLogger.e('下载出错 ${info.itemKey}: $error');
           }
-        });
+        },
+      );
+    } catch (e) {
+      // 处理同步错误（如未初始化、正在下载等），移除下载状态
+      _removeDownloadState(targetPdfAttachmentItem.itemKey);
+      
+      if (e is DownloadException) {
+        BrnToast.show(e.message, context);
+      } else {
+        BrnToast.show("下载失败: $e", context);
+      }
+      MyLogger.e('下载启动失败: $e');
+    }
+  }
+
+  /// 取消下载
+  Future<void> _cancelDownload(BuildContext context, Item targetPdfAttachmentItem) async {
+    final downloadHelper = ZoteroAttachDownloaderHelper.instance;
+    
+    try {
+      await downloadHelper.cancelDownload(targetPdfAttachmentItem.itemKey);
+      
+      // 清理临时文件
+      await _cleanupTempFiles(targetPdfAttachmentItem);
+      
+      // 移除下载状态
+      _removeDownloadState(targetPdfAttachmentItem.itemKey);
+      
+      // BrnToast.show("已取消下载", context);
+      MyLogger.d('取消下载: ${targetPdfAttachmentItem.itemKey}');
+    } catch (e) {
+      BrnToast.show("取消下载失败: $e", context);
+      MyLogger.e('取消下载失败: $e');
+    }
+  }
+
+  /// 清理临时文件
+  Future<void> _cleanupTempFiles(Item item) async {
+    try {
+      final storage = DefaultAttachmentStorage.instance;
+      final tempFile = await storage.getDownloadTempFile(item);
+      
+      if (await tempFile.exists()) {
+        await tempFile.delete();
+        MyLogger.d('清理临时文件: ${tempFile.path}');
+      }
+    } catch (e) {
+      MyLogger.w('清理临时文件失败: $e');
+    }
   }
 
 

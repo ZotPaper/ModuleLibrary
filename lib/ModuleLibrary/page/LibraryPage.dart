@@ -4,6 +4,7 @@ import 'package:flutter/services.dart';
 import 'package:module_library/LibZoteroApi/Model/ZoteroSettingsResponse.dart';
 import 'package:module_library/LibZoteroStorage/entity/Collection.dart';
 import 'package:module_library/LibZoteroStorage/entity/Item.dart';
+import 'package:module_library/LibZoteroAttachDownloader/zotero_attach_downloader_helper.dart';
 import 'package:module_library/ModuleItemDetail/page/item_details_page.dart';
 import 'package:module_library/ModuleLibrary/model/list_entry.dart';
 import 'package:module_library/ModuleLibrary/model/page_type.dart';
@@ -24,6 +25,7 @@ import 'LibraryUI/appBar.dart';
 import 'LibraryUI/drawer.dart';
 import 'package:flutter_svg/flutter_svg.dart';
 import 'package:bruno/bruno.dart';
+import 'package:flutter/foundation.dart';
 
 class LibraryPage extends StatefulWidget {
   const LibraryPage({super.key});
@@ -393,26 +395,164 @@ class _LibraryPageState extends State<LibraryPage> {
   }
 
   Widget _attachmentIndicator(Item item) {
-    return  InkWell(
-      onTap: () {
-        try {
-          _viewModel.openOrDownloadedPdf(context, item);
-        } catch (e) {
-          debugPrint("pdf tap error: $e");
-          BrnToast.show("$e", context);
+    return Consumer<LibraryViewModel>(
+      builder: (context, viewModel, child) {
+        // 找到实际的PDF附件
+        Item? targetPdfAttachmentItem;
+        if (viewModel.isPdfAttachmentItem(item)) {
+          targetPdfAttachmentItem = item;
+        } else if (viewModel.itemHasPdfAttachment(item)) {
+          targetPdfAttachmentItem = item.attachments.firstWhere(
+            (element) => viewModel.isPdfAttachmentItem(element),
+          );
         }
-      },
-      child: Container(
-        padding: EdgeInsets.all(4),
-        child: ClipRRect(
-          // borderRadius: BorderRadius.circular(20),
-          child: SvgPicture.asset(
-            "assets/attachment_indicator_pdf.svg",
-            height: 20,
-            width: 20,
-            package: 'module_library',
+        
+        // 使用PDF附件的itemKey获取下载状态
+        final downloadInfo = targetPdfAttachmentItem != null 
+            ? viewModel.getDownloadStatus(targetPdfAttachmentItem.itemKey)
+            : null;
+        
+        return InkWell(
+          onTap: () {
+            try {
+              viewModel.openOrDownloadedPdf(context, item);
+            } catch (e) {
+              debugPrint("pdf tap error: $e");
+              BrnToast.show("$e", context);
+            }
+          },
+          child: Container(
+            padding: const EdgeInsets.all(4),
+            child: _buildAttachmentIcon(downloadInfo),
           ),
+        );
+      },
+    );
+  }
+
+  /// 根据下载状态构建附件图标
+  Widget _buildAttachmentIcon(AttachmentDownloadInfo? downloadInfo) {
+    if (kDebugMode) {
+      print('构建附件图标: ${downloadInfo?.itemKey} - ${downloadInfo?.status} - ${downloadInfo?.progressPercent}%');
+    }
+    
+    if (downloadInfo == null) {
+      // 默认状态：显示PDF图标
+      return ClipRRect(
+        child: SvgPicture.asset(
+          "assets/attachment_indicator_pdf.svg",
+          height: 20,
+          width: 20,
+          package: 'module_library',
         ),
+      );
+    }
+
+    switch (downloadInfo.status) {
+      case DownloadStatus.downloading:
+        return _buildDownloadingIndicator(downloadInfo);
+      case DownloadStatus.extracting:
+        return _buildExtractingIndicator();
+      case DownloadStatus.completed:
+        return _buildCompletedIndicator();
+      case DownloadStatus.failed:
+        return _buildFailedIndicator();
+      case DownloadStatus.cancelled:
+        return _buildCancelledIndicator();
+      default:
+        return _buildDefaultIndicator();
+    }
+  }
+
+  /// 下载中：圆形进度环
+  Widget _buildDownloadingIndicator(AttachmentDownloadInfo downloadInfo) {
+    return SizedBox(
+      width: 20,
+      height: 20,
+      child: Stack(
+        alignment: Alignment.center,
+        children: [
+          // 背景圆环
+          SizedBox(
+            width: 20,
+            height: 20,
+            child: CircularProgressIndicator(
+              value: downloadInfo.progressPercent / 100,
+              strokeWidth: 2.0,
+              backgroundColor: Colors.grey.shade300,
+              valueColor: AlwaysStoppedAnimation<Color>(Colors.blue),
+            ),
+          ),
+          // 中心的取消图标
+          Icon(
+            Icons.close,
+            size: 10,
+            color: Colors.blue,
+          ),
+        ],
+      ),
+    );
+  }
+
+  /// 解压中：旋转的进度环
+  Widget _buildExtractingIndicator() {
+    return SizedBox(
+      width: 20,
+      height: 20,
+      child: CircularProgressIndicator(
+        strokeWidth: 2.0,
+        valueColor: AlwaysStoppedAnimation<Color>(Colors.orange),
+      ),
+    );
+  }
+
+  /// 下载完成：PDF图标（绿色）
+  Widget _buildCompletedIndicator() {
+    return ClipRRect(
+      child: SvgPicture.asset(
+        "assets/attachment_indicator_pdf.svg",
+        height: 20,
+        width: 20,
+        package: 'module_library',
+        colorFilter: ColorFilter.mode(Colors.green, BlendMode.srcIn),
+      ),
+    );
+  }
+
+  /// 下载失败：PDF图标（红色）
+  Widget _buildFailedIndicator() {
+    return ClipRRect(
+      child: SvgPicture.asset(
+        "assets/attachment_indicator_pdf.svg",
+        height: 20,
+        width: 20,
+        package: 'module_library',
+        colorFilter: ColorFilter.mode(Colors.red, BlendMode.srcIn),
+      ),
+    );
+  }
+
+  /// 下载取消：PDF图标（灰色）
+  Widget _buildCancelledIndicator() {
+    return ClipRRect(
+      child: SvgPicture.asset(
+        "assets/attachment_indicator_pdf.svg",
+        height: 20,
+        width: 20,
+        package: 'module_library',
+        colorFilter: ColorFilter.mode(Colors.grey, BlendMode.srcIn),
+      ),
+    );
+  }
+
+  /// 默认状态：PDF图标
+  Widget _buildDefaultIndicator() {
+    return ClipRRect(
+      child: SvgPicture.asset(
+        "assets/attachment_indicator_pdf.svg",
+        height: 20,
+        width: 20,
+        package: 'module_library',
       ),
     );
   }
