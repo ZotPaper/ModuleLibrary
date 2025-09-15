@@ -13,6 +13,7 @@ import 'package:module_library/ModuleLibrary/page/blank_page.dart';
 import 'package:module_library/ModuleLibrary/page/sync_page/sync_page.dart';
 import 'package:module_library/ModuleLibrary/res/ResColor.dart';
 import 'package:module_library/ModuleLibrary/utils/sheet_item_helper.dart';
+import 'package:module_library/ModuleLibrary/utils/my_logger.dart';
 import 'package:module_library/ModuleLibrary/viewmodels/library_viewmodel.dart';
 import 'package:module_library/ModuleTagManager/item_tagmanager.dart';
 import 'package:module_library/routers.dart';
@@ -616,6 +617,40 @@ class _LibraryPageState extends State<LibraryPage> {
         onClick: () {
           Future.delayed(const Duration(milliseconds: 200), () {
             _viewModel.moveItemToTrash(ctx, item);
+          });
+        },
+      ));
+    }
+
+    if (item.hasAttachments()) {
+      itemClickProxies.add(ItemClickProxy(
+        title: "删除已下载的附件",
+        actionStyle: "alert",
+        onClick: () {
+          Future.delayed(const Duration(milliseconds: 200), () {
+            BrnDialogManager.showConfirmDialog(context,
+                // showIcon: true,
+                // iconWidget: Image.asset(
+                //   "images/icon_warnning.png",
+                //   package: "bruno",
+                // ),
+                title: "删除下载的附件",
+                confirm: "确定",
+                cancel: "取消",
+                message: "是否删除《${item.getTitle()}》中已下载的附件",
+                                 onConfirm: () async {
+                   Navigator.of(ctx).pop();
+                   await _viewModel.deleteAllDownloadedAttachmentsOfItems(
+                       context,
+                       item,
+                       onCallback: () {
+                         // 删除完成后的回调，可以在这里添加额外的逻辑
+                         MyLogger.d('所有附件删除操作完成');
+                       });
+                 },
+                onCancel: () {
+                  Navigator.of(ctx).pop();
+                });
           });
         },
       ));

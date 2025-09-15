@@ -1069,5 +1069,87 @@ class LibraryViewModel with ChangeNotifier {
     }
   }
 
+  /// 删除item下所有已下载的附件
+  Future<void> deleteAllDownloadedAttachmentsOfItems(
+      BuildContext context,
+      Item item,
+      {required VoidCallback onCallback}) async {
+
+    if (!item.hasAttachments() && !item.isDownloadable()) {
+      MyLogger.d('条目没有附件，跳过删除操作');
+      onCallback();
+      return;
+    }
+
+    List<Item> attachments = [];
+    if (item.isDownloadable()) {
+      // item为附件类型
+      attachments.add(item);
+    } else {
+      // item为条目类型
+      attachments = item.attachments;
+    }
+
+    // 过滤出已下载的附件
+    List<Item> downloadedAttachments = [];
+    for (var attachment in attachments) {
+      bool exists = await DefaultAttachmentStorage.instance.attachmentExists(attachment);
+      if (exists) {
+        downloadedAttachments.add(attachment);
+      }
+    }
+
+    if (downloadedAttachments.isEmpty) {
+      MyLogger.d('没有已下载的附件需要删除');
+      BrnToast.show('没有已下载的附件需要删除', context);
+      onCallback();
+      return;
+    }
+
+    MyLogger.d('开始删除${downloadedAttachments.length}个已下载的附件');
+
+    // 使用计数器跟踪删除进度
+    int completedCount = 0;
+    int totalCount = downloadedAttachments.length;
+    int successCount = 0;
+    int failedCount = 0;
+
+    final storage = DefaultAttachmentStorage.instance;
+
+    for (var attachment in downloadedAttachments) {
+      try {
+        await storage.deleteAttachment(attachment);
+        MyLogger.d('删除附件成功: ${attachment.getTitle()}');
+        
+        // 更新文件存在状态缓存
+        _fileExistsCache[attachment.itemKey] = false;
+        
+        successCount++;
+      } catch (e) {
+        MyLogger.e('删除附件失败: ${attachment.getTitle()}, 错误: $e');
+        failedCount++;
+      }
+      
+      completedCount++;
+      
+      // 检查是否所有附件都处理完成
+      if (completedCount == totalCount) {
+        MyLogger.d('附件删除完成，成功: $successCount, 失败: $failedCount');
+        
+        // 通知UI更新以反映文件状态变化
+        notifyListeners();
+        
+        // 显示删除结果
+        if (failedCount == 0) {
+          BrnToast.show('成功删除${successCount}个附件', context);
+        } else {
+          BrnToast.show('删除完成：成功${successCount}个，失败${failedCount}个', context);
+        }
+        
+        // 执行回调
+        onCallback();
+      }
+    }
+  }
 
 }
