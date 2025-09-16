@@ -5,6 +5,7 @@ import 'package:archive/archive.dart';
 import 'package:flutter/foundation.dart';
 import 'package:module_library/LibZoteroAttachDownloader/zotero_attachment_transfer.dart';
 import 'package:module_library/LibZoteroStorage/entity/Item.dart';
+import 'package:module_library/ModuleLibrary/utils/my_logger.dart';
 import 'package:webdav_client/webdav_client.dart' as WebDAV;
 import 'package:path/path.dart' as p;
 
@@ -72,16 +73,8 @@ class WebDAVAttachmentTransfer implements IAttachmentTransfer {
       }
     }
 
-    var debug = false ;
-
-    final wbDio = WebDAV.WdDio(
-      // options: BaseOptions(
-      //   verifySSL: verifySSL,
-      //   connectTimeout: 5000,
-      //   receiveTimeout: 5000,
-      //   sendTimeout: 5000,
-      // ),
-    );
+    var debug = false;
+    final wbDio = WebDAV.WdDio();
 
     client = WebDAV.Client(
       uri: normalizedAddress,
@@ -89,6 +82,10 @@ class WebDAVAttachmentTransfer implements IAttachmentTransfer {
       auth: WebDAV.Auth(user: username, pwd: password),
       debug: debug,
     );
+
+    client.setHeaders({
+      "Accept-Encoding": "identity", //添加这句话避免gzip压缩导致在Response中获取不到Content-Length属性
+    });
 
   }
 
@@ -125,6 +122,8 @@ class WebDAVAttachmentTransfer implements IAttachmentTransfer {
 
       // 3. 创建临时文件用于下载
       final tempFile = await attachmentStorageManager.getItemOutputStream(item);
+
+      MyLogger.d("开始下载附件：$webpathZip 到临时文件：${tempFile.path}");
 
       // 4. 下载ZIP文件到临时位置
       yield* _downloadWithProgress(webpathZip, tempFile as File, zipFileSize, prop);
@@ -164,37 +163,34 @@ class WebDAVAttachmentTransfer implements IAttachmentTransfer {
     int? totalSize, 
     WebdavProp prop
   ) async* {
-    try {
-      // 使用webdav_client下载文件
-      final bytes = await client.read(remotePath);
-      
-      // 由于webdav_client不支持流式下载，我们模拟进度报告
-      const chunkSize = 8192; // 8KB chunks
-      int downloaded = 0;
-      final total = totalSize ?? bytes.length;
-      
-      final sink = localFile.openWrite();
-      
-      for (int i = 0; i < bytes.length; i += chunkSize) {
-        final end = math.min(i + chunkSize, bytes.length);
-        final chunk = bytes.sublist(i, end);
-        sink.add(chunk);
-        
-        downloaded = end;
-        
-        // 发送进度更新
-        yield DownloadProgress(
-          progress: downloaded, 
-          total: total, 
-          mtime: prop.mtime, 
-          metadataHash: prop.hash
+      final controller = StreamController<DownloadProgress>();
+      try {
+        int downloaded = 0;
+        int total = totalSize ?? 0;
+
+        unawaited(
+          client.read2File(
+            remotePath,
+            localFile.path,
+            onProgress: (int bytes, int totalBytes) {
+              downloaded = bytes;
+              total = totalBytes;
+              controller.add(DownloadProgress(
+                progress: downloaded,
+                total: total,
+                mtime: prop.mtime,
+                metadataHash: prop.hash,
+              ));
+            },
+          ).then((_) {
+            controller.close();
+          }).catchError((e) {
+            controller.addError(Exception('Download failed: $e'));
+            controller.close();
+          }),
         );
-        
-        // 模拟网络延迟（实际项目中应该移除）
-        await Future.delayed(const Duration(milliseconds: 10));
-      }
-      
-      await sink.close();
+
+        yield* controller.stream;
       
     } catch (e) {
       throw Exception('Download failed: $e');
