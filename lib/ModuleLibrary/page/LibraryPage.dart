@@ -980,9 +980,9 @@ class _AttachmentIndicatorWidgetState extends State<_AttachmentIndicatorWidget> 
 
   /// 根据下载状态构建附件图标
   Widget _buildAttachmentIcon(AttachmentDownloadInfo? downloadInfo, Item? targetPdfAttachmentItem) {
-    if (kDebugMode) {
-      print('构建附件图标: ${downloadInfo?.itemKey} - ${downloadInfo?.status} - ${downloadInfo?.progressPercent}%');
-    }
+    // if (kDebugMode) {
+    //   print('构建附件图标: ${downloadInfo?.itemKey} - ${downloadInfo?.status} - ${downloadInfo?.progressPercent}%');
+    // }
 
     if (downloadInfo == null) {
       // 没有下载状态时，检查缓存的文件存在状态

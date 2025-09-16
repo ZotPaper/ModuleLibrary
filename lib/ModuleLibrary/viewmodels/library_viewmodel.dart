@@ -4,6 +4,7 @@ import 'package:bruno/bruno.dart';
 import 'package:flutter/foundation.dart';
 import 'package:flutter/material.dart';
 import 'package:module_library/LibZoteroApi/Model/ZoteroSettingsResponse.dart';
+import 'package:module_library/LibZoteroAttachDownloader/webdav_attachment_transfer.dart';
 import 'package:module_library/LibZoteroAttachDownloader/zotero_attach_downloader_helper.dart';
 import 'package:module_library/ModuleLibrary/model/list_entry.dart';
 import 'package:module_library/ModuleLibrary/model/page_type.dart';
@@ -934,7 +935,14 @@ class LibraryViewModel with ChangeNotifier {
     final downloadHelper = ZoteroAttachDownloaderHelper.instance;
 
     if (!downloadHelper.isInitialized) {
-      downloadHelper.initialize(_userId, _apiKey);
+      final transfer = WebDAVAttachmentTransfer(
+          webdavAddress: "https://miya.teracloud.jp/dav/",
+          username: "moyearzhou",
+          password: "4Efgzy73eTr96DPS",
+          attachmentStorageManager: DefaultAttachmentStorage.instance
+      );
+
+      downloadHelper.initialize(_userId, _apiKey, tf: transfer);
     }
 
     // 检查是否正在下载，如果是则取消下载

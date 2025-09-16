@@ -1,5 +1,6 @@
 import 'dart:async';
 import 'package:module_library/LibZoteroAttachDownloader/default_attachment_storage.dart';
+import 'package:module_library/LibZoteroAttachDownloader/webdav_attachment_transfer.dart';
 import 'package:module_library/ModuleLibrary/utils/my_logger.dart';
 
 import '../LibZoteroStorage/entity/Item.dart';
@@ -103,7 +104,7 @@ class ZoteroAttachDownloaderHelper {
   // 实现这个附件存储类
   DefaultAttachmentStorage defaultStorageManager = DefaultAttachmentStorage.instance;
 
-  late ZoteroAttachmentTransfer transfer;
+  late IAttachmentTransfer transfer;
 
   var _userId = "";
   var _apiKey = "";
@@ -119,17 +120,23 @@ class ZoteroAttachDownloaderHelper {
   ErrorCallback? _onDownloadError;
 
   /// 初始化下载器
-  void initialize(String userId, String apiKey) {
+  void initialize(String userId, String apiKey, {
+    IAttachmentTransfer? tf
+  }) {
     _userId = userId;
     _apiKey = apiKey;
     _isInitialized = true;
 
     // 创建下载器
-    transfer = ZoteroAttachmentTransfer(
-        userID: _userId,
-        API_KEY: _apiKey,
-        attachmentStorageManager: defaultStorageManager
-    );
+    if (tf == null) {
+      transfer = ZoteroAttachmentTransfer(
+          userID: _userId,
+          API_KEY: _apiKey,
+          attachmentStorageManager: defaultStorageManager
+      );
+    } else {
+      transfer = tf;
+    }
 
     MyLogger.d('ZoteroAttachDownloaderHelper initialized for user: $userId');
   }
