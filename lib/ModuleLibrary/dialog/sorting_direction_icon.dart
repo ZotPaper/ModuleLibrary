@@ -1,4 +1,5 @@
 import 'package:flutter/material.dart';
+import 'package:module_library/ModuleLibrary/res/ResColor.dart';
 
 /// 排序方向图标
 class SortingDirectionIcon extends StatefulWidget {
@@ -35,12 +36,12 @@ class _SortingDirectionIconState extends State<SortingDirectionIcon> {
                 Icon(Icons.sort_by_alpha_outlined,
                     size: 24,
                     color: widget.checked
-                        ? Colors.blue
+                        ? ResColor.selectedTextColor
                         : defaultColor),
                 Icon(widget.reverse ? Icons.arrow_downward_outlined : Icons.arrow_upward_outlined,
                     size: 8,
                     color: widget.checked
-                        ? Colors.blue
+                        ? ResColor.selectedTextColor
                         : defaultColor),
               ],
             )

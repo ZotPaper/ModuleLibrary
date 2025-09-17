@@ -1,6 +1,7 @@
 import 'package:flutter/cupertino.dart';
 import 'package:flutter/material.dart';
 import 'package:module_library/routers.dart';
+import 'package:module_library/utils/webdav_configuration.dart';
 
 import '../../utils/local_zotero_credential.dart';
 import '../share_pref.dart';
@@ -89,5 +90,12 @@ class _LaunchPageState extends State<LaunchPage> with SingleTickerProviderStateM
       _jumpToSyncingPage();
     });
 
+    // webdav信息
+    String webdavAddress = "https://miya.teracloud.jp/dav/";
+    String username = "moyearzhou";
+    String password = "4Efgzy73eTr96DPS";
+
+    WebdavConfiguration.setWebdavConfiguration(webdavAddress, username, password);
+    WebdavConfiguration.setUseWebdav(true);
   }
 }

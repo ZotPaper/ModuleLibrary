@@ -6,6 +6,7 @@ import 'package:flutter/material.dart';
 import 'package:module_library/LibZoteroApi/Model/ZoteroSettingsResponse.dart';
 import 'package:module_library/LibZoteroAttachDownloader/webdav_attachment_transfer.dart';
 import 'package:module_library/LibZoteroAttachDownloader/zotero_attach_downloader_helper.dart';
+import 'package:module_library/LibZoteroAttachDownloader/zotero_attachment_transfer.dart';
 import 'package:module_library/ModuleLibrary/model/list_entry.dart';
 import 'package:module_library/ModuleLibrary/model/page_type.dart';
 import 'package:module_library/ModuleLibrary/my_library_filter.dart';
@@ -13,6 +14,7 @@ import 'package:module_library/ModuleLibrary/utils/my_logger.dart';
 import 'package:module_library/ModuleLibrary/viewmodels/zotero_database.dart';
 import 'package:module_library/ModuleTagManager/item_tagmanager.dart';
 import 'package:module_library/utils/local_zotero_credential.dart';
+import 'package:module_library/utils/webdav_configuration.dart';
 import '../../LibZoteroAttachDownloader/default_attachment_storage.dart';
 import '../../LibZoteroStorage/entity/Collection.dart';
 import '../../LibZoteroStorage/entity/Item.dart';
@@ -172,6 +174,9 @@ class LibraryViewModel with ChangeNotifier {
 
       // 显示所有条目
       showListEntriesIn("library");
+
+      // 初始化下载助手
+      await ensureDownloadHelperInitialized();
     }
 
     setLoading(false);
@@ -932,19 +937,6 @@ class LibraryViewModel with ChangeNotifier {
       throw "没有找到pdf文件";
     }
 
-    final downloadHelper = ZoteroAttachDownloaderHelper.instance;
-
-    if (!downloadHelper.isInitialized) {
-      final transfer = WebDAVAttachmentTransfer(
-          webdavAddress: "https://miya.teracloud.jp/dav/",
-          username: "moyearzhou",
-          password: "4Efgzy73eTr96DPS",
-          attachmentStorageManager: DefaultAttachmentStorage.instance
-      );
-
-      downloadHelper.initialize(_userId, _apiKey, tf: transfer);
-    }
-
     // 检查是否正在下载，如果是则取消下载
     if (isAttachmentDownloading(targetPdfAttachmentItem.itemKey)) {
       await _cancelDownload(context, targetPdfAttachmentItem);
@@ -1157,6 +1149,40 @@ class LibraryViewModel with ChangeNotifier {
         // 执行回调
         onCallback();
       }
+    }
+  }
+
+  /// 确保下载类已初始化
+  Future<void> ensureDownloadHelperInitialized() async {
+    final downloadHelper = ZoteroAttachDownloaderHelper.instance;
+
+    // todo 读取本地持久化的webdav信息
+    await WebdavConfiguration.loadConfiguration();
+
+    if (!downloadHelper.isInitialized) {
+      downloadHelper.initialize(_userId, _apiKey);
+
+      // 监听WebDAV配置变化
+      WebdavConfiguration.setOnChangeCallback((bool useWebdav) {
+        IAttachmentTransfer transfer = ZoteroAttachmentTransfer(
+            userID: _userId,
+            API_KEY: _apiKey,
+            attachmentStorageManager: DefaultAttachmentStorage.instance
+        );
+        if (useWebdav) {
+          transfer = WebDAVAttachmentTransfer(
+              webdavAddress: WebdavConfiguration.webdavUrl,
+              username: WebdavConfiguration.userName,
+              password: WebdavConfiguration.password,
+              attachmentStorageManager: DefaultAttachmentStorage.instance
+          );
+        }
+        downloadHelper.setTransfer(transfer);
+        MyLogger.d('WebDAV配置已更改，使用WebDAV: $useWebdav username: ${WebdavConfiguration.userName} password: ${WebdavConfiguration.password}');
+      });
+
+      // 调用自身，确保初次使用可以通知webdav的配置变化回调
+      WebdavConfiguration.setUseWebdav(WebdavConfiguration.useWebdav);
     }
   }
 

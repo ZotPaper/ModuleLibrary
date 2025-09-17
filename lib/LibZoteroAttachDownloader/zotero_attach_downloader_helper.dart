@@ -144,6 +144,11 @@ class ZoteroAttachDownloaderHelper {
   /// 检查是否已初始化
   bool get isInitialized => _isInitialized;
 
+  /// 设置附件传输类
+  void setTransfer(IAttachmentTransfer transfer) {
+    this.transfer = transfer;
+  }
+
   /// 设置进度回调
   void setProgressCallback(ProgressCallback? callback) {
     _onProgressUpdate = callback;
