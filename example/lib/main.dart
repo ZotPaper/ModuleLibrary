@@ -1,6 +1,7 @@
 import 'package:flutter/material.dart';
 import 'package:module_base/initializer.dart';
 import 'package:module_base/stores/hive_stores.dart';
+import 'package:module_library/LibZoteroStorage/stores/attachments_settings.dart';
 import 'package:module_library/ModuleLibrary/page/launch_page.dart';
 import 'package:module_library/ModuleLibrary/page/sync_page/sync_viewmodel.dart';
 import 'package:module_library/ModuleLibrary/share_pref.dart';
@@ -26,6 +27,7 @@ Future<void> main() async {
 
 Future<void> init() async {
   BaseInitializer.addStore(Stores.KEY_LIBRARY, LibraryStore());
+  BaseInitializer.addStore(Stores.KEY_ATTACHMENT, AttachmentStore());
   await BaseInitializer.init();
   await SharedPref.init();
 }
