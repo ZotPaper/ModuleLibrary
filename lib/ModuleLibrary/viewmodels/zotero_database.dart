@@ -1,6 +1,9 @@
 
 import 'package:flutter/cupertino.dart';
+import 'package:module_library/LibZoteroAttachment/model/pdf_annotation.dart';
+import 'package:module_library/LibZoteroStorage/entity/ItemData.dart';
 import 'package:module_library/LibZoteroStorage/entity/ItemTag.dart';
+import 'package:module_library/ModuleLibrary/api/ZoteroDataSql.dart';
 import 'package:module_library/ModuleLibrary/utils/my_logger.dart';
 import 'package:module_library/utils/zotero_sync_progress_helper.dart';
 import 'package:shared_preferences/shared_preferences.dart';
@@ -435,6 +438,62 @@ class ZoteroDB {
 
   void setCollectionsDownloadProgress(CollectionsDownloadProgress collectionsDownloadProgress) {
     ZoteroSyncProgressHelper.setCollectionsDownloadProgress(collectionsDownloadProgress);
+  }
+
+
+  Future<List<PdfAnnotation>> getPdfAnnotations(String itemKey) async {
+    final zoteroDataSql = ZoteroDataSql();
+    final res = await zoteroDataSql.itemDataDao.getItemDataWithAttachmentKey(itemKey);
+
+    MyLogger.d('annotations[${itemKey}] value: $res');
+
+    final List<PdfAnnotation> annotations = [];
+
+    for (var itemData in res) {
+      if (itemData.name == "parentItem") {
+        final data = await zoteroDataSql.itemDataDao.getDataForAnnotationKey(itemData.parent);
+        final annotation = parsePdfAnnotation(data);
+        annotations.add(annotation);
+      }
+    }
+    return annotations;
+  }
+
+  PdfAnnotation parsePdfAnnotation(List<ItemData> data) {
+    final Map<String, String> map = {};
+
+    for (var item in data) {
+      map[item.name] = item.value;
+    }
+
+    final String key = map['key'] ?? '';
+    final String parentItem = map['parentItem'] ?? '';
+    final int annotationPageLabel = int.tryParse(map['annotationPageLabel'] ?? '') ?? -1;
+    final String annotationColor = map['annotationColor'] ?? '';
+    final String annotationPosition = map['annotationPosition'] ?? '';
+    final String annotationType = map['annotationType'] ?? '';
+    final String annotationText = map['annotationText'] ?? '';
+    final String dateAdded = map['dateAdded'] ?? '';
+    final String dateModified = map['dateModified'] ?? '';
+    final String annotationSortIndex = map['annotationSortIndex'] ?? '';
+    final String annotationComment = map['annotationComment'] ?? '';
+
+    final PdfAnnotation annotation = PdfAnnotation(
+      key: key,
+      parentItemKey: parentItem,
+      pageLabel: annotationPageLabel,
+      color: annotationColor,
+      position: annotationPosition,
+      type: annotationType,
+    );
+
+    annotation.text = annotationText;
+    annotation.comment = annotationComment;
+    annotation.dateAdded = dateAdded;
+    annotation.dateModified = dateModified;
+    annotation.sortIndex = annotationSortIndex;
+
+    return annotation;
   }
 
 

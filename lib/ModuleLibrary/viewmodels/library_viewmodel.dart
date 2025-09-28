@@ -13,6 +13,7 @@ import 'package:module_library/ModuleLibrary/model/page_type.dart';
 import 'package:module_library/ModuleLibrary/my_library_filter.dart';
 import 'package:module_library/ModuleLibrary/utils/my_logger.dart';
 import 'package:module_library/ModuleLibrary/viewmodels/zotero_database.dart';
+import 'package:module_library/ModuleLibrary/zotero_provider.dart';
 import 'package:module_library/ModuleTagManager/item_tagmanager.dart';
 import 'package:module_library/utils/local_zotero_credential.dart';
 import 'package:module_library/utils/webdav_configuration.dart';
@@ -36,7 +37,7 @@ class LibraryViewModel with ChangeNotifier {
   bool _initialized = false;
   bool get initialized => _initialized;
 
-  final ZoteroDataSql zoteroDataSql = ZoteroDataSql();
+  final ZoteroDataSql zoteroDataSql = ZoteroProvider.getZoteroDataSql();
 
   String _userId = "";
   String _apiKey = "";
@@ -64,7 +65,7 @@ class LibraryViewModel with ChangeNotifier {
   // 当前位置的key
   String currentLocationKey = "";
 
-  final ZoteroDB zoteroDB = ZoteroDB();
+  final ZoteroDB zoteroDB = ZoteroProvider.getZoteroDB();
 
   TagManager tagManager = TagManager();
 

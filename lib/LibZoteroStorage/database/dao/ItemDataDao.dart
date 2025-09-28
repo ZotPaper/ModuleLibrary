@@ -54,7 +54,8 @@ class ItemDataDao {
     );
   }
 
-  // 通过附件key获取所有数据
+  /// 获取属于attachmentKey下的所有信息，
+  /// 根据数据库推断获取的应该是附件的每条注释的key
   Future<List<ItemData>> getItemDataWithAttachmentKey(String attachmentKey) async {
     final db = await dbHelper.database;
     final maps = await db.query(
@@ -64,4 +65,16 @@ class ItemDataDao {
     );
     return maps.map((map)  => ItemData.fromJson(map)).toList();
   }
+
+  /// 获取属于annotationKey下的所有annotation信息
+  Future<List<ItemData>> getDataForAnnotationKey(String annotationKey) async {
+    final db = await dbHelper.database;
+    final maps = await db.query(
+      'ItemData',
+      where: 'parent = ?',
+      whereArgs: [annotationKey],
+    );
+    return maps.map((map)  => ItemData.fromJson(map)).toList();
+  }
+
 }
