@@ -179,6 +179,9 @@ class LibraryViewModel with ChangeNotifier {
 
       // 初始化下载助手
       await ensureDownloadHelperInitialized();
+
+      // 初始化PDF查看器
+      await PdfViewerNativeChannel.init();
     }
 
     setLoading(false);
