@@ -82,6 +82,12 @@ class DefaultAttachmentStorage implements IAttachmentStorage {
     return file.uri;
   }
 
+  Future<File> getAttachmentFile(Item attachment) async {
+    final file = await _getAttachmentFile(attachment);
+    return file;
+  }
+
+
   @override
   Future<int> getFileSize(Uri attachmentUri) async {
     try {

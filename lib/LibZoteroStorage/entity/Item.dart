@@ -185,6 +185,10 @@ class Item {
     return extension;
   }
 
+  String getContentType() {
+    return data["contentType"] ?? "UNKNOWN";
+  }
+
   bool hasAttachments() {
     return attachments.isNotEmpty;
   }

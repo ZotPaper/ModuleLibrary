@@ -53,4 +53,15 @@ class ItemDataDao {
       whereArgs: [parent],
     );
   }
+
+  // 通过附件key获取所有数据
+  Future<List<ItemData>> getItemDataWithAttachmentKey(String attachmentKey) async {
+    final db = await dbHelper.database;
+    final maps = await db.query(
+      'ItemData',
+      where: 'value = ?',
+      whereArgs: [attachmentKey],
+    );
+    return maps.map((map)  => ItemData.fromJson(map)).toList();
+  }
 }

@@ -4,6 +4,7 @@ import 'package:bruno/bruno.dart';
 import 'package:flutter/foundation.dart';
 import 'package:flutter/material.dart';
 import 'package:module_library/LibZoteroApi/Model/ZoteroSettingsResponse.dart';
+import 'package:module_library/LibZoteroAttachDownloader/native/attachment_native_channel.dart';
 import 'package:module_library/LibZoteroAttachDownloader/webdav_attachment_transfer.dart';
 import 'package:module_library/LibZoteroAttachDownloader/zotero_attach_downloader_helper.dart';
 import 'package:module_library/LibZoteroAttachDownloader/zotero_attachment_transfer.dart';
@@ -947,8 +948,7 @@ class LibraryViewModel with ChangeNotifier {
     bool isDownloaded = await DefaultAttachmentStorage.instance.attachmentExists(targetPdfAttachmentItem);
     if (isDownloaded) {
       // 打开pdf
-      BrnToast.show('${targetPdfAttachmentItem.getTitle()}已下载, 打开pdf功能待开发...', context);
-      MyLogger.d('${targetPdfAttachmentItem.getTitle()}已下载');
+      await openDownloadedPdf(context, targetPdfAttachmentItem);
       return;
     }
 
@@ -1184,6 +1184,29 @@ class LibraryViewModel with ChangeNotifier {
       // 调用自身，确保初次使用可以通知webdav的配置变化回调
       WebdavConfiguration.setUseWebdav(WebdavConfiguration.useWebdav);
     }
+  }
+
+  Future<void> openDownloadedPdf(BuildContext context, Item targetPdfAttachmentItem) async {
+    bool isDownloaded = await DefaultAttachmentStorage.instance.attachmentExists(targetPdfAttachmentItem);
+
+    if (!isDownloaded) {
+      BrnToast.show('请先下载${targetPdfAttachmentItem.getTitle()}', context);
+      MyLogger.d('请先下载${targetPdfAttachmentItem.getTitle()}');
+      return;
+    }
+
+    // BrnToast.show('${targetPdfAttachmentItem.getTitle()}已下载, 打开pdf功能待开发...', context);
+    MyLogger.d('${targetPdfAttachmentItem.getTitle()}已下载');
+
+    final attachmentFile = await DefaultAttachmentStorage.instance.getAttachmentFile(targetPdfAttachmentItem);
+
+    PdfViewerNativeChannel.openPdfViewer(
+        attachmentKey: targetPdfAttachmentItem.itemKey,
+        attachmentPath: attachmentFile.path,
+        attachmentType: targetPdfAttachmentItem.getContentType(),
+    );
+
+
   }
 
 }
