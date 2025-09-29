@@ -2,8 +2,10 @@ import 'dart:async';
 import 'dart:io';
 import 'package:flutter/foundation.dart';
 import 'package:dio/dio.dart';
+import 'package:module_library/ModuleLibrary/utils/my_logger.dart';
 
 import '../LibZoteroStorage/entity/Item.dart';
+import 'package:pretty_dio_logger/pretty_dio_logger.dart';
 
 // 定义异常类
 class AlreadyUploadedException implements Exception {
@@ -42,9 +44,9 @@ class DownloadProgress {
 }
 
 class ZoteroUploadAuthorizationPojo {
-  final String uploadKey;
-  final String url;
-  final ZoteroUploadParams params;
+  final String? uploadKey;
+  final String? url;
+  final ZoteroUploadParams? params;
 
   ZoteroUploadAuthorizationPojo({
     required this.uploadKey,
@@ -54,8 +56,8 @@ class ZoteroUploadAuthorizationPojo {
 
   factory ZoteroUploadAuthorizationPojo.fromJson(Map<String, dynamic> json) {
     return ZoteroUploadAuthorizationPojo(
-      uploadKey: json['uploadKey'],
-      url: json['url'],
+      uploadKey: json['uploadKey'] ?? "",
+      url: json['url'] ?? "",
       params: ZoteroUploadParams.fromJson(json['params']),
     );
   }
@@ -88,16 +90,16 @@ class ZoteroUploadParams {
 
   factory ZoteroUploadParams.fromJson(Map<String, dynamic> json) {
     return ZoteroUploadParams(
-      key: json['key'],
-      acl: json['acl'],
-      content_MD5: json['content-MD5'],
-      success_action_status: json['success_action_status'],
-      policy: json['policy'],
-      x_amz_algorithm: json['x-amz-algorithm'],
-      x_amz_credential: json['x-amz-credential'],
-      x_amz_date: json['x-amz-date'],
-      x_amz_signature: json['x-amz-signature'],
-      x_amz_security_token: json['x-amz-security-token'],
+      key: json['key'] ?? "",
+      acl: json['acl'] ?? "",
+      content_MD5: json['content-MD5'] ?? "",
+      success_action_status: json['success_action_status'] ?? "",
+      policy: json['policy'] ?? "",
+      x_amz_algorithm: json['x-amz-algorithm'] ?? "",
+      x_amz_credential: json['x-amz-credential'] ?? "",
+      x_amz_date: json['x-amz-date'] ?? "",
+      x_amz_signature: json['x-amz-signature'] ?? "",
+      x_amz_security_token: json['x-amz-security-token'] ?? "",
     );
   }
 }
@@ -157,7 +159,16 @@ class ZoteroAttachmentTransfer implements IAttachmentTransfer {
       },
     ));
     if (kDebugMode) {
-      dio.interceptors.add(LogInterceptor(responseBody: true));
+      dio.interceptors.add(
+        PrettyDioLogger(
+          requestHeader: true,
+          requestBody: true,
+          responseBody: false,
+          responseHeader: false,
+          compact: false,
+          error: true,
+        ),
+      );
     }
     return dio;
   }
@@ -247,7 +258,7 @@ class ZoteroAttachmentTransfer implements IAttachmentTransfer {
       );
 
       // await _uploadToAmazon(authorizationPojo, attachment);
-      await _registerUpload(attachment, authorizationPojo.uploadKey, oldMd5);
+      await _registerUpload(attachment, authorizationPojo.uploadKey ?? "", oldMd5);
     } catch (e) {
       rethrow;
     }
@@ -261,17 +272,26 @@ class ZoteroAttachmentTransfer implements IAttachmentTransfer {
       int filesize,
       int mtime,
       ) async {
+
+    MyLogger.d("upload attachment[${item.itemKey}] version[${item.getVersion()}], oldMD5: $oldMd5 newMD5: $newMd5");
+
     final url = '/users/$userID/items/${item.itemKey}/file';
     final response = await _dio.post(
       url,
-      data: {
+      options: Options(
+        headers: {
+          'If-Match': oldMd5,
+        },
+      ),
+      data:  {
+        'contentType': 'application/x-www-form-urlencoded',
+      },
+      queryParameters: {
         'md5': newMd5,
         'filename': filename,
         'filesize': filesize,
         'mtime': mtime,
-        'upload': 1,
-        'contentType': 'application/x-www-form-urlencoded',
-        'condition': oldMd5,
+        'params': 1,
       },
     );
 

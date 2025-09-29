@@ -65,6 +65,8 @@ class ZoteroDB {
   // the metadata i store customly.
   Map<String, AttachmentInfo>? attachmentInfo;
 
+  final attachmentStorageManager = DefaultAttachmentStorage.instance;
+
   // 判断是否已经加载了数据
   bool isPopulated() {
     return true;
@@ -526,16 +528,23 @@ class ZoteroDB {
 
   /// 获取最近打开的附件
   Future<List<RecentlyOpenedAttachment>> getRecentlyOpenedAttachments() async {
-    ZoteroDataSql zoteroDataSql = ZoteroProvider.getZoteroDataSql();
-    return zoteroDataSql.recentlyOpenedAttachmentDao.getAllRecentAttachments();
+    return _zoteroDataSql.recentlyOpenedAttachmentDao.getAllRecentAttachments();
+  }
+
+  /// 移除最近打开的附件
+  Future<void> removeRecentlyOpenedAttachment(String itemKey) async {
+    await _zoteroDataSql.recentlyOpenedAttachmentDao.deleteRecentAttachment(itemKey);
+  }
+
+  /// 更新附件上传后的状态
+  Future<void> updateAttachmentAfterUpload(Item item) async {
+    // 更新附件的版本信息或修改时间标记
+    // 这里可以根据需要更新相关字段
+    await removeRecentlyOpenedAttachment(item.itemKey);
   }
 
   Future<bool> isAttachmentModified(RecentlyOpenedAttachment attachment) async {
-    // todo 待实现
     final item = getItemByKey(attachment.itemKey);
-
-    final attachmentStorageManager = DefaultAttachmentStorage.instance;
-
     if (item != null) {
       try {
         final md5Key = getMd5Key(item);

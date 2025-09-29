@@ -4,6 +4,7 @@ import 'package:bruno/bruno.dart';
 import 'package:flutter/foundation.dart';
 import 'package:flutter/material.dart';
 import 'package:module_library/LibZoteroApi/Model/ZoteroSettingsResponse.dart';
+import 'package:module_library/LibZoteroAttachDownloader/model/upload_attachment.dart';
 import 'package:module_library/LibZoteroAttachDownloader/native/attachment_native_channel.dart';
 import 'package:module_library/LibZoteroAttachDownloader/webdav_attachment_transfer.dart';
 import 'package:module_library/LibZoteroAttachDownloader/zotero_attach_downloader_helper.dart';
@@ -1218,7 +1219,7 @@ class LibraryViewModel with ChangeNotifier {
   }
 
   // 检查已下载的附件是否被修改
-  Future<void> checkModifiedAttachments(BuildContext context) async {
+  Future<void> checkModifiedAttachments() async {
     MyLogger.d('检查打开过的附件是否被修改');
 
     final recentlyOpenedAttachments = await zoteroDB.getRecentlyOpenedAttachments();
@@ -1232,22 +1233,108 @@ class LibraryViewModel with ChangeNotifier {
       }
     }
 
+    // modifiedAttachments.add(RecentlyOpenedAttachment(id: -1, itemKey: "QLTM3JVE", version: 570));
+
     MyLogger.d('修改的附件数量：${modifiedAttachments.length}');
 
     if (modifiedAttachments.isNotEmpty) {
-      // 删除已修改的附件
-      _askToUploadAttachments(
-          context,
-          modifiedAttachments
+      // 获取修改的附件详细信息
+      List<Item> modifiedItems = [];
+      for (var attachment in modifiedAttachments) {
+        final item = zoteroDB.getItemByKey(attachment.itemKey);
+        if (item != null) {
+          modifiedItems.add(item);
+        }
+      }
+
+      if (modifiedItems.isNotEmpty && onModifiedAttachmentsFound != null) {
+        // 通过回调通知UI层显示对话框
+        onModifiedAttachmentsFound!(modifiedItems, modifiedAttachments);
+      }
+    }
+  }
+
+  // 添加回调函数类型定义
+  Function(List<Item> modifiedItems, List<RecentlyOpenedAttachment> attachments)? onModifiedAttachmentsFound;
+
+  /// 设置修改附件发现回调
+  void setOnModifiedAttachmentsFoundCallback(Function(List<Item>, List<RecentlyOpenedAttachment>)? callback) {
+    onModifiedAttachmentsFound = callback;
+  }
+
+  /// 开始上传修改的附件（纯数据处理，不涉及UI）
+  Future<UploadResult> uploadModifiedAttachments(List<Item> modifiedItems, List<RecentlyOpenedAttachment> attachments) async {
+    try {
+      int successCount = 0;
+      int totalCount = modifiedItems.length;
+      List<String> failedItems = [];
+      
+      for (int i = 0; i < modifiedItems.length; i++) {
+        final item = modifiedItems[i];
+        try {
+          await _uploadAttachment(item);
+          successCount++;
+          MyLogger.d('附件上传成功: ${item.getTitle()}');
+        } catch (e) {
+          MyLogger.e('附件上传失败: ${item.getTitle()}, 错误: $e');
+          failedItems.add(item.getTitle());
+        }
+      }
+
+      // 清除修改标记
+      await _clearModifiedAttachmentsMarks(attachments);
+
+      return UploadResult(
+        successCount: successCount,
+        totalCount: totalCount,
+        failedItems: failedItems,
+      );
+
+    } catch (e) {
+      MyLogger.e('上传附件时发生错误: $e');
+      return UploadResult(
+        successCount: 0,
+        totalCount: modifiedItems.length,
+        failedItems: modifiedItems.map((item) => item.getTitle()).toList(),
+        error: e.toString(),
       );
     }
   }
 
-  /// 询问是否上传已修改的附件
-  void _askToUploadAttachments(BuildContext context, List<RecentlyOpenedAttachment> modifiedAttachments) {
-    // 显示修改提示
-    BrnToast.show('${modifiedAttachments.length}个附件已修改，请重新打开', context);
-    // todo 检查是否需要上传已修改的附件
+  /// 上传单个附件
+  Future<void> _uploadAttachment(Item item) async {
+    try {
+      // 确保下载助手已初始化
+      await ensureDownloadHelperInitialized();
+      
+      final downloadHelper = ZoteroAttachDownloaderHelper.instance;
+
+      // 使用下载助手的上传功能
+      await downloadHelper.uploadAttachment(item);
+      
+      // 更新附件的修改时间标记
+      await zoteroDB.updateAttachmentAfterUpload(item);
+      
+    } catch (e) {
+      rethrow;
+    }
+  }
+
+  /// 清除修改的附件标记
+  Future<void> _clearModifiedAttachmentsMarks(List<RecentlyOpenedAttachment> attachments) async {
+    for (var attachment in attachments) {
+      try {
+        // 从最近打开的附件列表中移除，这样下次就不会再检测到修改
+        await zoteroDB.removeRecentlyOpenedAttachment(attachment.itemKey);
+      } catch (e) {
+        MyLogger.e('清除附件修改标记失败: ${attachment.itemKey}, 错误: $e');
+      }
+    }
+  }
+
+  /// 仅清除修改标记，不上传
+  Future<void> clearModifiedAttachmentsMarks(List<RecentlyOpenedAttachment> attachments) async {
+    await _clearModifiedAttachmentsMarks(attachments);
   }
 
 }

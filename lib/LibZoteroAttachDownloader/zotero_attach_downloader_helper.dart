@@ -484,6 +484,39 @@ class ZoteroAttachDownloaderHelper {
     }
   }
 
+  /// 上传附件
+  Future<void> uploadAttachment(Item item) async {
+    if (!_isInitialized) {
+      throw const DownloadException(
+        message: '下载器未初始化，请先调用initialize方法',
+        errorType: DownloadErrorType.notInitialized,
+      );
+    }
+
+    final itemKey = item.itemKey;
+    
+    try {
+      MyLogger.d('开始上传附件: ${item.getTitle()}');
+      
+      // 检查附件是否存在
+      if (!await isAttachmentExists(item)) {
+        throw const DownloadException(
+          message: '本地附件不存在，无法上传',
+          errorType: DownloadErrorType.notFound,
+        );
+      }
+
+      // 使用传输对象上传附件
+      await transfer.updateAttachment(item);
+      
+      MyLogger.d('附件上传成功: ${item.getTitle()}');
+      
+    } catch (e) {
+      MyLogger.e('附件上传失败: ${item.getTitle()}, 错误: $e');
+      rethrow;
+    }
+  }
+
   /// 释放资源
   Future<void> dispose() async {
     await cancelAllDownloads();

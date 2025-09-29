@@ -5,6 +5,7 @@ import 'package:module_library/LibZoteroApi/Model/ZoteroSettingsResponse.dart';
 import 'package:module_library/LibZoteroStorage/entity/Collection.dart';
 import 'package:module_library/LibZoteroStorage/entity/Item.dart';
 import 'package:module_library/LibZoteroAttachDownloader/zotero_attach_downloader_helper.dart';
+import 'package:module_library/LibZoteroStorage/database/dao/RecentlyOpenedAttachmentDao.dart';
 
 import 'package:module_library/ModuleItemDetail/page/item_details_page.dart';
 import 'package:module_library/ModuleLibrary/model/list_entry.dart';
@@ -36,7 +37,7 @@ class LibraryPage extends StatefulWidget {
   State<LibraryPage> createState() => _LibraryPageState();
 }
 
-class _LibraryPageState extends State<LibraryPage> with WidgetsBindingObserver {
+class _LibraryPageState extends State<LibraryPage> with WidgetsBindingObserver, RouteAware {
   late LibraryViewModel _viewModel;
   final GlobalKey<ScaffoldState> _scaffoldKey = GlobalKey<ScaffoldState>();
 
@@ -46,6 +47,9 @@ class _LibraryPageState extends State<LibraryPage> with WidgetsBindingObserver {
   final focusNode = FocusNode();
 
   final RefreshController _refreshController = RefreshController(initialRefresh: false);
+
+  // RouteObserver for navigation detection
+  static final RouteObserver<PageRoute> routeObserver = RouteObserver<PageRoute>();
 
   @override
   void initState() {
@@ -79,23 +83,101 @@ class _LibraryPageState extends State<LibraryPage> with WidgetsBindingObserver {
     // 在这里通过 Provider 获取 ViewModel
     _viewModel = Provider.of<LibraryViewModel>(context, listen: false);
 
+    // 设置修改附件发现回调
+    _viewModel.setOnModifiedAttachmentsFoundCallback(_onModifiedAttachmentsFound);
+
     // 第一次进入页面时初始化数据
     if (!_viewModel.initialized) {
       _viewModel.init();
+    }
+
+    // 注册路由观察者
+    final modalRoute = ModalRoute.of(context);
+    if (modalRoute is PageRoute) {
+      routeObserver.subscribe(this, modalRoute);
+    }
+  }
+
+  /// 当发现修改的附件时的回调处理
+  void _onModifiedAttachmentsFound(List<Item> modifiedItems, List<RecentlyOpenedAttachment> attachments) {
+    _showModifiedAttachmentsDialog(modifiedItems, attachments);
+  }
+
+  /// 显示修改的附件对话框
+  void _showModifiedAttachmentsDialog(List<Item> modifiedItems, List<RecentlyOpenedAttachment> attachments) {
+    final strModified = modifiedItems.map((item) => "\<font color = '#8ac6d1'\>${ item.getTitle()}</font>" ).join(', ');
+
+    BrnDialogManager.showConfirmDialog(context,
+        cancel: "稍后处理",
+        confirm: "立即上传",
+        title: "检测到附件修改",
+        message: "检测到 ${modifiedItems.length} 个附件已被修改，是否需要上传到Zotero服务器？",
+        messageWidget: Padding(
+          padding: const EdgeInsets.only(top: 6, left: 24, right: 24),
+          child: BrnCSS2Text.toTextView(
+              "检测到 ${modifiedItems.length} 个附件已被修改，是否需要上传到服务器进行更新？\n" +
+                  "修改的附件：\n $strModified"
+            ,
+        ),),
+        showIcon: true,
+        onConfirm: () {
+          // Navigator.of(context).pop();
+          // 开始上传修改的附件
+          _startUploadModifiedAttachments(modifiedItems, attachments);
+        },
+        onCancel: () {
+          // Navigator.of(context).pop();
+          // 清除修改标记，用户选择不上传
+          _viewModel.clearModifiedAttachmentsMarks(attachments);
+        },
+    );
+  }
+
+  /// 开始上传修改的附件
+  Future<void> _startUploadModifiedAttachments(List<Item> modifiedItems, List<RecentlyOpenedAttachment> attachments) async {
+    try {
+      // 调用ViewModel的上传方法
+      final result = await _viewModel.uploadModifiedAttachments(modifiedItems, attachments);
+      
+      // 根据结果显示相应的提示
+      if (result.hasError) {
+        BrnToast.show('上传失败：${result.error}', context);
+      } else if (result.isAllSuccessful) {
+        BrnToast.show('所有附件上传成功！', context);
+      } else if (result.successCount > 0) {
+        BrnToast.show('${result.successCount}/${result.totalCount} 个附件上传成功', context);
+      } else {
+        BrnToast.show('附件上传失败，请检查网络连接', context);
+      }
+
+    } catch (e) {
+      MyLogger.e('上传附件时发生错误: $e');
+      BrnToast.show('上传失败：$e', context);
     }
   }
 
   @override
   void didChangeAppLifecycleState(AppLifecycleState state) {
     if (state == AppLifecycleState.resumed) {
-      // 页面回到前台时执行的操作
-      _viewModel.checkModifiedAttachments(context);
+      // 应用从后台返回前台时检查修改的附件
+      _viewModel.checkModifiedAttachments();
     }
+  }
+
+  @override
+  void didPopNext() {
+    // 从其他页面返回时检查修改的附件
+    super.didPopNext();
+    _viewModel.checkModifiedAttachments();
   }
 
   @override
   void dispose() {
     WidgetsBinding.instance.removeObserver(this);
+    routeObserver.unsubscribe(this);
+    textController.dispose();
+    focusNode.dispose();
+    _refreshController.dispose();
     super.dispose();
   }
 

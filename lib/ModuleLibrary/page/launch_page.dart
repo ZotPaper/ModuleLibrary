@@ -78,11 +78,11 @@ class _LaunchPageState extends State<LaunchPage> with SingleTickerProviderStateM
   /// 测试账号登录
   void testAccountLogin() {
     // 是否是debug模式
-    // String userId = "16074844";
-    // String apiKey = "znrrHVJZMhSd8I9TWUxZjAFC";
+    String userId = "16074844";
+    String apiKey = "znrrHVJZMhSd8I9TWUxZjAFC";
 
-    String userId = "8120462";
-    String apiKey = "H95AVvqDvU72LC4qj9Azc5do";
+    // String userId = "8120462";
+    // String apiKey = "H95AVvqDvU72LC4qj9Azc5do";
 
     String userName = "testUserName";
 
@@ -90,12 +90,12 @@ class _LaunchPageState extends State<LaunchPage> with SingleTickerProviderStateM
       _jumpToSyncingPage();
     });
 
-    // webdav信息
-    String webdavAddress = "https://miya.teracloud.jp/dav/";
-    String username = "moyearzhou";
-    String password = "4Efgzy73eTr96DPS";
-
-    WebdavConfiguration.setWebdavConfiguration(webdavAddress, username, password);
-    WebdavConfiguration.setUseWebdav(true);
+    // // webdav信息
+    // String webdavAddress = "https://miya.teracloud.jp/dav/";
+    // String username = "moyearzhou";
+    // String password = "4Efgzy73eTr96DPS";
+    //
+    // WebdavConfiguration.setWebdavConfiguration(webdavAddress, username, password);
+    // WebdavConfiguration.setUseWebdav(true);
   }
 }
