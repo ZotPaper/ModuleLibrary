@@ -8,6 +8,7 @@ import 'package:module_library/LibZoteroAttachDownloader/native/attachment_nativ
 import 'package:module_library/LibZoteroAttachDownloader/webdav_attachment_transfer.dart';
 import 'package:module_library/LibZoteroAttachDownloader/zotero_attach_downloader_helper.dart';
 import 'package:module_library/LibZoteroAttachDownloader/zotero_attachment_transfer.dart';
+import 'package:module_library/LibZoteroStorage/database/dao/RecentlyOpenedAttachmentDao.dart';
 import 'package:module_library/ModuleLibrary/model/list_entry.dart';
 import 'package:module_library/ModuleLibrary/model/page_type.dart';
 import 'package:module_library/ModuleLibrary/my_library_filter.dart';
@@ -1204,13 +1205,49 @@ class LibraryViewModel with ChangeNotifier {
 
     final attachmentFile = await DefaultAttachmentStorage.instance.getAttachmentFile(targetPdfAttachmentItem);
 
-    PdfViewerNativeChannel.openPdfViewer(
+    final res = await PdfViewerNativeChannel.openPdfViewer(
         attachmentKey: targetPdfAttachmentItem.itemKey,
         attachmentPath: attachmentFile.path,
         attachmentType: targetPdfAttachmentItem.getContentType(),
     );
 
+    if (res != null) {
+      // 添加到最近打开的附件
+      zoteroDB.addRecentlyOpenedAttachments(targetPdfAttachmentItem);
+    }
+  }
 
+  // 检查已下载的附件是否被修改
+  Future<void> checkModifiedAttachments(BuildContext context) async {
+    MyLogger.d('检查打开过的附件是否被修改');
+
+    final recentlyOpenedAttachments = await zoteroDB.getRecentlyOpenedAttachments();
+    MyLogger.d('开过的附件数量：${recentlyOpenedAttachments.length}');
+
+    List<RecentlyOpenedAttachment> modifiedAttachments = [];
+    for (var attachment in recentlyOpenedAttachments) {
+      final isModified = await zoteroDB.isAttachmentModified(attachment);
+      if (isModified) {
+        modifiedAttachments.add(attachment);
+      }
+    }
+
+    MyLogger.d('修改的附件数量：${modifiedAttachments.length}');
+
+    if (modifiedAttachments.isNotEmpty) {
+      // 删除已修改的附件
+      _askToUploadAttachments(
+          context,
+          modifiedAttachments
+      );
+    }
+  }
+
+  /// 询问是否上传已修改的附件
+  void _askToUploadAttachments(BuildContext context, List<RecentlyOpenedAttachment> modifiedAttachments) {
+    // 显示修改提示
+    BrnToast.show('${modifiedAttachments.length}个附件已修改，请重新打开', context);
+    // todo 检查是否需要上传已修改的附件
   }
 
 }

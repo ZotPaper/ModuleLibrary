@@ -1,5 +1,7 @@
 import 'dart:io';
 import 'package:crypto/crypto.dart';
+import 'package:module_library/LibZoteroStorage/database/dao/RecentlyOpenedAttachmentDao.dart';
+import 'package:module_library/ModuleLibrary/utils/my_logger.dart';
 import 'package:path/path.dart' as path;
 
 import 'package:module_library/LibZoteroAttachDownloader/zotero_attachment_transfer.dart';
@@ -234,5 +236,17 @@ class DefaultAttachmentStorage implements IAttachmentStorage {
     // 这里需要使用archive包来解压ZIP文件
     // 由于没有引入archive包，这里提供接口，实际使用时需要添加依赖
     throw UnimplementedError("需要添加archive包依赖来实现ZIP解压功能");
+  }
+
+  Future<bool> validateMd5ForItem(Item item, String md5key) async {
+    if (item.itemType != Item.ATTACHMENT_TYPE) {
+      throw(Exception("error invalid item ${item.itemKey}: ${item.itemType} cannot calculate md5."));
+    }
+    if (md5key == "") {
+      MyLogger.d("error cannot check MD5, no MD5 Available");
+      return true;
+    }
+    final calculatedMd5 = await calculateMd5(item);
+    return calculatedMd5 == md5key;
   }
 }

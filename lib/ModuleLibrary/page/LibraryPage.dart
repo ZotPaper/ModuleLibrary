@@ -36,7 +36,7 @@ class LibraryPage extends StatefulWidget {
   State<LibraryPage> createState() => _LibraryPageState();
 }
 
-class _LibraryPageState extends State<LibraryPage> {
+class _LibraryPageState extends State<LibraryPage> with WidgetsBindingObserver {
   late LibraryViewModel _viewModel;
   final GlobalKey<ScaffoldState> _scaffoldKey = GlobalKey<ScaffoldState>();
 
@@ -50,6 +50,8 @@ class _LibraryPageState extends State<LibraryPage> {
   @override
   void initState() {
     super.initState();
+    WidgetsBinding.instance.addObserver(this);
+
     ///initState 中添加监听，记得销毁
     textController.addListener((){
       if(focusNode.hasFocus){
@@ -71,7 +73,7 @@ class _LibraryPageState extends State<LibraryPage> {
 
 
   @override
-  void didChangeDependencies() {
+  void didChangeDependencies() { 
     super.didChangeDependencies();
 
     // 在这里通过 Provider 获取 ViewModel
@@ -83,6 +85,19 @@ class _LibraryPageState extends State<LibraryPage> {
     }
   }
 
+  @override
+  void didChangeAppLifecycleState(AppLifecycleState state) {
+    if (state == AppLifecycleState.resumed) {
+      // 页面回到前台时执行的操作
+      _viewModel.checkModifiedAttachments(context);
+    }
+  }
+
+  @override
+  void dispose() {
+    WidgetsBinding.instance.removeObserver(this);
+    super.dispose();
+  }
 
   @override
   Widget build(BuildContext context) {
