@@ -84,6 +84,20 @@ class LibraryViewModel with ChangeNotifier {
   AttachmentDownloadInfo? getDownloadStatus(String itemKey) {
     return _downloadStates[itemKey];
   }
+
+  /// 获取所有正在进行的下载任务
+  List<AttachmentDownloadInfo> getActiveDownloads() {
+    return _downloadStates.values
+        .where((info) => 
+            info.status == DownloadStatus.downloading || 
+            info.status == DownloadStatus.extracting)
+        .toList();
+  }
+
+  /// 检查是否有正在进行的下载
+  bool hasActiveDownloads() {
+    return getActiveDownloads().isNotEmpty;
+  }
   
   /// 获取缓存的文件存在状态
   bool? getCachedFileExists(String itemKey) {

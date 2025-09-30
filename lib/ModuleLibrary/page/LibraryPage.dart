@@ -26,6 +26,7 @@ import '../utils/color_utils.dart';
 import '../utils/device_utils.dart';
 import 'LibraryUI/appBar.dart';
 import 'LibraryUI/drawer.dart';
+import '../widget/global_download_indicator.dart';
 import 'package:flutter_svg/flutter_svg.dart';
 import 'package:bruno/bruno.dart';
 import 'package:flutter/foundation.dart';
@@ -302,10 +303,23 @@ class _LibraryPageState extends State<LibraryPage> with WidgetsBindingObserver, 
     if (_viewModel.curPage == PageType.sync) {
       return const SyncPageFragment();
     } else if (_viewModel.curPage == PageType.library) {
-      return libraryListPage();
+      return Stack(
+        children: [
+          libraryListPage(),
+          // 全局下载进度指示器
+          _buildGlobalDownloadIndicator(),
+        ],
+      );
     } else {
       return _emptyView();
     }
+  }
+
+  /// 构建全局下载进度指示器
+  Widget _buildGlobalDownloadIndicator() {
+    return GlobalDownloadIndicator(
+      viewModel: _viewModel,
+    );
   }
 
   /// 文库列表页面
