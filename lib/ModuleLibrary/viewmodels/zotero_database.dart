@@ -1,7 +1,16 @@
 
+import 'dart:collection';
+
 import 'package:flutter/cupertino.dart';
+import 'package:module_library/LibZoteroAttachDownloader/default_attachment_storage.dart';
+import 'package:module_library/LibZoteroAttachment/model/pdf_annotation.dart';
+import 'package:module_library/LibZoteroStorage/database/dao/RecentlyOpenedAttachmentDao.dart';
+import 'package:module_library/LibZoteroStorage/entity/AttachmentInfo.dart';
+import 'package:module_library/LibZoteroStorage/entity/ItemData.dart';
 import 'package:module_library/LibZoteroStorage/entity/ItemTag.dart';
+import 'package:module_library/ModuleLibrary/api/ZoteroDataSql.dart';
 import 'package:module_library/ModuleLibrary/utils/my_logger.dart';
+import 'package:module_library/ModuleLibrary/zotero_provider.dart';
 import 'package:module_library/utils/zotero_sync_progress_helper.dart';
 import 'package:shared_preferences/shared_preferences.dart';
 
@@ -20,6 +29,8 @@ class ZoteroDB {
     /// 加载上次保存的下载进度，避免重复加载
     _loadSavedDownloadProgress();
   }
+
+  final ZoteroDataSql _zoteroDataSql = ZoteroProvider.getZoteroDataSql();
 
   // 所有的条目数据
   final List<Item> _items = [];
@@ -48,6 +59,13 @@ class ZoteroDB {
   final List<ItemTag> _itemTags = [];
   List<ItemTag> get itemTags => _itemTags;
 
+  // map that stores attachmentInfo classes by ItemKey.
+  // This is used to store metadata related to items that don't go in the item database class
+  // such a design was picked to seperate the data that is from the zotero api official server and
+  // the metadata i store customly.
+  Map<String, AttachmentInfo>? attachmentInfo;
+
+  final attachmentStorageManager = DefaultAttachmentStorage.instance;
 
   // 判断是否已经加载了数据
   bool isPopulated() {
@@ -65,6 +83,14 @@ class ZoteroDB {
     _createCollectionItemMap();
     // 处理条目数据
     _processItems();
+
+    // 获取附件信息
+    _zoteroDataSql.attachmentInfoDao.getAllAttachmentInfos().then((attachments) {
+      attachmentInfo = HashMap<String, AttachmentInfo>();
+      for (var attachment in (attachments ?? [])) {
+        attachmentInfo![attachment.itemKey] = attachment;
+      }
+    });
   }
 
   void setCollections(List<Collection> collections) {
@@ -436,6 +462,126 @@ class ZoteroDB {
   void setCollectionsDownloadProgress(CollectionsDownloadProgress collectionsDownloadProgress) {
     ZoteroSyncProgressHelper.setCollectionsDownloadProgress(collectionsDownloadProgress);
   }
+
+
+  Future<List<PdfAnnotation>> getPdfAnnotations(String itemKey) async {
+    final zoteroDataSql = ZoteroDataSql();
+    final res = await zoteroDataSql.itemDataDao.getItemDataWithAttachmentKey(itemKey);
+
+    MyLogger.d('annotations[${itemKey}] value: $res');
+
+    final List<PdfAnnotation> annotations = [];
+
+    for (var itemData in res) {
+      if (itemData.name == "parentItem") {
+        final data = await zoteroDataSql.itemDataDao.getDataForAnnotationKey(itemData.parent);
+        final annotation = parsePdfAnnotation(data);
+        annotations.add(annotation);
+      }
+    }
+    return annotations;
+  }
+
+  PdfAnnotation parsePdfAnnotation(List<ItemData> data) {
+    final Map<String, String> map = {};
+
+    for (var item in data) {
+      map[item.name] = item.value;
+    }
+
+    final String key = map['key'] ?? '';
+    final String parentItem = map['parentItem'] ?? '';
+    final int annotationPageLabel = int.tryParse(map['annotationPageLabel'] ?? '') ?? -1;
+    final String annotationColor = map['annotationColor'] ?? '';
+    final String annotationPosition = map['annotationPosition'] ?? '';
+    final String annotationType = map['annotationType'] ?? '';
+    final String annotationText = map['annotationText'] ?? '';
+    final String dateAdded = map['dateAdded'] ?? '';
+    final String dateModified = map['dateModified'] ?? '';
+    final String annotationSortIndex = map['annotationSortIndex'] ?? '';
+    final String annotationComment = map['annotationComment'] ?? '';
+
+    final PdfAnnotation annotation = PdfAnnotation(
+      key: key,
+      parentItemKey: parentItem,
+      pageLabel: annotationPageLabel,
+      color: annotationColor,
+      position: annotationPosition,
+      type: annotationType,
+    );
+
+    annotation.text = annotationText;
+    annotation.comment = annotationComment;
+    annotation.dateAdded = dateAdded;
+    annotation.dateModified = dateModified;
+    annotation.sortIndex = annotationSortIndex;
+
+    return annotation;
+  }
+
+  /// 添加到最近打开的附件
+  void addRecentlyOpenedAttachments(Item attachment) {
+    ZoteroDataSql zoteroDataSql = ZoteroProvider.getZoteroDataSql();
+    final RecentlyOpenedAttachment recentlyOpenedAttachment = RecentlyOpenedAttachment(id: -1, itemKey: attachment.itemKey, version: attachment.getVersion());
+    zoteroDataSql.recentlyOpenedAttachmentDao.insertRecentAttachment(recentlyOpenedAttachment);
+  }
+
+  /// 获取最近打开的附件
+  Future<List<RecentlyOpenedAttachment>> getRecentlyOpenedAttachments() async {
+    return _zoteroDataSql.recentlyOpenedAttachmentDao.getAllRecentAttachments();
+  }
+
+  /// 移除最近打开的附件
+  Future<void> removeRecentlyOpenedAttachment(String itemKey) async {
+    await _zoteroDataSql.recentlyOpenedAttachmentDao.deleteRecentAttachment(itemKey);
+  }
+
+  /// 更新附件上传后的状态
+  Future<void> updateAttachmentAfterUpload(Item item) async {
+    // 更新附件的版本信息或修改时间标记
+    // 这里可以根据需要更新相关字段
+    await removeRecentlyOpenedAttachment(item.itemKey);
+  }
+
+  Future<bool> isAttachmentModified(RecentlyOpenedAttachment attachment) async {
+    final item = getItemByKey(attachment.itemKey);
+    if (item != null) {
+      try {
+        final md5Key = getMd5Key(item);
+
+        if (md5Key != "" && !(await attachmentStorageManager.validateMd5ForItem(item, md5Key))) {
+         return true;
+        } else {
+         return false;
+        }
+      } catch (e) {
+        MyLogger.e("zotero: validateMd5 got error $e");
+      }
+    }
+
+    return true;
+  }
+
+  String getMd5Key(Item item, {bool onlyWebdav = false}) {
+    if (attachmentInfo == null) {
+      debugPrint('error attachment metadata isn\'t loaded');
+      return '';
+    }
+
+    final attachmentInfoEntry = attachmentInfo![item.itemKey];
+    if (attachmentInfoEntry == null) {
+      final md5Key = item.data['md5'];
+      if (md5Key != null) {
+        return md5Key;
+      }
+      debugPrint('No metadata available for ${item.itemKey}');
+      return '';
+    }
+
+    return attachmentInfoEntry.md5Key;
+  }
+
+
 
 
 }
