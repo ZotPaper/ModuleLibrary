@@ -40,12 +40,16 @@ class MyItemFilter {
   }
 
   Future<void> _loadStarredItems() async {
+    // 先清空列表，避免重复加载
+    _starredItems.clear();
+    
     final file = await _getStarConfigFile();
     if (await file.exists()) {
       final content = await file.readAsString();
       if (content.isNotEmpty) {
         final list = json.decode(content) as List;
         _starredItems.addAll(list.map((e) => FilterInfo.fromJson(e)));
+        MyLogger.d('加载收藏数据: ${_starredItems.length}个');
       }
     }
   }

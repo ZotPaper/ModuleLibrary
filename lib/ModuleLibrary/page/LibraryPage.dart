@@ -1038,11 +1038,26 @@ class _AttachmentIndicatorWidgetState extends State<_AttachmentIndicatorWidget> 
   String? targetItemKey;
   AttachmentDownloadInfo? lastDownloadInfo;
   bool? lastFileExists;
+  
+  // 添加Future缓存，避免重复创建
+  Future<bool>? _fileExistsCheckFuture;
 
   @override
   void initState() {
     super.initState();
     _findTargetPdfAttachment();
+  }
+  
+  @override
+  void didUpdateWidget(_AttachmentIndicatorWidget oldWidget) {
+    super.didUpdateWidget(oldWidget);
+    // 如果item变化了，重新查找PDF附件
+    if (oldWidget.item != widget.item) {
+      _findTargetPdfAttachment();
+      _fileExistsCheckFuture = null; // 清除旧的Future缓存
+      lastDownloadInfo = null;
+      lastFileExists = null;
+    }
   }
 
   void _findTargetPdfAttachment() {
@@ -1061,28 +1076,39 @@ class _AttachmentIndicatorWidgetState extends State<_AttachmentIndicatorWidget> 
     return ListenableBuilder(
       listenable: widget.viewModel,
       builder: (context, child) {
-        // 只有当这个特定项目的状态改变时才重建
-        final currentDownloadInfo = targetItemKey != null 
-            ? widget.viewModel.getDownloadStatus(targetItemKey!)
-            : null;
-        final currentFileExists = targetItemKey != null
-            ? widget.viewModel.getCachedFileExists(targetItemKey!)
-            : null;
+        if (targetItemKey == null) {
+          return InkWell(
+            onTap: widget.onTap,
+            child: Container(
+              padding: const EdgeInsets.all(4),
+              child: _buildNotDownloadedIndicator(),
+            ),
+          );
+        }
 
-        // 检查是否需要重建
-        final needsRebuild = currentDownloadInfo != lastDownloadInfo || 
-                           currentFileExists != lastFileExists;
+        // 只获取这个特定item的状态
+        final currentDownloadInfo = widget.viewModel.getDownloadStatus(targetItemKey!);
+        final currentFileExists = widget.viewModel.getCachedFileExists(targetItemKey!);
 
-        if (needsRebuild) {
+        // 检查状态是否真的变化了
+        final downloadInfoChanged = currentDownloadInfo != lastDownloadInfo;
+        final fileExistsChanged = currentFileExists != lastFileExists;
+        
+        if (downloadInfoChanged || fileExistsChanged) {
           lastDownloadInfo = currentDownloadInfo;
           lastFileExists = currentFileExists;
+          
+          // 如果缓存状态变化了，清除Future缓存
+          if (fileExistsChanged) {
+            _fileExistsCheckFuture = null;
+          }
         }
 
         return InkWell(
           onTap: widget.onTap,
           child: Container(
             padding: const EdgeInsets.all(4),
-            child: _buildAttachmentIcon(currentDownloadInfo, targetPdfAttachmentItem),
+            child: _buildAttachmentIcon(currentDownloadInfo, currentFileExists),
           ),
         );
       },
@@ -1090,55 +1116,49 @@ class _AttachmentIndicatorWidgetState extends State<_AttachmentIndicatorWidget> 
   }
 
   /// 根据下载状态构建附件图标
-  Widget _buildAttachmentIcon(AttachmentDownloadInfo? downloadInfo, Item? targetPdfAttachmentItem) {
-    // if (kDebugMode) {
-    //   print('构建附件图标: ${downloadInfo?.itemKey} - ${downloadInfo?.status} - ${downloadInfo?.progressPercent}%');
-    // }
-
-    if (downloadInfo == null) {
-      // 没有下载状态时，检查缓存的文件存在状态
-      if (targetPdfAttachmentItem != null) {
-        final itemKey = targetPdfAttachmentItem.itemKey;
-        final cachedExists = widget.viewModel.getCachedFileExists(itemKey);
-        
-        if (cachedExists != null) {
-          // 有缓存值，直接使用
-          return cachedExists ? _buildDownloadedIndicator() : _buildNotDownloadedIndicator();
-        } else {
-          // 没有缓存值，使用FutureBuilder检查一次并缓存
-          return FutureBuilder<bool>(
-            future: widget.viewModel.checkAndCacheFileExists(targetPdfAttachmentItem),
-            builder: (context, snapshot) {
-              if (snapshot.connectionState == ConnectionState.waiting) {
-                // 正在检查文件状态，显示默认图标
-                return _buildDefaultIndicator();
-              }
-              
-              final isDownloaded = snapshot.data ?? false;
-              return isDownloaded ? _buildDownloadedIndicator() : _buildNotDownloadedIndicator();
-            },
-          );
-        }
-      } else {
-        // 没有PDF附件，显示未下载图标
-        return _buildNotDownloadedIndicator();
+  Widget _buildAttachmentIcon(AttachmentDownloadInfo? downloadInfo, bool? cachedFileExists) {
+    // 优先显示下载状态
+    if (downloadInfo != null) {
+      switch (downloadInfo.status) {
+        case DownloadStatus.downloading:
+          return _buildDownloadingIndicator(downloadInfo);
+        case DownloadStatus.extracting:
+          return _buildExtractingIndicator();
+        case DownloadStatus.completed:
+          return _buildCompletedIndicator();
+        case DownloadStatus.failed:
+          return _buildFailedIndicator();
+        case DownloadStatus.cancelled:
+          return _buildCancelledIndicator();
+        default:
+          return _buildDefaultIndicator();
       }
     }
 
-    switch (downloadInfo.status) {
-      case DownloadStatus.downloading:
-        return _buildDownloadingIndicator(downloadInfo);
-      case DownloadStatus.extracting:
-        return _buildExtractingIndicator();
-      case DownloadStatus.completed:
-        return _buildCompletedIndicator();
-      case DownloadStatus.failed:
-        return _buildFailedIndicator();
-      case DownloadStatus.cancelled:
-        return _buildCancelledIndicator();
-      default:
-        return _buildDefaultIndicator();
+    // 没有下载状态时，检查文件是否存在
+    if (targetPdfAttachmentItem == null) {
+      return _buildNotDownloadedIndicator();
     }
+
+    // 如果有缓存值，直接使用
+    if (cachedFileExists != null) {
+      return cachedFileExists ? _buildDownloadedIndicator() : _buildNotDownloadedIndicator();
+    }
+
+    // 没有缓存值，需要异步检查（只创建一次Future）
+    _fileExistsCheckFuture ??= widget.viewModel.checkAndCacheFileExists(targetPdfAttachmentItem!);
+    
+    return FutureBuilder<bool>(
+      future: _fileExistsCheckFuture,
+      builder: (context, snapshot) {
+        if (snapshot.connectionState == ConnectionState.waiting) {
+          return _buildDefaultIndicator();
+        }
+        
+        final isDownloaded = snapshot.data ?? false;
+        return isDownloaded ? _buildDownloadedIndicator() : _buildNotDownloadedIndicator();
+      },
+    );
   }
 
   /// 下载中：圆形进度环

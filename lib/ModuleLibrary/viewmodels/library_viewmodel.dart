@@ -104,6 +104,9 @@ class LibraryViewModel with ChangeNotifier {
     return _fileExistsCache[itemKey];
   }
   
+  // 用于防止同一个文件被重复检查
+  final Map<String, Future<bool>> _fileCheckingFutures = {};
+  
   /// 异步检查并缓存文件存在状态
   Future<bool> checkAndCacheFileExists(Item pdfAttachment) async {
     final itemKey = pdfAttachment.itemKey;
@@ -113,11 +116,34 @@ class LibraryViewModel with ChangeNotifier {
       return _fileExistsCache[itemKey]!;
     }
     
-    // 异步检查文件是否存在
-    final exists = await DefaultAttachmentStorage.instance.attachmentExists(pdfAttachment);
-    _fileExistsCache[itemKey] = exists;
+    // 如果正在检查中，返回同一个Future
+    if (_fileCheckingFutures.containsKey(itemKey)) {
+      return _fileCheckingFutures[itemKey]!;
+    }
     
-    return exists;
+    // 创建新的检查Future
+    final checkFuture = _checkFileExists(pdfAttachment);
+    _fileCheckingFutures[itemKey] = checkFuture;
+    
+    try {
+      final exists = await checkFuture;
+      _fileExistsCache[itemKey] = exists;
+      MyLogger.d('文件存在检查完成: $itemKey = $exists');
+      return exists;
+    } finally {
+      // 检查完成后移除Future缓存
+      _fileCheckingFutures.remove(itemKey);
+    }
+  }
+  
+  /// 实际执行文件检查的方法
+  Future<bool> _checkFileExists(Item pdfAttachment) async {
+    try {
+      return await DefaultAttachmentStorage.instance.attachmentExists(pdfAttachment);
+    } catch (e) {
+      MyLogger.e('检查文件存在时出错: ${pdfAttachment.itemKey}, 错误: $e');
+      return false;
+    }
   }
   
   /// 检查附件是否正在下载
@@ -713,11 +739,15 @@ class LibraryViewModel with ChangeNotifier {
   }
 
   Future<List<ListEntry>> _getMyStarredEntries() async {
+    // 每次都创建新的列表，避免重复数据
     List<ListEntry> res = [];
     List<Item> starredItems = [];
     List<Collection> starredCollections = [];
     
-    MyItemFilter.instance.getMyStars().forEach((ele) {
+    // 获取收藏的items和collections
+    final myStars = MyItemFilter.instance.getMyStars();
+    
+    for (var ele in myStars) {
       if (ele.isCollection) {
         var collection = zoteroDB.getCollectionByKey(ele.itemKey);
         if (collection != null) {
@@ -729,7 +759,7 @@ class LibraryViewModel with ChangeNotifier {
           starredItems.add(item);
         }
       }
-    });
+    }
 
     // 对收藏的集合进行排序
     sortCollections(starredCollections);
@@ -740,6 +770,8 @@ class LibraryViewModel with ChangeNotifier {
     sortItems(starredItems);
     res.addAll(starredItems.map((item) => ListEntry(item: item)));
 
+    MyLogger.d('_getMyStarredEntries: 收藏集合=${starredCollections.length}, 收藏条目=${starredItems.length}, 总计=${res.length}');
+    
     return res;
   }
 
@@ -981,9 +1013,14 @@ class LibraryViewModel with ChangeNotifier {
     final downloadHelper = ZoteroAttachDownloaderHelper.instance;
 
     try {
+      final itemKey = targetPdfAttachmentItem.itemKey;
+      
+      // 清除文件存在状态缓存，因为要开始下载了
+      _fileExistsCache.remove(itemKey);
+      
       // 立即设置初始下载状态，确保UI显示进度环
       final initialDownloadInfo = AttachmentDownloadInfo(
-        itemKey: targetPdfAttachmentItem.itemKey,
+        itemKey: itemKey,
         filename: targetPdfAttachmentItem.getTitle(),
         progress: 0,
         total: 100,
@@ -1141,8 +1178,10 @@ class LibraryViewModel with ChangeNotifier {
         await storage.deleteAttachment(attachment);
         MyLogger.d('删除附件成功: ${attachment.getTitle()}');
         
-        // 更新文件存在状态缓存
+        // 更新文件存在状态缓存为false
         _fileExistsCache[attachment.itemKey] = false;
+        // 清除可能存在的检查Future
+        _fileCheckingFutures.remove(attachment.itemKey);
         
         successCount++;
       } catch (e) {
