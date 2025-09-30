@@ -29,6 +29,7 @@ import '../widget/attachment_indicator.dart';
 import '../widget/item_entry_widget.dart';
 import '../widget/collection_entry_widget.dart';
 import '../widget/item_type_icon.dart';
+import '../widget/bottomsheet/item_operation_panel.dart';
 import 'LibraryUI/appBar.dart';
 import 'LibraryUI/drawer.dart';
 import 'package:flutter_svg/flutter_svg.dart';
@@ -401,7 +402,11 @@ class _LibraryPageState extends State<LibraryPage> with WidgetsBindingObserver, 
               _showItemInfo(context, entry.item!);
             },
             onMorePressed: () {
-              _showItemEntryOperatePanel(context, entry.item!);
+              ItemOperationPanel.show(
+                context: context,
+                item: entry.item!,
+                viewModel: _viewModel,
+              );
             },
             onPdfTap: () {
               try {
@@ -458,151 +463,6 @@ class _LibraryPageState extends State<LibraryPage> with WidgetsBindingObserver, 
       },
     );
   }
-
-  /// 显示条目操作面板
-  void _showItemEntryOperatePanel(BuildContext ctx, Item item) {
-    List<ItemClickProxy> itemClickProxies = [];
-    itemClickProxies.add(ItemClickProxy(
-      title: "在线查看",
-      desc: "在线查看条目的最新信息",
-      onClick: () {
-        _viewModel.viewItemOnline(context, item);
-      },
-    ));
-
-    bool isStared = _viewModel.isItemStarred(item);
-    if (isStared) {
-      itemClickProxies.add(ItemClickProxy(
-        title: "从收藏夹中移除",
-        desc: "从收藏夹中移除该条目",
-        actionStyle: "alert",
-        onClick: () {
-          _viewModel.removeStar(item: item);
-        },
-      ));
-    } else {
-      itemClickProxies.add(ItemClickProxy(
-        title: "添加到收藏",
-        onClick: () {
-          _viewModel.addToStaredItem(item);
-        },
-      ));
-    }
-
-    bool isItemDeleted = _viewModel.isItemDeleted(item);
-    if (isItemDeleted) {
-      itemClickProxies.add(ItemClickProxy(
-        title: "还原到文献库中",
-        onClick: () {
-          _viewModel.restoreItem(ctx, item);
-        },
-      ));
-    } else {
-      itemClickProxies.add(ItemClickProxy(
-        title: "移动到回收站",
-        actionStyle: "alert",
-        onClick: () {
-          Future.delayed(const Duration(milliseconds: 200), () {
-            _viewModel.moveItemToTrash(ctx, item);
-          });
-        },
-      ));
-    }
-
-    if (item.hasAttachments()) {
-      itemClickProxies.add(ItemClickProxy(
-        title: "删除已下载的附件",
-        actionStyle: "alert",
-        onClick: () {
-          Future.delayed(const Duration(milliseconds: 200), () {
-            BrnDialogManager.showConfirmDialog(context,
-                // showIcon: true,
-                // iconWidget: Image.asset(
-                //   "images/icon_warnning.png",
-                //   package: "bruno",
-                // ),
-                title: "删除下载的附件",
-                confirm: "确定",
-                cancel: "取消",
-                message: "是否删除《${item.getTitle()}》中已下载的附件",
-                                 onConfirm: () async {
-                   Navigator.of(ctx).pop();
-                   await _viewModel.deleteAllDownloadedAttachmentsOfItems(
-                       context,
-                       item,
-                       onCallback: () {
-                         // 删除完成后的回调，可以在这里添加额外的逻辑
-                         MyLogger.d('所有附件删除操作完成');
-                       });
-                 },
-                onCancel: () {
-                  Navigator.of(ctx).pop();
-                });
-          });
-        },
-      ));
-    }
-
-    if (!isItemDeleted) {
-      itemClickProxies.add(ItemClickProxy(
-        title: "更改所属集合",
-        onClick: () {
-          Future.delayed(const Duration(milliseconds: 200), () {
-            _viewModel.showChangeCollectionSelector(ctx, item: item);
-          });
-        },
-      ));
-    }
-
-    List<BrnCommonActionSheetItem> itemActions = itemClickProxies.map((ele) {
-      var actionStyle = BrnCommonActionSheetItemStyle.normal;
-      if (ele.actionStyle != null && ele.actionStyle == "alert") {
-        actionStyle = BrnCommonActionSheetItemStyle.alert;
-      }
-      return BrnCommonActionSheetItem(
-        ele.title,
-        desc: ele.desc,
-        actionStyle: actionStyle,
-      );
-    }).toList();
-
-
-
-    // itemActions.add(BrnCommonActionSheetItem(
-    //   '下载所有附件',
-    //   desc: '下载条目下的所有附件到本地',
-    //   actionStyle: BrnCommonActionSheetItemStyle.normal,
-    // ));
-    // itemActions.add(BrnCommonActionSheetItem(
-    //   '删除下载的附件',
-    //   desc: '该操作不可逆，请确保本地的附件修改同步至云端',
-    //   actionStyle: BrnCommonActionSheetItemStyle.alert,
-    // ));
-    // itemActions.add(BrnCommonActionSheetItem(
-    //   '分享条目',
-    //   // desc: '分享条目信息给朋友',
-    //   actionStyle: BrnCommonActionSheetItemStyle.normal,
-    // ));
-
-    var title = item.getTitle();
-
-    // 展示actionSheet
-    showModalBottomSheet(
-        context: ctx,
-        backgroundColor: Colors.transparent,
-        useRootNavigator: true,
-        builder: (BuildContext bottomSheetContext) {
-          return BrnCommonActionSheet(
-            title: title,
-            actions: itemActions,
-            cancelTitle: "取消",
-            clickCallBack: (int index, BrnCommonActionSheetItem actionEle) {
-              itemClickProxies[index].onClick?.call();
-            },
-          );
-        });
-  }
-
 
   /// 显示合集操作面板
   void _showCollectionEntryOperatePanel(BuildContext context, Collection collection) {
