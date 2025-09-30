@@ -26,6 +26,9 @@ import '../utils/color_utils.dart';
 import '../utils/device_utils.dart';
 import '../widget/global_download_indicator.dart';
 import '../widget/attachment_indicator.dart';
+import '../widget/item_entry_widget.dart';
+import '../widget/collection_entry_widget.dart';
+import '../widget/item_type_icon.dart';
 import 'LibraryUI/appBar.dart';
 import 'LibraryUI/drawer.dart';
 import 'package:flutter_svg/flutter_svg.dart';
@@ -389,141 +392,39 @@ class _LibraryPageState extends State<LibraryPage> with WidgetsBindingObserver, 
     return Card(
       elevation: 0,
       color: ResColor.bgColor,
-      child: InkWell(
-        onTap: () {
-          debugPrint("Moyear==== item click");
-
-          if (entry.isCollection()) {
-            _viewModel.handleCollectionTap(entry.collection!);
-          } else if (entry.isItem()) {
-            _showItemInfo(context, entry.item!);
-          }
-
-        },
-        child: Container(
-          padding: const EdgeInsets.all(10),
-          width: double.infinity,
-          child: entry.isItem() ? _widgetItemEntry(entry.item!) : _widgetCollectionEntry(entry.collection!)
-        ),
-      ),
-    );
-  }
-  
-  /// 条目的列表widget
-  Widget _widgetItemEntry(Item item)  {
-    return Row(
-      children: [
-        _entryIcon(ListEntry(item: item)),
-        const SizedBox(width: 12),
-        Expanded(
-          child: Column(
-            children: [
-              Container(
-                width: double.infinity,
-                child: Text(item.getTitle(), maxLines: 2, style: TextStyle(color: ResColor.textMain),),
-              ),
-              Container(
-                width: double.infinity,
-                child: Text(
-                  item.getAuthor(),
-                  maxLines: 1,
-                  style: TextStyle(color: Colors.grey.shade500),
-                ),
-              ),
-              _itemImportantTags(item),
-            ],
+      child: entry.isItem() 
+        ? ItemEntryWidget(
+            item: entry.item!,
+            viewModel: _viewModel,
+            onTap: () {
+              debugPrint("Moyear==== item click");
+              _showItemInfo(context, entry.item!);
+            },
+            onMorePressed: () {
+              _showItemEntryOperatePanel(context, entry.item!);
+            },
+            onPdfTap: () {
+              try {
+                _viewModel.openOrDownloadedPdf(context, entry.item!);
+              } catch (e) {
+                debugPrint("pdf tap error: $e");
+                BrnToast.show("$e", context);
+              }
+            },
+          )
+        : CollectionEntryWidget(
+            collection: entry.collection!,
+            viewModel: _viewModel,
+            onTap: () {
+              debugPrint("Moyear==== collection click");
+              _viewModel.handleCollectionTap(entry.collection!);
+            },
+            onMorePressed: () {
+              _showCollectionEntryOperatePanel(context, entry.collection!);
+            },
           ),
-        ),
-        if (_hasPdfAttachment(item)) _attachmentIndicator(item),
-        IconButton(onPressed: () {
-          _showItemEntryOperatePanel(context, item);
-        }, icon: Icon(Icons.more_vert_sharp, color: Colors.grey.shade400, size: 20,)),
-      ],
     );
   }
-
-  /// 条目是否有pdf附件
-  bool _hasPdfAttachment(Item item) {
-    return _viewModel.itemHasPdfAttachment(item);
-  }
-  
-  Widget _widgetCollectionEntry(Collection collection)  {
-    int sizeSub = _viewModel.getNumInCollection(collection);
-
-    return Row(
-      children: [
-        _entryIcon(ListEntry(collection: collection)),
-        const SizedBox(width: 12),
-        Expanded(
-          child: Column(
-            children: [
-              SizedBox(
-                width: double.infinity,
-                child: Text(collection.name, maxLines: 2, style: TextStyle(color: ResColor.textMain)),
-              ),
-              SizedBox(
-                width: double.infinity,
-                child: Text(
-                  "$sizeSub条子项",
-                  maxLines: 1,
-                  style: TextStyle(color: Colors.grey.shade500),
-                ),
-              ),
-            ],
-          ),
-        ),
-        IconButton(onPressed: () {
-          _showCollectionEntryOperatePanel(context, collection);
-        }, icon: Icon(Icons.more_vert_sharp, color: Colors.grey.shade400, size: 20,)),
-      ],
-    );
-  }
-
-  /// Icon Widget
-  Widget _iconItemWidget(ListEntry entry) {
-    if (entry.isCollection()) {
-      return SvgPicture.asset(
-        'assets/items/opened_folder.svg',
-        package: 'module_library',
-        width: 16,
-        height: 16,
-        // color: Colors.blue, // 可选颜色
-      );
-    }
-
-    return requireItemIcon(entry.item?.itemType ?? "");
-  }
-
-  /// Entry Icon Widget
-  Widget _entryIcon(ListEntry entry) {
-    return Container(
-      height: 42,
-      width: 42,
-      padding: const EdgeInsets.all(10),
-      decoration: BoxDecoration(
-        color: Colors.grey[100],
-        borderRadius: BorderRadius.circular(26),
-      ),
-      child: _iconItemWidget(entry),
-    );
-  }
-
-  Widget _attachmentIndicator(Item item) {
-    return AttachmentIndicator(
-      item: item,
-      viewModel: _viewModel,
-      onTap: () {
-        try {
-          _viewModel.openOrDownloadedPdf(context, item);
-        } catch (e) {
-          debugPrint("pdf tap error: $e");
-          BrnToast.show("$e", context);
-        }
-      },
-    );
-  }
-
-
 
   /// 下拉刷新 Header
   Widget _refreshHeader() {
@@ -555,132 +456,6 @@ class _LibraryPageState extends State<LibraryPage> with WidgetsBindingObserver, 
           ),
         );
       },
-    );
-  }
-
-  Widget requireItemIcon(String itemType) {
-    String iconPath;
-    // Assign SVG icon path based on itemType
-    switch (itemType) {
-      case "note":
-        iconPath = 'assets/items/ic_item_note.svg';
-        break;
-      case "book":
-        iconPath = 'assets/items/ic_book.svg';
-        break;
-      case "bookSection":
-        iconPath = 'assets/items/ic_book_section.svg';
-        break;
-      case "journalArticle":
-        iconPath = 'assets/items/journal_article.svg';
-        break;
-      case "magazineArticle":
-        iconPath = 'assets/items/magazine_article_24dp.svg';
-        break;
-      case "newspaperArticle":
-        iconPath = 'assets/items/newspaper_article_24dp.svg';
-        break;
-      case "thesis":
-        iconPath = 'assets/items/ic_thesis.svg';
-        break;
-      case "letter":
-        iconPath = 'assets/items/letter_24dp.svg';
-        break;
-      case "manuscript":
-        iconPath = 'assets/items/manuscript_24dp.svg';
-        break;
-      case "interview":
-        iconPath = 'assets/items/interview_24dp.svg';
-        break;
-      case "film":
-        iconPath = 'assets/items/film_24dp.svg';
-        break;
-      case "artwork":
-        iconPath = 'assets/items/artwork_24dp.svg';
-        break;
-      case "webpage":
-        iconPath = 'assets/items/ic_web_page.svg';
-        break;
-      case "attachment":
-        iconPath = 'assets/items/ic_treeitem_attachment.svg';
-        break;
-      case "report":
-        iconPath = 'assets/items/report_24dp.svg';
-        break;
-      case "bill":
-        iconPath = 'assets/items/bill_24dp.svg';
-        break;
-      case "case":
-        iconPath = 'assets/items/case_24dp.svg';
-        break;
-      case "hearing":
-        iconPath = 'assets/items/hearing_24dp.svg';
-        break;
-      case "patent":
-        iconPath = 'assets/items/patent_24dp.svg';
-        break;
-      case "statute":
-        iconPath = 'assets/items/statute_24dp.svg';
-        break;
-      case "email":
-        iconPath = 'assets/items/email_24dp.svg';
-        break;
-      case "map":
-        iconPath = 'assets/items/map_24dp.svg';
-        break;
-      case "blogPost":
-        iconPath = 'assets/items/blog_post_24dp.svg';
-        break;
-      case "instantMessage":
-        iconPath = 'assets/items/instant_message_24dp.svg';
-        break;
-      case "forumPost":
-        iconPath = 'assets/items/forum_post_24dp.svg';
-        break;
-      case "audioRecording":
-        iconPath = 'assets/items/audio_recording_24dp.svg';
-        break;
-      case "presentation":
-        iconPath = 'assets/items/presentation_24dp.svg';
-        break;
-      case "videoRecording":
-        iconPath = 'assets/items/video_recording_24dp.svg';
-        break;
-      case "tvBroadcast":
-        iconPath = 'assets/items/tv_broadcast_24dp.svg';
-        break;
-      case "radioBroadcast":
-        iconPath = 'assets/items/radio_broadcast_24dp.svg';
-        break;
-      case "podcast":
-        iconPath = 'assets/items/podcast_24dp.svg';
-        break;
-      case "computerProgram":
-        iconPath = 'assets/items/computer_program_24dp.svg';
-        break;
-      case "conferencePaper":
-        iconPath = 'assets/items/ic_conference_paper.svg';
-        break;
-      case "document":
-        iconPath = 'assets/items/ic_document.svg';
-        break;
-      case "encyclopediaArticle":
-        iconPath = 'assets/items/encyclopedia_article_24dp.svg';
-        break;
-      case "dictionaryEntry":
-        iconPath = 'assets/items/dictionary_entry_24dp.svg';
-        break;
-      default:
-        iconPath = 'assets/items/ic_item_known.svg';
-    }
-
-    // Return the appropriate SVG image
-    return SvgPicture.asset(
-      iconPath,
-      height: 14,
-      width: 14,
-      package: 'module_library',
-      colorFilter: ColorFilter.mode(ResColor.textMain, BlendMode.srcIn),
     );
   }
 
@@ -911,27 +686,6 @@ class _LibraryPageState extends State<LibraryPage> with WidgetsBindingObserver, 
       // 关闭刷新动画
       _refreshController.refreshCompleted();
     });
-  }
-
-  Widget _itemImportantTags(Item item) {
-    if (item.getTagList().isEmpty) {
-      return Container();
-    }
-
-    // 获取item的标签
-    final tags =  _viewModel.getImportTagOfItemSync(item);
-    return Row(
-        children: tags.map<Widget>((tag) {
-      return Container(
-        margin: const EdgeInsets.only(right: 2),
-        child: BrnTagCustom(
-          tagText: tag.name,
-
-          textColor: ColorUtils.hexToColor(tag.color),
-          backgroundColor: const Color(0xFFF1F2FA),
-        ),
-      );
-    }).toList(),);
   }
 
   Widget _emptyView() {
