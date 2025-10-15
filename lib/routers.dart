@@ -10,6 +10,9 @@ import 'ModuleLibrary/page/sync_page/sync_page.dart';
 import 'ModuleLibrary/utils/my_logger.dart';
 import 'ModuleTagManager/page/item_tagsmanager_page.dart';
 
+// 全局RouteObserver，用于监听页面路由变化
+final RouteObserver<PageRoute> globalRouteObserver = RouteObserver<PageRoute>();
+
 class MyRouter {
   // 单例模式
   static final MyRouter instance = MyRouter._internal();

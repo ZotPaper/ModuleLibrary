@@ -1,7 +1,12 @@
+import 'dart:async';
+
 import 'package:flutter/cupertino.dart';
 import 'package:flutter/material.dart';
 import 'package:flutter/services.dart';
+import 'package:module_base/my_eventbus.dart';
+import 'package:module_base/utils/logger.dart';
 import 'package:module_library/LibZoteroApi/Model/ZoteroSettingsResponse.dart';
+import 'package:module_library/LibZoteroAttachDownloader/event/event_check_attachment_modification.dart';
 import 'package:module_library/LibZoteroStorage/entity/Collection.dart';
 import 'package:module_library/LibZoteroStorage/entity/Item.dart';
 import 'package:module_library/LibZoteroAttachDownloader/zotero_attach_downloader_helper.dart';
@@ -17,7 +22,7 @@ import 'package:module_library/ModuleLibrary/utils/sheet_item_helper.dart';
 import 'package:module_library/ModuleLibrary/utils/my_logger.dart';
 import 'package:module_library/ModuleLibrary/viewmodels/library_viewmodel.dart';
 import 'package:module_library/ModuleTagManager/item_tagmanager.dart';
-import 'package:module_library/routers.dart';
+import 'package:module_library/routers.dart' show MyRouter, globalRouteObserver;
 import 'package:provider/provider.dart';
 import 'package:pull_to_refresh/pull_to_refresh.dart';
 
@@ -30,6 +35,7 @@ import '../widget/item_entry_widget.dart';
 import '../widget/collection_entry_widget.dart';
 import '../widget/item_type_icon.dart';
 import '../widget/bottomsheet/item_operation_panel.dart';
+import '../widget/modified_attachments_banner.dart';
 import 'LibraryUI/appBar.dart';
 import 'LibraryUI/drawer.dart';
 import 'package:flutter_svg/flutter_svg.dart';
@@ -53,12 +59,16 @@ class _LibraryPageState extends State<LibraryPage> with WidgetsBindingObserver, 
   final focusNode = FocusNode();
 
   final RefreshController _refreshController = RefreshController(initialRefresh: false);
-
-  // RouteObserver for navigation detection
-  static final RouteObserver<PageRoute> routeObserver = RouteObserver<PageRoute>();
   
   // 对话框显示标志位，防止重复显示
   bool _isModifiedAttachmentsDialogShowing = false;
+
+  StreamSubscription? _subscription;
+
+  // 修改的附件信息
+  List<Item>? _modifiedItems;
+  List<RecentlyOpenedAttachment>? _modifiedAttachments;
+  bool _showModifiedBanner = false;
 
   @override
   void initState() {
@@ -82,6 +92,17 @@ class _LibraryPageState extends State<LibraryPage> with WidgetsBindingObserver, 
         }
       }
     });
+
+    // 监听检查附件变更事件
+    _subscription = eventBus.on<EventCheckAttachmentModification>().listen((event) {
+      MyLogger.d("Moyear=== 收到监听检查附件变更事件");
+
+      // 延迟执行操作
+      Future.delayed(const Duration(seconds: 1), () {
+        // 检查附件变更
+        _viewModel.checkModifiedAttachments();
+      });
+    });
   }
 
 
@@ -103,22 +124,46 @@ class _LibraryPageState extends State<LibraryPage> with WidgetsBindingObserver, 
     // 注册路由观察者
     final modalRoute = ModalRoute.of(context);
     if (modalRoute is PageRoute) {
-      routeObserver.subscribe(this, modalRoute);
+      globalRouteObserver.subscribe(this, modalRoute);
     }
   }
 
   /// 当发现修改的附件时的回调处理
   void _onModifiedAttachmentsFound(List<Item> modifiedItems, List<RecentlyOpenedAttachment> attachments) {
-    _showModifiedAttachmentsDialog(modifiedItems, attachments);
+    // 保存修改的附件信息并显示提示栏
+    setState(() {
+      _modifiedItems = modifiedItems;
+      _modifiedAttachments = attachments;
+      _showModifiedBanner = true;
+    });
+  }
+
+  /// 关闭修改附件提示栏
+  void _dismissModifiedBanner() {
+    setState(() {
+      _showModifiedBanner = false;
+    });
+    // 清除修改标记
+    if (_modifiedAttachments != null) {
+      _viewModel.clearModifiedAttachmentsMarks(_modifiedAttachments!);
+    }
+  }
+
+  /// 点击提示栏，显示对话框
+  void _onModifiedBannerTap() {
+    if (_modifiedItems != null && _modifiedAttachments != null) {
+      _showModifiedAttachmentsDialog(_modifiedItems!, _modifiedAttachments!);
+    }
   }
 
   /// 显示修改的附件对话框
   void _showModifiedAttachmentsDialog(List<Item> modifiedItems, List<RecentlyOpenedAttachment> attachments) {
+    MyLogger.d("Moyear=== 显示修改的附件对话框");
     // 检查对话框是否已经在显示中，避免重复显示
-    if (_isModifiedAttachmentsDialogShowing) {
-      MyLogger.d('修改附件对话框已经在显示中，跳过重复显示');
-      return;
-    }
+    // if (_isModifiedAttachmentsDialogShowing) {
+    //   MyLogger.d('Moyear=== 修改附件对话框已经在显示中，跳过重复显示');
+    //   return;
+    // }
     
     // 设置标志位，表示对话框正在显示
     _isModifiedAttachmentsDialogShowing = true;
@@ -141,6 +186,10 @@ class _LibraryPageState extends State<LibraryPage> with WidgetsBindingObserver, 
         onConfirm: () {
           // 重置标志位，允许下次显示对话框
           _isModifiedAttachmentsDialogShowing = false;
+          // 隐藏提示栏
+          setState(() {
+            _showModifiedBanner = false;
+          });
           // Navigator.of(context).pop();
           // 开始上传修改的附件
           _startUploadModifiedAttachments(modifiedItems, attachments);
@@ -148,9 +197,13 @@ class _LibraryPageState extends State<LibraryPage> with WidgetsBindingObserver, 
         onCancel: () {
           // 重置标志位，允许下次显示对话框
           _isModifiedAttachmentsDialogShowing = false;
+          // 隐藏提示栏并清除修改标记
+          setState(() {
+            _showModifiedBanner = false;
+          });
           // Navigator.of(context).pop();
           // 清除修改标记，用户选择不上传
-          _viewModel.clearModifiedAttachmentsMarks(attachments);
+          // _viewModel.clearModifiedAttachmentsMarks(attachments);
         },
     );
   }
@@ -181,6 +234,7 @@ class _LibraryPageState extends State<LibraryPage> with WidgetsBindingObserver, 
   @override
   void didChangeAppLifecycleState(AppLifecycleState state) {
     if (state == AppLifecycleState.resumed) {
+      MyLogger.d("Moyear=== 应用从后台返回前台时检查修改的附件");
       // 应用从后台返回前台时检查修改的附件
       _viewModel.checkModifiedAttachments();
     }
@@ -188,15 +242,18 @@ class _LibraryPageState extends State<LibraryPage> with WidgetsBindingObserver, 
 
   @override
   void didPopNext() {
-    // 从其他页面返回时检查修改的附件
+    // 每次从其他页面返回时检查修改的附件
     super.didPopNext();
     _viewModel.checkModifiedAttachments();
+    MyLogger.d("Moyear=== 从其他页面返回时检查修改的附件");
   }
 
   @override
   void dispose() {
+    // 记得取消订阅
+    _subscription?.cancel();
     WidgetsBinding.instance.removeObserver(this);
-    routeObserver.unsubscribe(this);
+    globalRouteObserver.unsubscribe(this);
     textController.dispose();
     focusNode.dispose();
     _refreshController.dispose();
@@ -355,6 +412,13 @@ class _LibraryPageState extends State<LibraryPage> with WidgetsBindingObserver, 
       child: Column(
         children: [
           searchLine(),
+          // 修改附件提示栏
+          if (_showModifiedBanner)
+            ModifiedAttachmentsBanner(
+              modifiedCount: _modifiedItems?.length ?? 0,
+              onTap: _onModifiedBannerTap,
+              onDismiss: _dismissModifiedBanner,
+            ),
           Expanded(
             child: _viewModel.displayEntries.isEmpty ? _emptyView() : Container(
               color: ResColor.bgColor,

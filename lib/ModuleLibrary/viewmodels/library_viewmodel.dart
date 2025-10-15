@@ -1273,10 +1273,10 @@ class LibraryViewModel with ChangeNotifier {
 
   // 检查已下载的附件是否被修改
   Future<void> checkModifiedAttachments() async {
-    MyLogger.d('检查打开过的附件是否被修改');
+    MyLogger.d('Moyear=== 检查打开过的附件是否被修改');
 
     final recentlyOpenedAttachments = await zoteroDB.getRecentlyOpenedAttachments();
-    MyLogger.d('开过的附件数量：${recentlyOpenedAttachments.length}');
+    MyLogger.d('Moyear=== 开过的附件数量：${recentlyOpenedAttachments.length}');
 
     List<RecentlyOpenedAttachment> modifiedAttachments = [];
     for (var attachment in recentlyOpenedAttachments) {
@@ -1288,7 +1288,7 @@ class LibraryViewModel with ChangeNotifier {
 
     // modifiedAttachments.add(RecentlyOpenedAttachment(id: -1, itemKey: "QLTM3JVE", version: 570));
 
-    MyLogger.d('修改的附件数量：${modifiedAttachments.length}');
+    MyLogger.d('Moyear=== 修改的附件数量：${modifiedAttachments.length}');
 
     if (modifiedAttachments.isNotEmpty) {
       // 获取修改的附件详细信息
