@@ -56,6 +56,9 @@ class _LibraryPageState extends State<LibraryPage> with WidgetsBindingObserver, 
 
   // RouteObserver for navigation detection
   static final RouteObserver<PageRoute> routeObserver = RouteObserver<PageRoute>();
+  
+  // 对话框显示标志位，防止重复显示
+  bool _isModifiedAttachmentsDialogShowing = false;
 
   @override
   void initState() {
@@ -111,6 +114,15 @@ class _LibraryPageState extends State<LibraryPage> with WidgetsBindingObserver, 
 
   /// 显示修改的附件对话框
   void _showModifiedAttachmentsDialog(List<Item> modifiedItems, List<RecentlyOpenedAttachment> attachments) {
+    // 检查对话框是否已经在显示中，避免重复显示
+    if (_isModifiedAttachmentsDialogShowing) {
+      MyLogger.d('修改附件对话框已经在显示中，跳过重复显示');
+      return;
+    }
+    
+    // 设置标志位，表示对话框正在显示
+    _isModifiedAttachmentsDialogShowing = true;
+    
     final strModified = modifiedItems.map((item) => "\<font color = '#8ac6d1'\>${ item.getTitle()}</font>" ).join(', ');
 
     BrnDialogManager.showConfirmDialog(context,
@@ -127,11 +139,15 @@ class _LibraryPageState extends State<LibraryPage> with WidgetsBindingObserver, 
         ),),
         showIcon: true,
         onConfirm: () {
+          // 重置标志位，允许下次显示对话框
+          _isModifiedAttachmentsDialogShowing = false;
           // Navigator.of(context).pop();
           // 开始上传修改的附件
           _startUploadModifiedAttachments(modifiedItems, attachments);
         },
         onCancel: () {
+          // 重置标志位，允许下次显示对话框
+          _isModifiedAttachmentsDialogShowing = false;
           // Navigator.of(context).pop();
           // 清除修改标记，用户选择不上传
           _viewModel.clearModifiedAttachmentsMarks(attachments);
