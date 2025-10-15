@@ -1328,14 +1328,17 @@ class LibraryViewModel with ChangeNotifier {
           await _uploadAttachment(item);
           successCount++;
           MyLogger.d('附件上传成功: ${item.getTitle()}');
+
+          // 从最近打开的附件列表中移除，这样下次就不会再检测到修改
+          await zoteroDB.removeRecentlyOpenedAttachment(item.itemKey);
         } catch (e) {
           MyLogger.e('附件上传失败: ${item.getTitle()}, 错误: $e');
           failedItems.add(item.getTitle());
         }
       }
 
-      // 清除修改标记
-      await _clearModifiedAttachmentsMarks(attachments);
+      // // 清除修改标记
+      // await _clearModifiedAttachmentsMarks(attachments);
 
       return UploadResult(
         successCount: successCount,
@@ -1387,7 +1390,7 @@ class LibraryViewModel with ChangeNotifier {
 
   /// 仅清除修改标记，不上传
   Future<void> clearModifiedAttachmentsMarks(List<RecentlyOpenedAttachment> attachments) async {
-    await _clearModifiedAttachmentsMarks(attachments);
+    // await _clearModifiedAttachmentsMarks(attachments);
   }
 
 }
