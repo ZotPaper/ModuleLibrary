@@ -77,6 +77,9 @@ class LibraryViewModel with ChangeNotifier {
   // 下载状态跟踪
   final Map<String, AttachmentDownloadInfo> _downloadStates = {};
   
+  // 上传状态跟踪
+  final Map<String, AttachmentUploadInfo> _uploadStates = {};
+  
   // 文件存在状态缓存
   final Map<String, bool> _fileExistsCache = {};
   
@@ -97,6 +100,53 @@ class LibraryViewModel with ChangeNotifier {
   /// 检查是否有正在进行的下载
   bool hasActiveDownloads() {
     return getActiveDownloads().isNotEmpty;
+  }
+
+  /// 获取所有正在进行的上传任务
+  List<AttachmentUploadInfo> getActiveUploads() {
+    return _uploadStates.values
+        .where((info) => info.status == UploadStatus.uploading)
+        .toList();
+  }
+
+  /// 检查是否有正在进行的上传
+  bool hasActiveUploads() {
+    return getActiveUploads().isNotEmpty;
+  }
+
+  /// 更新上传状态
+  void _updateUploadState(AttachmentUploadInfo uploadInfo) {
+    _uploadStates[uploadInfo.itemKey] = uploadInfo;
+    MyLogger.d('更新上传状态: ${uploadInfo.itemKey} - ${uploadInfo.status}');
+    notifyListeners(); // 通知UI更新
+  }
+
+  /// 移除上传状态
+  void _removeUploadState(String itemKey) {
+    _uploadStates.remove(itemKey);
+    MyLogger.d('移除上传状态: $itemKey');
+    notifyListeners();
+  }
+
+  /// 更新上传进度（公开方法，供UI层调用）
+  void updateUploadProgress({
+    required Item item,
+    required int currentIndex,
+    required int totalCount,
+  }) {
+    final uploadInfo = AttachmentUploadInfo(
+      itemKey: item.itemKey,
+      filename: item.getTitle(),
+      currentIndex: currentIndex,
+      totalCount: totalCount,
+      status: UploadStatus.uploading,
+    );
+    _updateUploadState(uploadInfo);
+  }
+
+  /// 移除上传进度（公开方法，供UI层调用）
+  void removeUploadProgress(String itemKey) {
+    _removeUploadState(itemKey);
   }
   
   /// 获取缓存的文件存在状态
@@ -1357,7 +1407,12 @@ class LibraryViewModel with ChangeNotifier {
     }
   }
 
-  /// 上传单个附件
+  /// 上传单个附件（公开方法，供UI层调用）
+  Future<void> uploadSingleAttachment(Item item) async {
+    await _uploadAttachment(item);
+  }
+
+  /// 上传单个附件（内部实现）
   Future<void> _uploadAttachment(Item item) async {
     try {
       // 确保下载助手已初始化

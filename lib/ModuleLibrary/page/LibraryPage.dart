@@ -5,6 +5,7 @@ import 'package:flutter/material.dart';
 import 'package:flutter/services.dart';
 import 'package:module_base/my_eventbus.dart';
 import 'package:module_base/utils/logger.dart';
+import 'package:module_base/view/dialog/neat_dialog.dart';
 import 'package:module_library/LibZoteroApi/Model/ZoteroSettingsResponse.dart';
 import 'package:module_library/LibZoteroAttachDownloader/event/event_check_attachment_modification.dart';
 import 'package:module_library/LibZoteroStorage/entity/Collection.dart';
@@ -36,6 +37,8 @@ import '../widget/collection_entry_widget.dart';
 import '../widget/item_type_icon.dart';
 import '../widget/bottomsheet/item_operation_panel.dart';
 import '../widget/modified_attachments_banner.dart';
+import '../widget/upload_progress_dialog.dart';
+import '../widget/global_upload_indicator.dart';
 import 'LibraryUI/appBar.dart';
 import 'LibraryUI/drawer.dart';
 import 'package:flutter_svg/flutter_svg.dart';
@@ -170,7 +173,7 @@ class _LibraryPageState extends State<LibraryPage> with WidgetsBindingObserver, 
     
     final strModified = modifiedItems.map((item) => "\<font color = '#8ac6d1'\>${ item.getTitle()}</font>" ).join(', ');
 
-    BrnDialogManager.showConfirmDialog(context,
+    NeatDialogManager.showConfirmDialog(context,
         cancel: "稍后处理",
         confirm: "立即上传",
         title: "检测到附件修改",
@@ -183,25 +186,31 @@ class _LibraryPageState extends State<LibraryPage> with WidgetsBindingObserver, 
             ,
         ),),
         showIcon: true,
-        onConfirm: () {
+        onConfirm: (BuildContext dialogContext) {
           // 重置标志位，允许下次显示对话框
           _isModifiedAttachmentsDialogShowing = false;
+          
           // 隐藏提示栏
           setState(() {
             _showModifiedBanner = false;
           });
-          // Navigator.of(context).pop();
-          // 开始上传修改的附件
+
+          Navigator.of(dialogContext).pop();
+
+          // 开始上传修改的附件（会显示进度对话框）
           _startUploadModifiedAttachments(modifiedItems, attachments);
         },
-        onCancel: () {
+        onCancel: (BuildContext dialogContext) {
           // 重置标志位，允许下次显示对话框
           _isModifiedAttachmentsDialogShowing = false;
+          
           // 隐藏提示栏并清除修改标记
           setState(() {
             _showModifiedBanner = false;
           });
-          // Navigator.of(context).pop();
+
+          Navigator.of(dialogContext).pop();
+          
           // 清除修改标记，用户选择不上传
           // _viewModel.clearModifiedAttachmentsMarks(attachments);
         },
@@ -210,24 +219,68 @@ class _LibraryPageState extends State<LibraryPage> with WidgetsBindingObserver, 
 
   /// 开始上传修改的附件
   Future<void> _startUploadModifiedAttachments(List<Item> modifiedItems, List<RecentlyOpenedAttachment> attachments) async {
+    final totalCount = modifiedItems.length;
+    int successCount = 0;
+    List<String> failedItems = [];
+
     try {
-      // 调用ViewModel的上传方法
-      final result = await _viewModel.uploadModifiedAttachments(modifiedItems, attachments);
+      // 逐个上传附件
+      for (int i = 0; i < modifiedItems.length; i++) {
+        final item = modifiedItems[i];
+        
+        try {
+          MyLogger.d('开始上传附件 ${i + 1}/$totalCount: ${item.getTitle()}');
+          
+          // 更新上传状态到ViewModel（会自动通知全局指示器更新）
+          _viewModel.updateUploadProgress(
+            item: item,
+            currentIndex: i + 1,
+            totalCount: totalCount,
+          );
+
+          // 上传单个附件
+          await _viewModel.uploadSingleAttachment(item);
+          
+          // 从最近打开的附件列表中移除
+          await _viewModel.zoteroDB.removeRecentlyOpenedAttachment(item.itemKey);
+          
+          // 上传完成后移除该附件的上传状态
+          _viewModel.removeUploadProgress(item.itemKey);
+          
+          successCount++;
+          MyLogger.d('附件上传成功: ${item.getTitle()}');
+          
+        } catch (e) {
+          MyLogger.e('附件上传失败: ${item.getTitle()}, 错误: $e');
+          failedItems.add(item.getTitle());
+          // 上传失败也移除状态
+          _viewModel.removeUploadProgress(item.itemKey);
+        }
+      }
+
+      // 显示结果
+      if (!mounted) return;
       
-      // 根据结果显示相应的提示
-      if (result.hasError) {
-        BrnToast.show('上传失败：${result.error}', context);
-      } else if (result.isAllSuccessful) {
+      if (failedItems.isEmpty) {
+        // 全部成功
         BrnToast.show('所有附件上传成功！', context);
-      } else if (result.successCount > 0) {
-        BrnToast.show('${result.successCount}/${result.totalCount} 个附件上传成功', context);
+      } else if (successCount > 0) {
+        // 部分成功
+        BrnToast.show('上传完成：${successCount}个成功，${failedItems.length}个失败', context);
       } else {
-        BrnToast.show('附件上传失败，请检查网络连接', context);
+        // 全部失败
+        BrnToast.show('上传失败，请检查网络连接', context);
       }
 
     } catch (e) {
       MyLogger.e('上传附件时发生错误: $e');
-      BrnToast.show('上传失败：$e', context);
+      // 清除所有上传状态
+      for (var item in modifiedItems) {
+        _viewModel.removeUploadProgress(item.itemKey);
+      }
+      if (mounted) {
+        BrnToast.show('上传失败：$e', context);
+      }
     }
   }
 
@@ -386,6 +439,8 @@ class _LibraryPageState extends State<LibraryPage> with WidgetsBindingObserver, 
           libraryListPage(),
           // 全局下载进度指示器
           _buildGlobalDownloadIndicator(),
+          // 全局上传进度指示器
+          _buildGlobalUploadIndicator(),
         ],
       );
     } else {
@@ -396,6 +451,13 @@ class _LibraryPageState extends State<LibraryPage> with WidgetsBindingObserver, 
   /// 构建全局下载进度指示器
   Widget _buildGlobalDownloadIndicator() {
     return GlobalDownloadIndicator(
+      viewModel: _viewModel,
+    );
+  }
+
+  /// 构建全局上传进度指示器
+  Widget _buildGlobalUploadIndicator() {
+    return GlobalUploadIndicator(
       viewModel: _viewModel,
     );
   }
