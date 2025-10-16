@@ -309,10 +309,15 @@ class ZoteroAttachmentTransfer implements IAttachmentTransfer {
     final url = '/users/$userID/items/${attachment.itemKey}/file';
     final response = await _dio.post(
       url,
-      data: {
+      options: Options(
+        headers: {
+          'If-Match': oldMd5,
+        },
+      ),
+      queryParameters: {
         'upload': uploadKey,
-        'md5': oldMd5,
       },
+      data: 'upload=$uploadKey',
     );
 
     switch (response.statusCode) {
