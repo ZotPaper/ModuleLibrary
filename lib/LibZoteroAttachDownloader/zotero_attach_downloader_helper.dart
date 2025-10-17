@@ -16,6 +16,14 @@ enum DownloadStatus {
   cancelled,   // 取消
 }
 
+/// 上传状态枚举
+enum UploadStatus {
+  idle,       // 空闲
+  uploading,  // 上传中
+  completed,  // 完成
+  failed,     // 失败
+}
+
 /// 自定义下载异常类
 class DownloadException implements Exception {
   final String message;
@@ -86,6 +94,48 @@ class AttachmentDownloadInfo {
   @override
   String toString() {
     return 'AttachmentDownloadInfo{itemKey: $itemKey, filename: $filename, progress: $progress/$total (${progressPercent.toStringAsFixed(1)}%), status: $status}';
+  }
+}
+
+/// 附件上传信息
+class AttachmentUploadInfo {
+  final String itemKey;
+  final String filename;
+  final int currentIndex;
+  final int totalCount;
+  final UploadStatus status;
+  final String? errorMessage;
+
+  AttachmentUploadInfo({
+    required this.itemKey,
+    required this.filename,
+    required this.currentIndex,
+    required this.totalCount,
+    required this.status,
+    this.errorMessage,
+  });
+
+  AttachmentUploadInfo copyWith({
+    String? itemKey,
+    String? filename,
+    int? currentIndex,
+    int? totalCount,
+    UploadStatus? status,
+    String? errorMessage,
+  }) {
+    return AttachmentUploadInfo(
+      itemKey: itemKey ?? this.itemKey,
+      filename: filename ?? this.filename,
+      currentIndex: currentIndex ?? this.currentIndex,
+      totalCount: totalCount ?? this.totalCount,
+      status: status ?? this.status,
+      errorMessage: errorMessage ?? this.errorMessage,
+    );
+  }
+
+  @override
+  String toString() {
+    return 'AttachmentUploadInfo{itemKey: $itemKey, filename: $filename, progress: $currentIndex/$totalCount, status: $status}';
   }
 }
 

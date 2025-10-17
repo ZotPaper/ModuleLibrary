@@ -77,6 +77,9 @@ class LibraryViewModel with ChangeNotifier {
   // 下载状态跟踪
   final Map<String, AttachmentDownloadInfo> _downloadStates = {};
   
+  // 上传状态跟踪
+  final Map<String, AttachmentUploadInfo> _uploadStates = {};
+  
   // 文件存在状态缓存
   final Map<String, bool> _fileExistsCache = {};
   
@@ -97,6 +100,58 @@ class LibraryViewModel with ChangeNotifier {
   /// 检查是否有正在进行的下载
   bool hasActiveDownloads() {
     return getActiveDownloads().isNotEmpty;
+  }
+
+  /// 获取所有正在进行的上传任务（包含失败状态，以便用户看到错误）
+  List<AttachmentUploadInfo> getActiveUploads() {
+    return _uploadStates.values
+        .where((info) => 
+            info.status == UploadStatus.uploading ||
+            info.status == UploadStatus.failed)
+        .toList();
+  }
+
+  /// 检查是否有正在进行的上传
+  bool hasActiveUploads() {
+    return getActiveUploads().isNotEmpty;
+  }
+
+  /// 更新上传状态
+  void _updateUploadState(AttachmentUploadInfo uploadInfo) {
+    _uploadStates[uploadInfo.itemKey] = uploadInfo;
+    MyLogger.d('更新上传状态: ${uploadInfo.itemKey} - ${uploadInfo.status}');
+    notifyListeners(); // 通知UI更新
+  }
+
+  /// 移除上传状态
+  void _removeUploadState(String itemKey) {
+    _uploadStates.remove(itemKey);
+    MyLogger.d('移除上传状态: $itemKey');
+    notifyListeners();
+  }
+
+  /// 更新上传进度（公开方法，供UI层调用）
+  void updateUploadProgress({
+    required Item item,
+    required int currentIndex,
+    required int totalCount,
+    UploadStatus status = UploadStatus.uploading,
+    String? errorMessage,
+  }) {
+    final uploadInfo = AttachmentUploadInfo(
+      itemKey: item.itemKey,
+      filename: item.getTitle(),
+      currentIndex: currentIndex,
+      totalCount: totalCount,
+      status: status,
+      errorMessage: errorMessage,
+    );
+    _updateUploadState(uploadInfo);
+  }
+
+  /// 移除上传进度（公开方法，供UI层调用）
+  void removeUploadProgress(String itemKey) {
+    _removeUploadState(itemKey);
   }
   
   /// 获取缓存的文件存在状态
@@ -1273,10 +1328,10 @@ class LibraryViewModel with ChangeNotifier {
 
   // 检查已下载的附件是否被修改
   Future<void> checkModifiedAttachments() async {
-    MyLogger.d('检查打开过的附件是否被修改');
+    MyLogger.d('Moyear=== 检查打开过的附件是否被修改');
 
     final recentlyOpenedAttachments = await zoteroDB.getRecentlyOpenedAttachments();
-    MyLogger.d('开过的附件数量：${recentlyOpenedAttachments.length}');
+    MyLogger.d('Moyear=== 开过的附件数量：${recentlyOpenedAttachments.length}');
 
     List<RecentlyOpenedAttachment> modifiedAttachments = [];
     for (var attachment in recentlyOpenedAttachments) {
@@ -1288,7 +1343,7 @@ class LibraryViewModel with ChangeNotifier {
 
     // modifiedAttachments.add(RecentlyOpenedAttachment(id: -1, itemKey: "QLTM3JVE", version: 570));
 
-    MyLogger.d('修改的附件数量：${modifiedAttachments.length}');
+    MyLogger.d('Moyear=== 修改的附件数量：${modifiedAttachments.length}');
 
     if (modifiedAttachments.isNotEmpty) {
       // 获取修改的附件详细信息
@@ -1328,14 +1383,17 @@ class LibraryViewModel with ChangeNotifier {
           await _uploadAttachment(item);
           successCount++;
           MyLogger.d('附件上传成功: ${item.getTitle()}');
+
+          // 从最近打开的附件列表中移除，这样下次就不会再检测到修改
+          await zoteroDB.removeRecentlyOpenedAttachment(item.itemKey);
         } catch (e) {
           MyLogger.e('附件上传失败: ${item.getTitle()}, 错误: $e');
           failedItems.add(item.getTitle());
         }
       }
 
-      // 清除修改标记
-      await _clearModifiedAttachmentsMarks(attachments);
+      // // 清除修改标记
+      // await _clearModifiedAttachmentsMarks(attachments);
 
       return UploadResult(
         successCount: successCount,
@@ -1354,7 +1412,12 @@ class LibraryViewModel with ChangeNotifier {
     }
   }
 
-  /// 上传单个附件
+  /// 上传单个附件（公开方法，供UI层调用）
+  Future<void> uploadSingleAttachment(Item item) async {
+    await _uploadAttachment(item);
+  }
+
+  /// 上传单个附件（内部实现）
   Future<void> _uploadAttachment(Item item) async {
     try {
       // 确保下载助手已初始化
@@ -1387,7 +1450,7 @@ class LibraryViewModel with ChangeNotifier {
 
   /// 仅清除修改标记，不上传
   Future<void> clearModifiedAttachmentsMarks(List<RecentlyOpenedAttachment> attachments) async {
-    await _clearModifiedAttachmentsMarks(attachments);
+    // await _clearModifiedAttachmentsMarks(attachments);
   }
 
 }

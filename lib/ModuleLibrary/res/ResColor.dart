@@ -8,4 +8,7 @@ class ResColor{
   static var selectedBgColor = const Color(0xFFdde2f7);
   static var divideColor = const Color(0xFFcccccc);
   static var bgColor = Colors.white;
+
+  static var bgAccent = const Color(0xFF576DD9);
+
 }

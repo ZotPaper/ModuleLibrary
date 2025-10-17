@@ -1,7 +1,14 @@
+import 'dart:async';
+
 import 'package:flutter/cupertino.dart';
 import 'package:flutter/material.dart';
 import 'package:flutter/services.dart';
+import 'package:module_base/my_eventbus.dart';
+import 'package:module_base/utils/logger.dart';
+import 'package:module_base/view/dialog/neat_dialog.dart';
 import 'package:module_library/LibZoteroApi/Model/ZoteroSettingsResponse.dart';
+import 'package:module_library/LibZoteroAttachDownloader/dialog/attachment_transfer_dialog_manager.dart';
+import 'package:module_library/LibZoteroAttachDownloader/event/event_check_attachment_modification.dart';
 import 'package:module_library/LibZoteroStorage/entity/Collection.dart';
 import 'package:module_library/LibZoteroStorage/entity/Item.dart';
 import 'package:module_library/LibZoteroAttachDownloader/zotero_attach_downloader_helper.dart';
@@ -17,7 +24,7 @@ import 'package:module_library/ModuleLibrary/utils/sheet_item_helper.dart';
 import 'package:module_library/ModuleLibrary/utils/my_logger.dart';
 import 'package:module_library/ModuleLibrary/viewmodels/library_viewmodel.dart';
 import 'package:module_library/ModuleTagManager/item_tagmanager.dart';
-import 'package:module_library/routers.dart';
+import 'package:module_library/routers.dart' show MyRouter, globalRouteObserver;
 import 'package:provider/provider.dart';
 import 'package:pull_to_refresh/pull_to_refresh.dart';
 
@@ -30,6 +37,9 @@ import '../widget/item_entry_widget.dart';
 import '../widget/collection_entry_widget.dart';
 import '../widget/item_type_icon.dart';
 import '../widget/bottomsheet/item_operation_panel.dart';
+import '../widget/modified_attachments_banner.dart';
+import '../widget/upload_progress_dialog.dart';
+import '../widget/global_upload_indicator.dart';
 import 'LibraryUI/appBar.dart';
 import 'LibraryUI/drawer.dart';
 import 'package:flutter_svg/flutter_svg.dart';
@@ -53,9 +63,16 @@ class _LibraryPageState extends State<LibraryPage> with WidgetsBindingObserver, 
   final focusNode = FocusNode();
 
   final RefreshController _refreshController = RefreshController(initialRefresh: false);
+  
+  // 对话框显示标志位，防止重复显示
+  bool _isModifiedAttachmentsDialogShowing = false;
 
-  // RouteObserver for navigation detection
-  static final RouteObserver<PageRoute> routeObserver = RouteObserver<PageRoute>();
+  StreamSubscription? _subscription;
+
+  // 修改的附件信息
+  List<Item>? _modifiedItems;
+  List<RecentlyOpenedAttachment>? _modifiedAttachments;
+  bool _showModifiedBanner = false;
 
   @override
   void initState() {
@@ -79,6 +96,17 @@ class _LibraryPageState extends State<LibraryPage> with WidgetsBindingObserver, 
         }
       }
     });
+
+    // 监听检查附件变更事件
+    _subscription = eventBus.on<EventCheckAttachmentModification>().listen((event) {
+      MyLogger.d("Moyear=== 收到监听检查附件变更事件");
+
+      // 延迟执行操作
+      Future.delayed(const Duration(seconds: 1), () {
+        // 检查附件变更
+        _viewModel.checkModifiedAttachments();
+      });
+    });
   }
 
 
@@ -100,20 +128,53 @@ class _LibraryPageState extends State<LibraryPage> with WidgetsBindingObserver, 
     // 注册路由观察者
     final modalRoute = ModalRoute.of(context);
     if (modalRoute is PageRoute) {
-      routeObserver.subscribe(this, modalRoute);
+      globalRouteObserver.subscribe(this, modalRoute);
     }
   }
 
   /// 当发现修改的附件时的回调处理
   void _onModifiedAttachmentsFound(List<Item> modifiedItems, List<RecentlyOpenedAttachment> attachments) {
-    _showModifiedAttachmentsDialog(modifiedItems, attachments);
+    // 保存修改的附件信息并显示提示栏
+    setState(() {
+      _modifiedItems = modifiedItems;
+      _modifiedAttachments = attachments;
+      _showModifiedBanner = true;
+    });
+  }
+
+  /// 关闭修改附件提示栏
+  void _dismissModifiedBanner() {
+    setState(() {
+      _showModifiedBanner = false;
+    });
+    // 清除修改标记
+    if (_modifiedAttachments != null) {
+      _viewModel.clearModifiedAttachmentsMarks(_modifiedAttachments!);
+    }
+  }
+
+  /// 点击提示栏，显示对话框
+  void _onModifiedBannerTap() {
+    if (_modifiedItems != null && _modifiedAttachments != null) {
+      _showModifiedAttachmentsDialog(_modifiedItems!, _modifiedAttachments!);
+    }
   }
 
   /// 显示修改的附件对话框
   void _showModifiedAttachmentsDialog(List<Item> modifiedItems, List<RecentlyOpenedAttachment> attachments) {
+    MyLogger.d("Moyear=== 显示修改的附件对话框");
+    // 检查对话框是否已经在显示中，避免重复显示
+    // if (_isModifiedAttachmentsDialogShowing) {
+    //   MyLogger.d('Moyear=== 修改附件对话框已经在显示中，跳过重复显示');
+    //   return;
+    // }
+    
+    // 设置标志位，表示对话框正在显示
+    _isModifiedAttachmentsDialogShowing = true;
+    
     final strModified = modifiedItems.map((item) => "\<font color = '#8ac6d1'\>${ item.getTitle()}</font>" ).join(', ');
 
-    BrnDialogManager.showConfirmDialog(context,
+    NeatDialogManager.showConfirmDialog(context,
         cancel: "稍后处理",
         confirm: "立即上传",
         title: "检测到附件修改",
@@ -126,45 +187,159 @@ class _LibraryPageState extends State<LibraryPage> with WidgetsBindingObserver, 
             ,
         ),),
         showIcon: true,
-        onConfirm: () {
-          // Navigator.of(context).pop();
-          // 开始上传修改的附件
+        onConfirm: (BuildContext dialogContext) {
+          // 重置标志位，允许下次显示对话框
+          _isModifiedAttachmentsDialogShowing = false;
+          
+          // 隐藏提示栏
+          setState(() {
+            _showModifiedBanner = false;
+          });
+
+          Navigator.of(dialogContext).pop();
+
+          // 开始上传修改的附件（会显示进度对话框）
           _startUploadModifiedAttachments(modifiedItems, attachments);
         },
-        onCancel: () {
-          // Navigator.of(context).pop();
+        onCancel: (BuildContext dialogContext) {
+          // 重置标志位，允许下次显示对话框
+          _isModifiedAttachmentsDialogShowing = false;
+          
+          // 隐藏提示栏并清除修改标记
+          setState(() {
+            _showModifiedBanner = false;
+          });
+
+          Navigator.of(dialogContext).pop();
+          
           // 清除修改标记，用户选择不上传
-          _viewModel.clearModifiedAttachmentsMarks(attachments);
+          // _viewModel.clearModifiedAttachmentsMarks(attachments);
         },
     );
   }
 
   /// 开始上传修改的附件
   Future<void> _startUploadModifiedAttachments(List<Item> modifiedItems, List<RecentlyOpenedAttachment> attachments) async {
+    final totalCount = modifiedItems.length;
+    int successCount = 0;
+    Map<String, String> failedItemsWithErrors = {}; // 保存失败的附件和错误信息
+
     try {
-      // 调用ViewModel的上传方法
-      final result = await _viewModel.uploadModifiedAttachments(modifiedItems, attachments);
-      
-      // 根据结果显示相应的提示
-      if (result.hasError) {
-        BrnToast.show('上传失败：${result.error}', context);
-      } else if (result.isAllSuccessful) {
-        BrnToast.show('所有附件上传成功！', context);
-      } else if (result.successCount > 0) {
-        BrnToast.show('${result.successCount}/${result.totalCount} 个附件上传成功', context);
-      } else {
-        BrnToast.show('附件上传失败，请检查网络连接', context);
+      // 逐个上传附件
+      for (int i = 0; i < modifiedItems.length; i++) {
+        final item = modifiedItems[i];
+        
+        try {
+          MyLogger.d('开始上传附件 ${i + 1}/$totalCount: ${item.getTitle()}');
+          
+          // 更新上传状态到ViewModel（会自动通知全局指示器更新）
+          _viewModel.updateUploadProgress(
+            item: item,
+            currentIndex: i + 1,
+            totalCount: totalCount,
+          );
+
+          // 上传单个附件
+          await _viewModel.uploadSingleAttachment(item);
+          
+          // 从最近打开的附件列表中移除
+          await _viewModel.zoteroDB.removeRecentlyOpenedAttachment(item.itemKey);
+          
+          // 上传完成后移除该附件的上传状态
+          _viewModel.removeUploadProgress(item.itemKey);
+          
+          successCount++;
+          MyLogger.d('附件上传成功: ${item.getTitle()}');
+          
+        } catch (e) {
+          final errorMsg = _parseUploadError(e);
+          MyLogger.e('附件上传失败: ${item.getTitle()}, 错误: $errorMsg');
+          failedItemsWithErrors[item.getTitle()] = errorMsg;
+          
+          // 更新为失败状态，显示在全局指示器中
+          _viewModel.updateUploadProgress(
+            item: item,
+            currentIndex: i + 1,
+            totalCount: totalCount,
+            status: UploadStatus.failed,
+            errorMessage: errorMsg,
+          );
+          
+          // 延迟移除失败状态，让用户有时间看到
+          Future.delayed(const Duration(seconds: 3), () {
+            _viewModel.removeUploadProgress(item.itemKey);
+          });
+        }
       }
+
+      // 显示结果
+      if (!mounted) return;
+      
+      if (failedItemsWithErrors.isEmpty) {
+        // 全部成功
+        BrnToast.show('所有附件上传成功！', context);
+      } else if (successCount > 0) {
+        // 部分成功 - 显示详细错误信息
+        AttachmentTransferDialogManager.showUploadErrorInfo(
+          context:  context,
+          successCount: successCount,
+          totalCount: totalCount,
+          failedItems: failedItemsWithErrors,
+        );
+      } else {
+        // 全部失败 - 显示详细错误信息
+        AttachmentTransferDialogManager.showUploadErrorInfo(
+          context: context,
+          successCount: 0,
+          totalCount: totalCount,
+          failedItems: failedItemsWithErrors,
+        );
+      }
+
+      // 上传附件后，无论成功或者失败都会自动执行与服务器同步操作
+      _refreshController.requestRefresh();
 
     } catch (e) {
       MyLogger.e('上传附件时发生错误: $e');
-      BrnToast.show('上传失败：$e', context);
+      // 清除所有上传状态
+      for (var item in modifiedItems) {
+        _viewModel.removeUploadProgress(item.itemKey);
+      }
+      if (mounted) {
+        final errorMsg = _parseUploadError(e);
+        BrnToast.show('上传失败：$errorMsg', context);
+      }
     }
   }
+
+  /// 解析上传错误信息，返回用户友好的错误描述
+  String _parseUploadError(dynamic error) {
+    final errorStr = error.toString();
+    
+    if (errorStr.contains('network') || errorStr.contains('NetworkException')) {
+      return '网络连接失败: $errorStr';
+    } else if (errorStr.contains('timeout') || errorStr.contains('TimeoutException')) {
+      return '连接超时: $errorStr';
+    } else if (errorStr.contains('401') || errorStr.contains('unauthorized')) {
+      return '认证失败，请重新登录: $errorStr';
+    } else if (errorStr.contains('403') || errorStr.contains('forbidden')) {
+      return '无权限访问: $errorStr';
+    } else if (errorStr.contains('404') || errorStr.contains('not found') || errorStr.contains("PathNotFoundException")) {
+      return '文件未找到: $errorStr';
+    } else if (errorStr.contains('500') || errorStr.contains('server error')) {
+      return '服务器错误: $errorStr';
+    } else {
+      // 返回简化的错误信息
+      return errorStr.length > 50 ? '${errorStr.substring(0, 50)}...' : errorStr;
+    }
+  }
+
+
 
   @override
   void didChangeAppLifecycleState(AppLifecycleState state) {
     if (state == AppLifecycleState.resumed) {
+      MyLogger.d("Moyear=== 应用从后台返回前台时检查修改的附件");
       // 应用从后台返回前台时检查修改的附件
       _viewModel.checkModifiedAttachments();
     }
@@ -172,15 +347,18 @@ class _LibraryPageState extends State<LibraryPage> with WidgetsBindingObserver, 
 
   @override
   void didPopNext() {
-    // 从其他页面返回时检查修改的附件
+    // 每次从其他页面返回时检查修改的附件
     super.didPopNext();
     _viewModel.checkModifiedAttachments();
+    MyLogger.d("Moyear=== 从其他页面返回时检查修改的附件");
   }
 
   @override
   void dispose() {
+    // 记得取消订阅
+    _subscription?.cancel();
     WidgetsBinding.instance.removeObserver(this);
-    routeObserver.unsubscribe(this);
+    globalRouteObserver.unsubscribe(this);
     textController.dispose();
     focusNode.dispose();
     _refreshController.dispose();
@@ -313,6 +491,8 @@ class _LibraryPageState extends State<LibraryPage> with WidgetsBindingObserver, 
           libraryListPage(),
           // 全局下载进度指示器
           _buildGlobalDownloadIndicator(),
+          // 全局上传进度指示器
+          _buildGlobalUploadIndicator(),
         ],
       );
     } else {
@@ -323,6 +503,13 @@ class _LibraryPageState extends State<LibraryPage> with WidgetsBindingObserver, 
   /// 构建全局下载进度指示器
   Widget _buildGlobalDownloadIndicator() {
     return GlobalDownloadIndicator(
+      viewModel: _viewModel,
+    );
+  }
+
+  /// 构建全局上传进度指示器
+  Widget _buildGlobalUploadIndicator() {
+    return GlobalUploadIndicator(
       viewModel: _viewModel,
     );
   }
@@ -339,6 +526,13 @@ class _LibraryPageState extends State<LibraryPage> with WidgetsBindingObserver, 
       child: Column(
         children: [
           searchLine(),
+          // 修改附件提示栏
+          if (_showModifiedBanner)
+            ModifiedAttachmentsBanner(
+              modifiedCount: _modifiedItems?.length ?? 0,
+              onTap: _onModifiedBannerTap,
+              onDismiss: _dismissModifiedBanner,
+            ),
           Expanded(
             child: _viewModel.displayEntries.isEmpty ? _emptyView() : Container(
               color: ResColor.bgColor,

@@ -92,7 +92,7 @@ class ZoteroUploadParams {
     return ZoteroUploadParams(
       key: json['key'] ?? "",
       acl: json['acl'] ?? "",
-      content_MD5: json['content-MD5'] ?? "",
+      content_MD5: json['Content-MD5'] ?? "",
       success_action_status: json['success_action_status'] ?? "",
       policy: json['policy'] ?? "",
       x_amz_algorithm: json['x-amz-algorithm'] ?? "",
@@ -129,6 +129,7 @@ class ZoteroAttachmentTransfer implements IAttachmentTransfer {
   final IAttachmentStorage attachmentStorageManager;
   final bool useGroup;
   late final Dio _dio;
+  late final Dio _amazonDio;
 
   static const String BASE_URL = "https://api.zotero.org";
 
@@ -139,7 +140,7 @@ class ZoteroAttachmentTransfer implements IAttachmentTransfer {
     this.useGroup = false,
   }) {
     _dio = _createDio();
-    // _amazonDio = _createAmazonDio();
+    _amazonDio = _createAmazonDio();
   }
 
   Dio _createDio() {
@@ -257,8 +258,7 @@ class ZoteroAttachmentTransfer implements IAttachmentTransfer {
         mtime,
       );
 
-      // await _uploadToAmazon(authorizationPojo, attachment);
-      await _registerUpload(attachment, authorizationPojo.uploadKey ?? "", oldMd5);
+      await _uploadToAmazon(authorizationPojo, attachment, attachmentUri, oldMd5);
     } catch (e) {
       rethrow;
     }
@@ -309,10 +309,15 @@ class ZoteroAttachmentTransfer implements IAttachmentTransfer {
     final url = '/users/$userID/items/${attachment.itemKey}/file';
     final response = await _dio.post(
       url,
-      data: {
+      options: Options(
+        headers: {
+          'If-Match': oldMd5,
+        },
+      ),
+      queryParameters: {
         'upload': uploadKey,
-        'md5': oldMd5,
       },
+      data: 'upload=$uploadKey',
     );
 
     switch (response.statusCode) {
@@ -324,6 +329,64 @@ class ZoteroAttachmentTransfer implements IAttachmentTransfer {
         throw RequestEntityTooLarge("Your file is too large");
       default:
         throw Exception("Zotero server replied: ${response.statusCode}");
+    }
+  }
+
+  Dio _createAmazonDio() {
+    // Amazon 上传客户端
+    var amazonDio = Dio();
+    amazonDio.options.connectTimeout = const Duration(seconds: 30);
+    amazonDio.options.receiveTimeout = const Duration(minutes: 10);
+    if (kDebugMode) {
+      amazonDio.interceptors.add(
+        PrettyDioLogger(
+          requestHeader: true,
+          requestBody: true,
+          responseBody: false,
+          responseHeader: false,
+          compact: false,
+          error: true,
+        ),
+      );
+    }
+    return amazonDio;
+  }
+
+  _uploadToAmazon(ZoteroUploadAuthorizationPojo authorizationPojo, Item attachment, Uri attachmentUri, String oldMd5) async {
+    // 上传到 Amazon
+    final formData = FormData.fromMap({
+      'key': authorizationPojo.params?.key ?? "",
+      'acl': authorizationPojo.params?.acl,
+      'Content-MD5': authorizationPojo.params?.content_MD5,
+      'success_action_status': authorizationPojo.params?.success_action_status ?? "",
+      'policy': authorizationPojo.params?.policy,
+      'x-amz-algorithm': authorizationPojo.params?.x_amz_algorithm,
+      'x-amz-credential': authorizationPojo.params?.x_amz_credential,
+      'x-amz-date': authorizationPojo.params?.x_amz_date,
+      'x-amz-signature': authorizationPojo.params?.x_amz_signature,
+      'x-amz-security-token': authorizationPojo.params?.x_amz_security_token,
+      'file': await MultipartFile.fromFile(Uri.decodeFull(attachmentUri.path)),
+    });
+    
+    MyLogger.d("Moyear=== _uploadToAmazon");
+
+    final amazonResponse = await _amazonDio.post(
+      authorizationPojo.url ?? "",
+      data: formData,
+    );
+
+    if (amazonResponse.statusCode == 412) {
+      throw PreconditionFailedException(
+          '412 Precondition failed when uploading ${attachment.itemKey}');
+    }
+
+    if (amazonResponse.statusCode == 201) {
+      // 注册上传到 Zotero
+      await _registerUpload(attachment, authorizationPojo.uploadKey ?? "", oldMd5);
+    } else {
+      throw Exception(
+          'Amazon Attachment Server Gave server error: ${amazonResponse
+              .statusCode}');
     }
   }
 }
