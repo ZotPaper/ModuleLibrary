@@ -296,6 +296,9 @@ class _LibraryPageState extends State<LibraryPage> with WidgetsBindingObserver, 
         );
       }
 
+      // 上传附件后，无论成功或者失败都会自动执行与服务器同步操作
+      _refreshController.requestRefresh();
+
     } catch (e) {
       MyLogger.e('上传附件时发生错误: $e');
       // 清除所有上传状态
