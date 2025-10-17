@@ -7,6 +7,7 @@ import 'package:module_base/my_eventbus.dart';
 import 'package:module_base/utils/logger.dart';
 import 'package:module_base/view/dialog/neat_dialog.dart';
 import 'package:module_library/LibZoteroApi/Model/ZoteroSettingsResponse.dart';
+import 'package:module_library/LibZoteroAttachDownloader/dialog/attachment_transfer_dialog_manager.dart';
 import 'package:module_library/LibZoteroAttachDownloader/event/event_check_attachment_modification.dart';
 import 'package:module_library/LibZoteroStorage/entity/Collection.dart';
 import 'package:module_library/LibZoteroStorage/entity/Item.dart';
@@ -221,7 +222,7 @@ class _LibraryPageState extends State<LibraryPage> with WidgetsBindingObserver, 
   Future<void> _startUploadModifiedAttachments(List<Item> modifiedItems, List<RecentlyOpenedAttachment> attachments) async {
     final totalCount = modifiedItems.length;
     int successCount = 0;
-    List<String> failedItems = [];
+    Map<String, String> failedItemsWithErrors = {}; // 保存失败的附件和错误信息
 
     try {
       // 逐个上传附件
@@ -251,25 +252,48 @@ class _LibraryPageState extends State<LibraryPage> with WidgetsBindingObserver, 
           MyLogger.d('附件上传成功: ${item.getTitle()}');
           
         } catch (e) {
-          MyLogger.e('附件上传失败: ${item.getTitle()}, 错误: $e');
-          failedItems.add(item.getTitle());
-          // 上传失败也移除状态
-          _viewModel.removeUploadProgress(item.itemKey);
+          final errorMsg = _parseUploadError(e);
+          MyLogger.e('附件上传失败: ${item.getTitle()}, 错误: $errorMsg');
+          failedItemsWithErrors[item.getTitle()] = errorMsg;
+          
+          // 更新为失败状态，显示在全局指示器中
+          _viewModel.updateUploadProgress(
+            item: item,
+            currentIndex: i + 1,
+            totalCount: totalCount,
+            status: UploadStatus.failed,
+            errorMessage: errorMsg,
+          );
+          
+          // 延迟移除失败状态，让用户有时间看到
+          Future.delayed(const Duration(seconds: 3), () {
+            _viewModel.removeUploadProgress(item.itemKey);
+          });
         }
       }
 
       // 显示结果
       if (!mounted) return;
       
-      if (failedItems.isEmpty) {
+      if (failedItemsWithErrors.isEmpty) {
         // 全部成功
         BrnToast.show('所有附件上传成功！', context);
       } else if (successCount > 0) {
-        // 部分成功
-        BrnToast.show('上传完成：${successCount}个成功，${failedItems.length}个失败', context);
+        // 部分成功 - 显示详细错误信息
+        AttachmentTransferDialogManager.showUploadErrorInfo(
+          context:  context,
+          successCount: successCount,
+          totalCount: totalCount,
+          failedItems: failedItemsWithErrors,
+        );
       } else {
-        // 全部失败
-        BrnToast.show('上传失败，请检查网络连接', context);
+        // 全部失败 - 显示详细错误信息
+        AttachmentTransferDialogManager.showUploadErrorInfo(
+          context: context,
+          successCount: 0,
+          totalCount: totalCount,
+          failedItems: failedItemsWithErrors,
+        );
       }
 
     } catch (e) {
@@ -279,10 +303,37 @@ class _LibraryPageState extends State<LibraryPage> with WidgetsBindingObserver, 
         _viewModel.removeUploadProgress(item.itemKey);
       }
       if (mounted) {
-        BrnToast.show('上传失败：$e', context);
+        final errorMsg = _parseUploadError(e);
+        BrnToast.show('上传失败：$errorMsg', context);
       }
     }
   }
+
+  /// 解析上传错误信息，返回用户友好的错误描述
+  String _parseUploadError(dynamic error) {
+    final errorStr = error.toString();
+    
+    if (errorStr.contains('network') || errorStr.contains('NetworkException')) {
+      return '网络连接失败';
+    } else if (errorStr.contains('timeout') || errorStr.contains('TimeoutException')) {
+      return '连接超时';
+    } else if (errorStr.contains('401') || errorStr.contains('unauthorized')) {
+      return '认证失败，请重新登录';
+    } else if (errorStr.contains('403') || errorStr.contains('forbidden')) {
+      return '无权限访问';
+    } else if (errorStr.contains('404') || errorStr.contains('not found')) {
+      return '文件未找到';
+    } else if (errorStr.contains('500') || errorStr.contains('server error')) {
+      return '服务器错误';
+    } else if (errorStr.contains('storage') || errorStr.contains('space')) {
+      return '存储空间不足';
+    } else {
+      // 返回简化的错误信息
+      return errorStr.length > 50 ? '${errorStr.substring(0, 50)}...' : errorStr;
+    }
+  }
+
+
 
   @override
   void didChangeAppLifecycleState(AppLifecycleState state) {

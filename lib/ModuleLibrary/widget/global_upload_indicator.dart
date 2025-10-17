@@ -98,30 +98,57 @@ class GlobalUploadIndicator extends StatelessWidget {
 
   /// 构建单个上传项
   Widget _buildUploadItem(AttachmentUploadInfo uploadInfo) {
+    final isFailed = uploadInfo.status == UploadStatus.failed;
+    
     return Column(
       crossAxisAlignment: CrossAxisAlignment.start,
       children: [
         Row(
           children: [
+            // 失败时显示错误图标
+            if (isFailed) ...[
+              const Icon(
+                Icons.error_outline,
+                size: 16,
+                color: Colors.red,
+              ),
+              const SizedBox(width: 4),
+            ],
             Expanded(
               child: Text(
                 uploadInfo.filename,
-                style: const TextStyle(fontSize: 12),
+                style: TextStyle(
+                  fontSize: 12,
+                  color: isFailed ? Colors.red : Colors.black,
+                ),
                 maxLines: 1,
                 overflow: TextOverflow.ellipsis,
               ),
             ),
             const SizedBox(width: 8),
             Text(
-              '${uploadInfo.currentIndex}/${uploadInfo.totalCount}',
+              isFailed ? '失败' : '${uploadInfo.currentIndex}/${uploadInfo.totalCount}',
               style: TextStyle(
                 fontSize: 12,
-                color: Colors.grey.shade600,
+                color: isFailed ? Colors.red : Colors.grey.shade600,
+                fontWeight: isFailed ? FontWeight.bold : FontWeight.normal,
               ),
             ),
           ],
         ),
         const SizedBox(height: 4),
+        if (isFailed && uploadInfo.errorMessage != null) ...[
+          Text(
+            uploadInfo.errorMessage!,
+            style: TextStyle(
+              fontSize: 11,
+              color: Colors.red.shade700,
+            ),
+            maxLines: 1,
+            overflow: TextOverflow.ellipsis,
+          ),
+          const SizedBox(height: 4),
+        ],
         _buildProgressBar(uploadInfo),
       ],
     );
@@ -129,6 +156,7 @@ class GlobalUploadIndicator extends StatelessWidget {
 
   /// 构建进度条
   Widget _buildProgressBar(AttachmentUploadInfo uploadInfo) {
+    final isFailed = uploadInfo.status == UploadStatus.failed;
     final progress = uploadInfo.totalCount > 0 
         ? uploadInfo.currentIndex / uploadInfo.totalCount 
         : 0.0;
@@ -138,7 +166,9 @@ class GlobalUploadIndicator extends StatelessWidget {
       child: LinearProgressIndicator(
         value: progress,
         backgroundColor: Colors.grey.shade200,
-        valueColor: AlwaysStoppedAnimation<Color>(ResColor.bgAccent),
+        valueColor: AlwaysStoppedAnimation<Color>(
+          isFailed ? Colors.red : ResColor.bgAccent,
+        ),
         minHeight: 4,
       ),
     );

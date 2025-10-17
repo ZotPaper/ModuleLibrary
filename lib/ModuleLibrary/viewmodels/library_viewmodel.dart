@@ -102,10 +102,12 @@ class LibraryViewModel with ChangeNotifier {
     return getActiveDownloads().isNotEmpty;
   }
 
-  /// 获取所有正在进行的上传任务
+  /// 获取所有正在进行的上传任务（包含失败状态，以便用户看到错误）
   List<AttachmentUploadInfo> getActiveUploads() {
     return _uploadStates.values
-        .where((info) => info.status == UploadStatus.uploading)
+        .where((info) => 
+            info.status == UploadStatus.uploading ||
+            info.status == UploadStatus.failed)
         .toList();
   }
 
@@ -133,13 +135,16 @@ class LibraryViewModel with ChangeNotifier {
     required Item item,
     required int currentIndex,
     required int totalCount,
+    UploadStatus status = UploadStatus.uploading,
+    String? errorMessage,
   }) {
     final uploadInfo = AttachmentUploadInfo(
       itemKey: item.itemKey,
       filename: item.getTitle(),
       currentIndex: currentIndex,
       totalCount: totalCount,
-      status: UploadStatus.uploading,
+      status: status,
+      errorMessage: errorMessage,
     );
     _updateUploadState(uploadInfo);
   }
