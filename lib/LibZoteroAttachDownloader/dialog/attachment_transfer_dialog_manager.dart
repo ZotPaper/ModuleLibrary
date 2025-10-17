@@ -38,7 +38,7 @@ class AttachmentTransferDialogManager {
         Navigator.of(dialogContext).pop();
       },
       onCancel: (dialogContext) {
-        // Navigator.of(dialogContext).pop();
+        Navigator.of(dialogContext).pop();
       },
     );
   }

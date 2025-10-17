@@ -314,19 +314,17 @@ class _LibraryPageState extends State<LibraryPage> with WidgetsBindingObserver, 
     final errorStr = error.toString();
     
     if (errorStr.contains('network') || errorStr.contains('NetworkException')) {
-      return '网络连接失败';
+      return '网络连接失败: $errorStr';
     } else if (errorStr.contains('timeout') || errorStr.contains('TimeoutException')) {
-      return '连接超时';
+      return '连接超时: $errorStr';
     } else if (errorStr.contains('401') || errorStr.contains('unauthorized')) {
-      return '认证失败，请重新登录';
+      return '认证失败，请重新登录: $errorStr';
     } else if (errorStr.contains('403') || errorStr.contains('forbidden')) {
-      return '无权限访问';
-    } else if (errorStr.contains('404') || errorStr.contains('not found')) {
-      return '文件未找到';
+      return '无权限访问: $errorStr';
+    } else if (errorStr.contains('404') || errorStr.contains('not found') || errorStr.contains("PathNotFoundException")) {
+      return '文件未找到: $errorStr';
     } else if (errorStr.contains('500') || errorStr.contains('server error')) {
-      return '服务器错误';
-    } else if (errorStr.contains('storage') || errorStr.contains('space')) {
-      return '存储空间不足';
+      return '服务器错误: $errorStr';
     } else {
       // 返回简化的错误信息
       return errorStr.length > 50 ? '${errorStr.substring(0, 50)}...' : errorStr;
