@@ -1,5 +1,6 @@
 import 'package:flutter/material.dart';
 import 'package:bruno/bruno.dart';
+import 'package:module_base/view/dialog/neat_dialog.dart';
 import 'package:module_library/LibZoteroStorage/entity/Item.dart';
 import 'package:module_library/ModuleLibrary/utils/my_logger.dart';
 import 'package:module_library/ModuleLibrary/utils/sheet_item_helper.dart';
@@ -162,24 +163,24 @@ class ItemOperationPanel {
     required Item item,
     required LibraryViewModel viewModel,
   }) {
-    BrnDialogManager.showConfirmDialog(
+    NeatDialogManager.showConfirmDialog(
       context,
       title: "删除下载的附件",
       confirm: "确定",
       cancel: "取消",
       message: "是否删除《${item.getTitle()}》中已下载的附件",
-      onConfirm: () async {
-        Navigator.of(context).pop();
+      onConfirm: (dialogContext) async {
+        Navigator.of(dialogContext).pop();
         await viewModel.deleteAllDownloadedAttachmentsOfItems(
-          context,
+          dialogContext,
           item,
           onCallback: () {
             MyLogger.d('所有附件删除操作完成');
           },
         );
       },
-      onCancel: () {
-        Navigator.of(context).pop();
+      onCancel: (dialogContext) {
+        Navigator.of(dialogContext).pop();
       },
     );
   }
