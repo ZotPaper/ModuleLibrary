@@ -99,7 +99,7 @@ class ItemTypeIcon extends StatelessWidget {
       case "artwork":
         return 'assets/items/artwork_24dp.svg';
       case "webpage":
-        return 'assets/items/ic_web_page.svg';
+        return 'assets/items/ic_web_page_2.svg';
       case "attachment":
         return 'assets/items/ic_treeitem_attachment.svg';
       case "report":
@@ -119,7 +119,7 @@ class ItemTypeIcon extends StatelessWidget {
       case "map":
         return 'assets/items/map_24dp.svg';
       case "blogPost":
-        return 'assets/items/blog_post_24dp.svg';
+        return 'assets/items/ic_blog_post.svg';
       case "instantMessage":
         return 'assets/items/instant_message_24dp.svg';
       case "forumPost":

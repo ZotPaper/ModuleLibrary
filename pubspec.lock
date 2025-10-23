@@ -1089,7 +1089,7 @@ packages:
     source: hosted
     version: "3.0.3"
   webdav_client:
-    dependency: "direct main"
+    dependency: transitive
     description:
       path: "/Users/moyearzhou/StudioProjects/webdav_client2"
       relative: false

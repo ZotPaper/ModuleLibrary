@@ -48,11 +48,11 @@ dependencies:
   # zip支持
   archive: ^4.0.7
 
-  #  webdav_client: ^1.2.2
-  webdav_client:
-    path: /Users/moyearzhou/StudioProjects/webdav_client2
-#    git:
-#      url: git@github.com:moyearzhou/webdav_client2.git
+#  #  webdav_client: ^1.2.2
+#  webdav_client:
+#    path: /Users/moyearzhou/StudioProjects/webdav_client2
+##    git:
+##      url: git@github.com:moyearzhou/webdav_client2.git
 
   module_base:
     path: /Users/moyearzhou/StudioProjects/module_base
