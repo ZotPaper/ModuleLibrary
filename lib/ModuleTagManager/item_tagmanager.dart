@@ -17,32 +17,54 @@ class TagManager {
   ZoteroSettingManager _settingManager = ZoteroSettingManager.instance;
 
   bool _isInit = false;
+  OnSettingChangedListener? _currentListener; // 保存当前监听器引用
 
   Future<void> init() async {
     if (_isInit) return;
     final settings = await _settingManager.loadSettings();
 
-    settings.tagColors?.values.forEach((element) {
-      _styledTags.add(element);
-    });
+    // 使用 Set 去重，防止数据源本身包含重复标签
+    final uniqueTags = <String, TagColor>{};
+    for (var element in settings.tagColors?.values ?? []) {
+      uniqueTags[element.name] = element; // Map 会自动去重
+    }
+    
+    _styledTags.clear();
+    _styledTags.addAll(uniqueTags.values);
 
-    // 监听标签的变化
-    _settingManager.addSettingChangedListener((newVersion, newSettings) {
+    // 移除旧的监听器（如果存在）
+    if (_currentListener != null) {
+      _settingManager.removeSettingChangedListener(_currentListener!);
+    }
+
+    // 创建并保存新的监听器
+    _currentListener = (newVersion, newSettings) {
       MyLogger.d("收到 设置变化 new $newVersion");
+      
+      // 使用 Set 去重
+      final uniqueTags = <String, TagColor>{};
+      for (var element in newSettings.tagColors?.values ?? []) {
+        uniqueTags[element.name] = element;
+      }
+      
       _styledTags.clear();
-      newSettings.tagColors?.values.forEach((element) {
-        _styledTags.add(element);
-      });
-    });
+      _styledTags.addAll(uniqueTags.values);
+      
+      MyLogger.d("更新后的精选标签数量: ${_styledTags.length}");
+    };
+    
+    _settingManager.addSettingChangedListener(_currentListener!);
 
     _isInit = true;
+    MyLogger.d("TagManager 初始化完成，精选标签数量: ${_styledTags.length}");
   }
 
   Future<List<TagColor>> getStyledTags() async {
     if (!_isInit) {
       await init();
     }
-    return _styledTags;
+    // 返回副本，避免外部修改影响内部数据
+    return List<TagColor>.from(_styledTags);
   }
 
   Future<TagColor?> foundInImportantTag(String tag) async {

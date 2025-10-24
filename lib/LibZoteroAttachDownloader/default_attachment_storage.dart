@@ -21,6 +21,12 @@ class DefaultAttachmentStorage implements IAttachmentStorage {
   
   Directory? _storageDir;
 
+  /// 是否使用外部阅读器打开PDF文件
+  bool _isOpenPdfExternalReader = false;
+  bool get isOpenPdfExternalReader => _isOpenPdfExternalReader;
+
+  Function(bool openPdfExternalReader)? _onPdfReaderChangeCallback;
+
   /// 获取或创建存储目录
   Future<Directory> _getStorageDirectory() async {
     if (_storageDir != null) return _storageDir!;
@@ -231,13 +237,6 @@ class DefaultAttachmentStorage implements IAttachmentStorage {
     }
   }
 
-  /// 提取ZIP文件到附件目录
-  Future<void> extractZipFile(Item item, File zipFile) async {
-    // 这里需要使用archive包来解压ZIP文件
-    // 由于没有引入archive包，这里提供接口，实际使用时需要添加依赖
-    throw UnimplementedError("需要添加archive包依赖来实现ZIP解压功能");
-  }
-
   Future<bool> validateMd5ForItem(Item item, String md5key) async {
     if (item.itemType != Item.ATTACHMENT_TYPE) {
       throw(Exception("error invalid item ${item.itemKey}: ${item.itemType} cannot calculate md5."));
@@ -249,4 +248,14 @@ class DefaultAttachmentStorage implements IAttachmentStorage {
     final calculatedMd5 = await calculateMd5(item);
     return calculatedMd5 == md5key;
   }
+
+  void setOpenPDFWithExternalApp(bool enable) {
+    _isOpenPdfExternalReader = enable;
+    _onPdfReaderChangeCallback?.call(enable);
+  }
+
+  void setOnPdfReaderChangeCallback(Function(bool enableWebdav)? onChangeCallback) {
+    _onPdfReaderChangeCallback = onChangeCallback;
+  }
+
 }

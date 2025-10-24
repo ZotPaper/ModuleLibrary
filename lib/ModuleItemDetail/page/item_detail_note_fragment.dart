@@ -1,5 +1,6 @@
 import 'package:flutter/cupertino.dart';
 import 'package:flutter/material.dart';
+import 'package:module_base/view/toast/neat_toast.dart';
 import 'package:module_library/LibZoteroStorage/entity/Note.dart';
 
 import '../../LibZoteroStorage/entity/Item.dart';
@@ -56,7 +57,9 @@ class _ItemDetailNoteFragmentState extends State<ItemDetailNoteFragment> with Si
       color: Colors.grey[100],
       elevation: 0,
       child: InkWell(
-        onTap: () {},
+        onTap: () {
+          context.toastNormal("查看笔记，功能待开发！！！");
+        },
         child: Container(
             height: 42,
             padding: const EdgeInsets.symmetric(horizontal: 12.0),
@@ -76,6 +79,7 @@ class _ItemDetailNoteFragmentState extends State<ItemDetailNoteFragment> with Si
   Widget _addAttachmentButton() {
     return InkWell(
       onTap: () {
+        context.toastNormal("添加标签，功能待开发！！！");
       },
       child: Container(
         height: 42,

@@ -1,5 +1,6 @@
 import 'package:flutter/cupertino.dart';
 import 'package:flutter/material.dart';
+import 'package:module_base/view/toast/neat_toast.dart';
 
 import '../../LibZoteroStorage/entity/Item.dart';
 
@@ -55,7 +56,9 @@ class _ItemDetailAttachmentFragmentState extends State<ItemDetailAttachmentFragm
       color: Colors.grey[100],
       elevation: 0,
       child: InkWell(
-        onTap: () {},
+        onTap: () {
+          context.toastNormal("打开附件，功能待开发！！！");
+        },
         child: Container(
             height: 42,
             padding: const EdgeInsets.symmetric(horizontal: 12.0),
@@ -75,7 +78,7 @@ class _ItemDetailAttachmentFragmentState extends State<ItemDetailAttachmentFragm
   Widget _addAttachmentButton() {
     return InkWell(
       onTap: () {
-
+        context.toastNormal("添加附件，功能待开发！！！");
       },
       child: Container(
         height: 42,

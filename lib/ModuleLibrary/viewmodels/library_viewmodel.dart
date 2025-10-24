@@ -1,5 +1,6 @@
 import 'dart:async';
 import 'dart:collection';
+import 'dart:io';
 import 'package:bruno/bruno.dart';
 import 'package:flutter/foundation.dart';
 import 'package:flutter/material.dart';
@@ -19,7 +20,11 @@ import 'package:module_library/ModuleLibrary/zotero_provider.dart';
 import 'package:module_library/ModuleTagManager/item_tagmanager.dart';
 import 'package:module_library/utils/local_zotero_credential.dart';
 import 'package:module_library/utils/webdav_configuration.dart';
+import 'package:open_filex/open_filex.dart';
+import '../../LibZoteroAttachDownloader/bean/exception/zotero_download_exception.dart';
 import '../../LibZoteroAttachDownloader/default_attachment_storage.dart';
+import '../../LibZoteroAttachDownloader/model/status.dart';
+import '../../LibZoteroAttachDownloader/model/transfer_info.dart';
 import '../../LibZoteroStorage/entity/Collection.dart';
 import '../../LibZoteroStorage/entity/Item.dart';
 import '../../LibZoteroStorage/entity/ItemCollection.dart';
@@ -258,6 +263,7 @@ class LibraryViewModel with ChangeNotifier {
 
       MyLogger.d("fetch saved loginInfo locally: [userId: $_userId, apiKey: $_apiKey]");
 
+      ZoteroProvider.initZoteroProvider(_userId, _apiKey);
       // 初始化同步管理器
       if (!zoteroSyncManager.isConfigured()) {
         zoteroSyncManager.init(_userId, _apiKey);
@@ -570,6 +576,7 @@ class LibraryViewModel with ChangeNotifier {
 
   /// 检查条目是否有PDF附件
   bool _itemHasPdfAttachment(Item item) {
+    if (isPdfAttachmentItem(item)) return true;
     return item.attachments.any((attachment) => 
       isPdfAttachmentItem(attachment)
     );
@@ -1110,7 +1117,7 @@ class LibraryViewModel with ChangeNotifier {
           if (error is DownloadException) {
             switch (error.errorType) {
               case DownloadErrorType.notFound:
-                BrnToast.show("在服务器找不到附件", context);
+                BrnToast.show("在Zotero服务器找不到附件，请确认该附件是否保存在WebDAV服务器中", context);
                 MyLogger.w('下载失败，附件[${info.itemKey}, ${info.filename}]不存在');
                 break;
               case DownloadErrorType.network:
@@ -1231,6 +1238,8 @@ class LibraryViewModel with ChangeNotifier {
     for (var attachment in downloadedAttachments) {
       try {
         await storage.deleteAttachment(attachment);
+        // 【客户端】pdf文件删除下载本地文件后从最近修改的文档中移除
+        zoteroDB.removeRecentlyOpenedAttachment(attachment.itemKey);
         MyLogger.d('删除附件成功: ${attachment.getTitle()}');
         
         // 更新文件存在状态缓存为false
@@ -1314,15 +1323,55 @@ class LibraryViewModel with ChangeNotifier {
 
     final attachmentFile = await DefaultAttachmentStorage.instance.getAttachmentFile(targetPdfAttachmentItem);
 
-    final res = await PdfViewerNativeChannel.openPdfViewer(
+    //  判断是否使用其他阅读器打开pdf
+    var useExternalPdfReader = DefaultAttachmentStorage.instance.isOpenPdfExternalReader;
+    if (useExternalPdfReader) {
+      // 使用其他阅读器打开pdf
+      openPdfWithUrlLauncher(context, attachmentFile, targetPdfAttachmentItem);
+    } else {
+      final res = await PdfViewerNativeChannel.openPdfViewer(
         attachmentKey: targetPdfAttachmentItem.itemKey,
         attachmentPath: attachmentFile.path,
         attachmentType: targetPdfAttachmentItem.getContentType(),
-    );
+      );
 
-    if (res != null) {
-      // 添加到最近打开的附件
-      zoteroDB.addRecentlyOpenedAttachments(targetPdfAttachmentItem);
+      if (res != null) {
+        // 添加到最近打开的附件
+        zoteroDB.addRecentlyOpenedAttachments(targetPdfAttachmentItem);
+      }
+    }
+  }
+
+  Future<void> openPdfWithUrlLauncher(BuildContext context, File pdfFile, Item targetPdfAttachmentItem) async {
+    try {
+      final result = await OpenFilex.open(
+        pdfFile.path,
+        type: "application/pdf",
+      );
+
+      MyLogger.d('打开PDF结果: ${result.type} - ${result.message}');
+
+      switch (result.type) {
+        case ResultType.done:
+          MyLogger.d('已打开 ${targetPdfAttachmentItem.getTitle()}');
+          zoteroDB.addRecentlyOpenedAttachments(targetPdfAttachmentItem);
+          break;
+        case ResultType.noAppToOpen:
+          BrnToast.show('未找到可以打开PDF的应用，请安装PDF阅读器', context);
+          break;
+        case ResultType.fileNotFound:
+          BrnToast.show('文件不存在', context);
+          break;
+        case ResultType.permissionDenied:
+          BrnToast.show('没有权限打开文件', context);
+          break;
+        case ResultType.error:
+          BrnToast.show('打开失败: ${result.message}', context);
+          break;
+      }
+    } catch (e) {
+      MyLogger.e('打开PDF失败: $e');
+      BrnToast.show('打开PDF失败: $e', context);
     }
   }
 

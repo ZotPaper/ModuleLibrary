@@ -3,6 +3,9 @@ import 'package:module_library/LibZoteroAttachDownloader/zotero_attach_downloade
 import 'package:module_library/ModuleLibrary/res/ResColor.dart';
 import 'package:module_library/ModuleLibrary/viewmodels/library_viewmodel.dart';
 
+import '../../LibZoteroAttachDownloader/model/status.dart';
+import '../../LibZoteroAttachDownloader/model/transfer_info.dart';
+
 /// 全局下载进度指示器组件
 /// 
 /// 用于在页面底部显示所有正在进行的附件下载任务
