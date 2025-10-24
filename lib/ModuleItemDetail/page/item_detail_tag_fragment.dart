@@ -2,6 +2,7 @@ import 'dart:collection';
 
 import 'package:flutter/cupertino.dart';
 import 'package:flutter/material.dart';
+import 'package:module_base/view/toast/neat_toast.dart';
 import 'package:module_library/LibZoteroStorage/entity/ItemTag.dart';
 import 'package:module_library/ModuleLibrary/page/tags_selector_page/tags_selector_page.dart';
 import 'package:module_library/ModuleSync/zotero_sync_manager.dart';
@@ -72,7 +73,9 @@ class _ItemDetailTagFragmentState extends State<ItemDetailTagFragment> with Sing
       color: Colors.grey[100],
       elevation: 0,
       child: InkWell(
-        onTap: () {},
+        onTap: () {
+          context.toastNormal("功能待开发！！！");
+        },
         child: Container(
             height: 42,
             padding: const EdgeInsets.symmetric(horizontal: 12.0),
@@ -129,6 +132,8 @@ class _ItemDetailTagFragmentState extends State<ItemDetailTagFragment> with Sing
 
   Future<void> _navigateToAddTag() async {
     // var importantTags = await tagManger.getStyledTags();
+
+    context.toastNormal("添加标签，功能待开发！！！");
 
     Set<TagColor> styledTags = LinkedHashSet();
     Set<TagColor> unStyledTags = LinkedHashSet();
