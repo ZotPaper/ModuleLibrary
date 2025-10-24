@@ -3,7 +3,7 @@ import 'Collection.dart';
 import 'ItemInfo.dart';
 
 part 'AttachmentInfo.g.dart';
-const String UNSET = "UNSET";
+
 @JsonSerializable()
 class AttachmentInfo {
   final String itemKey;
@@ -11,9 +11,12 @@ class AttachmentInfo {
   final String md5Key;
   final int mtime;
   final String downloadedFrom;
+
   static const String WEBDAV = "WEBDAV";
   static const String ZOTEROAPI = "ZOTERO_API";
   static const String LOCALSYNC = "LOCAL_SYNC";
+
+  static const String UNSET = "UNSET";
 
   AttachmentInfo({
     required this.itemKey,

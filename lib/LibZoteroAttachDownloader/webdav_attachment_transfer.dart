@@ -281,7 +281,7 @@ class WebDAVAttachmentTransfer implements IAttachmentTransfer {
     final sourceFile = File.fromUri(sourceUri);
     
     if (!await sourceFile.exists()) {
-      throw Exception('源文件不存在: ${sourceFile.path}');
+      throw ZoteroNotFoundException('源文件不存在: ${sourceFile.path}');
     }
     
     // 创建临时ZIP文件

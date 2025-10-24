@@ -46,6 +46,7 @@ import 'LibraryUI/drawer.dart';
 import 'package:flutter_svg/flutter_svg.dart';
 import 'package:bruno/bruno.dart';
 import 'package:flutter/foundation.dart';
+import 'package:dio/dio.dart';
 
 class LibraryPage extends StatefulWidget {
   const LibraryPage({super.key});
@@ -315,16 +316,17 @@ class _LibraryPageState extends State<LibraryPage> with WidgetsBindingObserver, 
 
   /// 解析上传错误信息，返回用户友好的错误描述
   String _parseUploadError(dynamic error) {
-    final errorStr = error.toString();
-    
-    if (errorStr.contains('network') || errorStr.contains('NetworkException')) {
+    String errorStr = error.toString();
+    if (error is DioException) {
+      errorStr = "errorCode[${error.response?.statusCode}], message: ${error.message}";
+    }
+
+    if (errorStr.contains('NetworkException')) {
       return '网络连接失败: $errorStr';
     } else if (errorStr.contains('timeout') || errorStr.contains('TimeoutException')) {
       return '连接超时: $errorStr';
     } else if (errorStr.contains('401') || errorStr.contains('unauthorized')) {
       return '认证失败，请重新登录: $errorStr';
-    } else if (errorStr.contains('403') || errorStr.contains('forbidden')) {
-      return '无权限访问: $errorStr';
     } else if (errorStr.contains('404') || errorStr.contains('not found') || errorStr.contains("PathNotFoundException")) {
       return '文件未找到: $errorStr';
     } else if (errorStr.contains('500') || errorStr.contains('server error')) {
@@ -334,8 +336,6 @@ class _LibraryPageState extends State<LibraryPage> with WidgetsBindingObserver, 
       return errorStr.length > 50 ? '${errorStr.substring(0, 50)}...' : errorStr;
     }
   }
-
-
 
   @override
   void didChangeAppLifecycleState(AppLifecycleState state) {

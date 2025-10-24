@@ -1,6 +1,7 @@
 import 'package:flutter/cupertino.dart';
 import 'package:module_library/LibZoteroStorage/entity/Collection.dart';
 import 'package:module_library/ModuleLibrary/utils/my_logger.dart';
+import 'package:module_library/ModuleLibrary/zotero_provider.dart';
 
 import '../LibZoteroApi/Model/ZoteroSettingsResponse.dart';
 import '../LibZoteroStorage/entity/Item.dart';
@@ -47,8 +48,7 @@ class ZoteroSyncManager {
   void init(String userId, String apiKey) {
     _userId = userId;
     _apiKey = apiKey;
-
-    zoteroHttp = ZoteroDataHttp(userId: _userId, apiKey: _apiKey);
+    zoteroHttp = ZoteroProvider.getZoteroHttp();
   }
 
   // 判断是否已经配置了用户id和apiKey

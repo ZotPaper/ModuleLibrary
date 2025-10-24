@@ -14,6 +14,7 @@ import 'package:module_library/ModuleLibrary/zotero_provider.dart';
 import 'package:module_library/utils/zotero_sync_progress_helper.dart';
 import 'package:shared_preferences/shared_preferences.dart';
 
+import '../../LibZoteroStorage/entity/AttachmentInfo.dart';
 import '../../LibZoteroStorage/entity/Collection.dart';
 import '../../LibZoteroStorage/entity/Item.dart';
 import '../../LibZoteroStorage/entity/Note.dart';
@@ -550,7 +551,14 @@ class ZoteroDB {
         final md5Key = getMd5Key(item);
 
         if (md5Key != "" && !(await attachmentStorageManager.validateMd5ForItem(item, md5Key))) {
-         return true;
+          // 只过滤出本地存在的附件
+          var isExist = await attachmentStorageManager.attachmentExists(item);
+          if (isExist) {
+            return true;
+          } else {
+            MyLogger.d("AttachmentItem[itemKey: ${item.itemKey} name: ${item.getTitle()}] filtered for not existing, ");
+            return false;
+          }
         } else {
          return false;
         }
@@ -581,7 +589,30 @@ class ZoteroDB {
     return attachmentInfoEntry.md5Key;
   }
 
+  /// 更新附件元数据
+  Future<void> updateAttachmentMetadata({
+    required String itemKey,
+    required String md5Key,
+    required int mtime,
+    String downloadedFrom = AttachmentInfo.UNSET,
+    int groupID = -1,
+  }) async {
+    final attachmentInfoObj = AttachmentInfo(
+      itemKey: itemKey,
+      md5Key: md5Key,
+      mtime: mtime,
+      downloadedFrom: downloadedFrom,
+    );
 
+    // 日志输出
+    MyLogger.d('zotero: adding metadata for $itemKey, $md5Key - $downloadedFrom');
+
+    // 更新附件信息
+    attachmentInfo?[itemKey] = attachmentInfoObj;
+
+    // 写入数据库
+    await _zoteroDataSql.attachmentInfoDao.updateAttachment(attachmentInfoObj);
+  }
 
 
 }

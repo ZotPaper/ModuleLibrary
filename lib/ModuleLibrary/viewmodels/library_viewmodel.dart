@@ -261,6 +261,7 @@ class LibraryViewModel with ChangeNotifier {
 
       MyLogger.d("fetch saved loginInfo locally: [userId: $_userId, apiKey: $_apiKey]");
 
+      ZoteroProvider.initZoteroProvider(_userId, _apiKey);
       // 初始化同步管理器
       if (!zoteroSyncManager.isConfigured()) {
         zoteroSyncManager.init(_userId, _apiKey);

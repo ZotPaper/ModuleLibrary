@@ -2,7 +2,9 @@ import 'dart:async';
 import 'package:module_library/LibZoteroAttachDownloader/default_attachment_storage.dart';
 import 'package:module_library/LibZoteroAttachDownloader/webdav_attachment_transfer.dart';
 import 'package:module_library/ModuleLibrary/utils/my_logger.dart';
+import 'package:module_library/ModuleLibrary/zotero_provider.dart';
 
+import '../LibZoteroStorage/entity/AttachmentInfo.dart';
 import '../LibZoteroStorage/entity/Item.dart';
 import 'package:module_library/LibZoteroAttachDownloader/zotero_attachment_transfer.dart';
 
@@ -438,11 +440,51 @@ class ZoteroAttachDownloaderHelper {
       // 使用传输对象上传附件
       await transfer.updateAttachment(item);
       
+      if (transfer is WebDAVAttachmentTransfer) {
+        //附件上传成功后，需要调用zotero api修补zotero服务器的数据
+        final newMd5Key = await defaultStorageManager.calculateMd5(item);
+        final mtime = int.tryParse(item.data['mtime'] ?? '0') ?? 0;
+
+        var res = await ZoteroProvider.getZoteroHttp().patchItem(
+          item: item,
+          json: {
+            "md5": newMd5Key,
+            "mtime": mtime,
+          },
+        );
+
+        MyLogger.d("Moyear==== pathItem[${item.itemKey}] result: $res");
+
+        // 更新本地数据库中的附件信息
+        await ZoteroProvider.getZoteroDB().updateAttachmentMetadata(
+          itemKey: itemKey,
+          md5Key: newMd5Key,
+          mtime: mtime,
+          downloadedFrom: AttachmentInfo.WEBDAV,
+        );
+
+        MyLogger.d("Moyear==== updateAttachmentMetadata[${item.itemKey}] result: $res");
+      }
+
       MyLogger.d('附件上传成功: ${item.getTitle()}');
       
     } catch (e) {
       MyLogger.e('附件上传失败: ${item.getTitle()}, 错误: $e');
-      rethrow;
+      if (e is AlreadyUploadedException) {
+        final newMd5Key = await defaultStorageManager.calculateMd5(item);
+        final mtime = int.tryParse(item.data['mtime'] ?? '0') ?? 0;
+
+        await ZoteroProvider.getZoteroDB().updateAttachmentMetadata(
+          itemKey: itemKey,
+          md5Key: newMd5Key,
+          mtime: mtime,
+          downloadedFrom: AttachmentInfo.WEBDAV,
+        );
+
+        rethrow;
+      } else {
+        rethrow;
+      }
     }
   }
 
