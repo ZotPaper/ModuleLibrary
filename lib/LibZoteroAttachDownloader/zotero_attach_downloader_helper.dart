@@ -6,138 +6,9 @@ import 'package:module_library/ModuleLibrary/utils/my_logger.dart';
 import '../LibZoteroStorage/entity/Item.dart';
 import 'package:module_library/LibZoteroAttachDownloader/zotero_attachment_transfer.dart';
 
-/// 下载状态枚举
-enum DownloadStatus {
-  idle,        // 空闲
-  downloading, // 下载中
-  extracting,  // 解压中
-  completed,   // 完成
-  failed,      // 失败
-  cancelled,   // 取消
-}
-
-/// 上传状态枚举
-enum UploadStatus {
-  idle,       // 空闲
-  uploading,  // 上传中
-  completed,  // 完成
-  failed,     // 失败
-}
-
-/// 自定义下载异常类
-class DownloadException implements Exception {
-  final String message;
-  final String? originalError;
-  final DownloadErrorType errorType;
-  
-  const DownloadException({
-    required this.message,
-    this.originalError,
-    required this.errorType,
-  });
-  
-  @override
-  String toString() => message;
-}
-
-/// 下载错误类型枚举
-enum DownloadErrorType {
-  network,          // 网络错误
-  timeout,          // 超时
-  notFound,         // 文件未找到
-  unauthorized,     // 未授权
-  forbidden,        // 无权限
-  storage,          // 存储错误
-  permission,       // 权限错误
-  alreadyDownloading, // 正在下载中
-  notInitialized,   // 未初始化
-  unknown,          // 未知错误
-}
-
-/// 附件下载信息
-class AttachmentDownloadInfo {
-  final String itemKey;
-  final String filename;
-  final int progress;
-  final int total;
-  final DownloadStatus status;
-  final String? errorMessage;
-  final double progressPercent;
-
-  AttachmentDownloadInfo({
-    required this.itemKey,
-    required this.filename,
-    required this.progress,
-    required this.total,
-    required this.status,
-    this.errorMessage,
-  }) : progressPercent = total > 0 ? (progress / total * 100) : 0.0;
-
-  AttachmentDownloadInfo copyWith({
-    String? itemKey,
-    String? filename,
-    int? progress,
-    int? total,
-    DownloadStatus? status,
-    String? errorMessage,
-  }) {
-    return AttachmentDownloadInfo(
-      itemKey: itemKey ?? this.itemKey,
-      filename: filename ?? this.filename,
-      progress: progress ?? this.progress,
-      total: total ?? this.total,
-      status: status ?? this.status,
-      errorMessage: errorMessage ?? this.errorMessage,
-    );
-  }
-
-  @override
-  String toString() {
-    return 'AttachmentDownloadInfo{itemKey: $itemKey, filename: $filename, progress: $progress/$total (${progressPercent.toStringAsFixed(1)}%), status: $status}';
-  }
-}
-
-/// 附件上传信息
-class AttachmentUploadInfo {
-  final String itemKey;
-  final String filename;
-  final int currentIndex;
-  final int totalCount;
-  final UploadStatus status;
-  final String? errorMessage;
-
-  AttachmentUploadInfo({
-    required this.itemKey,
-    required this.filename,
-    required this.currentIndex,
-    required this.totalCount,
-    required this.status,
-    this.errorMessage,
-  });
-
-  AttachmentUploadInfo copyWith({
-    String? itemKey,
-    String? filename,
-    int? currentIndex,
-    int? totalCount,
-    UploadStatus? status,
-    String? errorMessage,
-  }) {
-    return AttachmentUploadInfo(
-      itemKey: itemKey ?? this.itemKey,
-      filename: filename ?? this.filename,
-      currentIndex: currentIndex ?? this.currentIndex,
-      totalCount: totalCount ?? this.totalCount,
-      status: status ?? this.status,
-      errorMessage: errorMessage ?? this.errorMessage,
-    );
-  }
-
-  @override
-  String toString() {
-    return 'AttachmentUploadInfo{itemKey: $itemKey, filename: $filename, progress: $currentIndex/$totalCount, status: $status}';
-  }
-}
+import 'bean/exception/zotero_download_exception.dart';
+import 'model/status.dart';
+import 'model/transfer_info.dart';
 
 /// 进度回调函数类型定义
 typedef ProgressCallback = void Function(AttachmentDownloadInfo downloadInfo);
@@ -273,8 +144,16 @@ class ZoteroAttachDownloaderHelper {
     //     errorType: DownloadErrorType.forbidden,
     //   );
     // }
+
+    if (error is ZipException) {
+      return DownloadException(
+        message: '${error.message}',
+        originalError: error.toString(),
+        errorType: DownloadErrorType.unknown,
+      );
+    }
     return DownloadException(
-      message: '下载失败: ${error.toString()}',
+      message: '${error.toString()}',
       originalError: error.toString(),
       errorType: DownloadErrorType.unknown,
     );

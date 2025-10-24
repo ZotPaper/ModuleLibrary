@@ -9,6 +9,8 @@ import 'package:module_library/ModuleLibrary/utils/my_logger.dart';
 import 'package:webdav_client/webdav_client.dart' as WebDAV;
 import 'package:path/path.dart' as p;
 
+import 'bean/exception/zotero_download_exception.dart';
+
 /// WebDAV属性文件内容
 class WebdavProp {
   final int mtime;
@@ -61,9 +63,10 @@ class WebDAVAttachmentTransfer implements IAttachmentTransfer {
   }
 
   void _initializeClient() {
+    // todo 解决zotoro后缀的问题
     // 标准化WebDAV地址
     String normalizedAddress = webdavAddress;
-    if (normalizedAddress.endsWith("/zotero")) {
+    if (normalizedAddress.endsWith("/zotero") || normalizedAddress.endsWith("/zotero/")) {
       _baseAddress = normalizedAddress;
     } else {
       if (normalizedAddress.endsWith("/")) {
@@ -205,7 +208,7 @@ class WebDAVAttachmentTransfer implements IAttachmentTransfer {
       final archive = ZipDecoder().decodeBytes(bytes);
       
       if (archive.files.isEmpty) {
-        throw Exception('ZIP文件为空');
+        throw ZipException('ZIP文件为空');
       }
       
       // 获取第一个文件（Zotero附件通常只包含一个文件）
@@ -229,20 +232,20 @@ class WebDAVAttachmentTransfer implements IAttachmentTransfer {
       
       // 验证解压后的文件
       if (!await finalFile.exists()) {
-        throw Exception('解压后的文件未能正确创建');
+        throw ZipException('解压后的文件未能正确创建');
       }
       
       final extractedSize = await finalFile.length();
       if (extractedSize == 0) {
-        throw Exception('解压后的文件大小为0');
+        throw ZipException('解压后的文件大小为0');
       }
       
       if (kDebugMode) {
-        print('成功解压附件: $originalFilename ($extractedSize bytes)');
+        MyLogger.d('成功解压附件: $originalFilename ($extractedSize bytes)');
       }
       
     } catch (e) {
-      throw Exception('ZIP解压失败: $e');
+      rethrow;
     }
   }
 
@@ -316,12 +319,12 @@ class WebDAVAttachmentTransfer implements IAttachmentTransfer {
       
       // 验证创建的ZIP文件
       if (!await zipFile.exists()) {
-        throw Exception('ZIP文件创建失败');
+        throw ZipException('ZIP文件创建失败');
       }
       
       final zipSize = await zipFile.length();
       if (zipSize == 0) {
-        throw Exception('创建的ZIP文件大小为0');
+        throw ZipException('创建的ZIP文件大小为0');
       }
       
       if (kDebugMode) {
@@ -335,7 +338,11 @@ class WebDAVAttachmentTransfer implements IAttachmentTransfer {
       if (await zipFile.exists()) {
         await zipFile.delete();
       }
-      throw Exception('ZIP压缩失败: $e');
+      if (e is ZipException) {
+        throw ZipException('ZIP压缩失败: ${e.message}');
+      } else {
+        throw ZipException('ZIP压缩失败: $e');
+      }
     }
   }
 

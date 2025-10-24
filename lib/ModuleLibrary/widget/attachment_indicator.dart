@@ -4,6 +4,9 @@ import 'package:module_library/LibZoteroAttachDownloader/zotero_attach_downloade
 import 'package:module_library/LibZoteroStorage/entity/Item.dart';
 import 'package:module_library/ModuleLibrary/viewmodels/library_viewmodel.dart';
 
+import '../../LibZoteroAttachDownloader/model/status.dart';
+import '../../LibZoteroAttachDownloader/model/transfer_info.dart';
+
 /// 附件下载状态指示器组件
 /// 
 /// 用于显示PDF附件的下载状态，包括：

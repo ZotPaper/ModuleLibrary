@@ -9,6 +9,7 @@ import 'package:module_base/view/dialog/neat_dialog.dart';
 import 'package:module_library/LibZoteroApi/Model/ZoteroSettingsResponse.dart';
 import 'package:module_library/LibZoteroAttachDownloader/dialog/attachment_transfer_dialog_manager.dart';
 import 'package:module_library/LibZoteroAttachDownloader/event/event_check_attachment_modification.dart';
+import 'package:module_library/LibZoteroAttachDownloader/model/status.dart';
 import 'package:module_library/LibZoteroStorage/entity/Collection.dart';
 import 'package:module_library/LibZoteroStorage/entity/Item.dart';
 import 'package:module_library/LibZoteroAttachDownloader/zotero_attach_downloader_helper.dart';
