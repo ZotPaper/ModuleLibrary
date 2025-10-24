@@ -1235,6 +1235,8 @@ class LibraryViewModel with ChangeNotifier {
     for (var attachment in downloadedAttachments) {
       try {
         await storage.deleteAttachment(attachment);
+        // 【客户端】pdf文件删除下载本地文件后从最近修改的文档中移除
+        zoteroDB.removeRecentlyOpenedAttachment(attachment.itemKey);
         MyLogger.d('删除附件成功: ${attachment.getTitle()}');
         
         // 更新文件存在状态缓存为false
