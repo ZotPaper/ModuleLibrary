@@ -97,12 +97,34 @@ class WebDAVAttachmentTransfer implements IAttachmentTransfer {
     return _downloadAttachment(item);
   }
 
+  bool _isValidUrl(String url) {
+    try {
+      final Uri uri = Uri.parse(url);
+      // 检查是否包含scheme(http/https)和host
+      if (uri.scheme.isEmpty || uri.host.isEmpty) {
+        return false;
+      }
+      // 只允许http和https协议
+      if (!['http', 'https'].contains(uri.scheme.toLowerCase())) {
+        return false;
+      }
+      return true;
+    } catch (e) {
+      return false;
+    }
+  }
+
   /// 下载附件的核心实现
   Stream<DownloadProgress> _downloadAttachment(Item item) async* {
     try {
       final itemKey = item.itemKey.toUpperCase();
       final webpathProp = '$_baseAddress/$itemKey.prop';
       final webpathZip = '$_baseAddress/$itemKey.zip';
+
+      // 先验证_baseAddress是不是一个有效的地址
+      if (!_isValidUrl(_baseAddress!)) {
+        throw Exception('Invalid WebDAV address');
+      }
 
       // 1. 下载.prop文件获取元数据
       WebdavProp prop;
