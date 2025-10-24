@@ -6,6 +6,7 @@ import '../../../LibZoteroStorage/entity/Item.dart';
 import '../../../utils/local_zotero_credential.dart';
 import '../../share_pref.dart';
 import '../../utils/my_logger.dart';
+import '../../zotero_provider.dart';
 
 class SyncViewModel with ChangeNotifier {
 
@@ -28,6 +29,8 @@ class SyncViewModel with ChangeNotifier {
     // 获取本地保存的 Zotero 用户信息
     await fetchZoteroUserCredential();
 
+    // 初始化zotero api
+    ZoteroProvider.initZoteroProvider(_userId, _apiKey);
     zoteroSyncManager.init(_userId, _apiKey);
 
     // 判断是否初次启动,没有就开始完整同步数据

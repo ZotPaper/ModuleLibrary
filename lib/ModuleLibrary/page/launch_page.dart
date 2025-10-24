@@ -1,5 +1,6 @@
 import 'package:flutter/cupertino.dart';
 import 'package:flutter/material.dart';
+import 'package:module_library/LibZoteroAttachDownloader/default_attachment_storage.dart';
 import 'package:module_library/routers.dart';
 import 'package:module_library/utils/webdav_configuration.dart';
 
@@ -97,5 +98,8 @@ class _LaunchPageState extends State<LaunchPage> with SingleTickerProviderStateM
     //
     // WebdavConfiguration.setWebdavConfiguration(webdavAddress, username, password);
     // WebdavConfiguration.setUseWebdav(true);
+
+    // ModuleLibrary默认使用外部pdf阅读器
+    DefaultAttachmentStorage.instance.setOpenPDFWithExternalApp(true);
   }
 }
