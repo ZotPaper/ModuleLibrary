@@ -11,6 +11,8 @@ import '../../ModuleLibrary/utils/my_logger.dart';
 import '../../ModuleLibrary/viewmodels/library_viewmodel.dart';
 import 'package:provider/provider.dart';
 
+import '../common_epmty_view.dart';
+
 class ItemDetailAttachmentFragment extends StatefulWidget {
   final Item item;
   const ItemDetailAttachmentFragment(this.item, {super.key});
@@ -100,7 +102,8 @@ class _ItemDetailAttachmentFragmentState extends State<ItemDetailAttachmentFragm
               child: Text('附件列表', style: TextStyle(fontSize: 16)),
             ),
             const SizedBox(height: 4),
-            ...attachments.map((attachment) => _attachmentItem(attachment)),
+            if (attachments.isNotEmpty) ...attachments.map((attachment) => _attachmentItem(attachment))
+            else const CommonEmptyView(text: "该条目记录下无附件",)
             // _addAttachmentButton(),
           ],
         ));

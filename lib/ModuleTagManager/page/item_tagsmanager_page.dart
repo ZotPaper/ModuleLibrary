@@ -304,7 +304,7 @@ class _ItemDetailTagFragmentState extends State<TagsManagerPage> {
             ),
           ),
           const Spacer(),
-          _addTagButton(),
+          // _addTagButton(),
         ],
       ),
     );

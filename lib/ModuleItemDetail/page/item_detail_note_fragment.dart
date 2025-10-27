@@ -2,6 +2,7 @@ import 'package:flutter/cupertino.dart';
 import 'package:flutter/material.dart';
 import 'package:module_base/view/toast/neat_toast.dart';
 import 'package:module_library/LibZoteroStorage/entity/Note.dart';
+import 'package:module_library/ModuleItemDetail/common_epmty_view.dart';
 
 import '../../LibZoteroStorage/entity/Item.dart';
 
@@ -46,8 +47,8 @@ class _ItemDetailNoteFragmentState extends State<ItemDetailNoteFragment> with Si
               child: Text('笔记列表', style: TextStyle(fontSize: 16)),
             ),
             const SizedBox(height: 4),
-            ...notes.map((note) => _attachmentItem(note)),
-            _addAttachmentButton(),
+            if (notes.isNotEmpty) ...notes.map((note) => _attachmentItem(note)) else CommonEmptyView(text: "该条目记录下无笔记",)
+            // _addAttachmentButton(),
           ],
         ));
   }
