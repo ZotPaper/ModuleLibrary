@@ -119,33 +119,11 @@ class ZoteroAttachDownloaderHelper {
 
     if (error is ZoteroNotFoundException) {
       return DownloadException(
-        message: '服务器找不到文件',
+        message: 'Zotero服务器找不到文件',
         originalError: error.message,
         errorType: DownloadErrorType.notFound,
       );
     }
-    
-    // if (errorStr.contains('network') || errorStr.contains('connection')) {
-    //   return const DownloadException(
-    //     message: '网络连接失败，请检查网络设置',
-    //     errorType: DownloadErrorType.network,
-    //   );
-    // } else if (errorStr.contains('timeout')) {
-    //   return const DownloadException(
-    //     message: '下载超时，请重试',
-    //     errorType: DownloadErrorType.timeout,
-    //   );
-    // } else if (errorStr.contains('unauthorized') || errorStr.contains('401')) {
-    //   return const DownloadException(
-    //     message: 'API密钥无效，请重新登录',
-    //     errorType: DownloadErrorType.unauthorized,
-    //   );
-    // } else if (errorStr.contains('forbidden') || errorStr.contains('403')) {
-    //   return const DownloadException(
-    //     message: '无权限访问此附件',
-    //     errorType: DownloadErrorType.forbidden,
-    //   );
-    // }
 
     if (error is ZipException) {
       return DownloadException(

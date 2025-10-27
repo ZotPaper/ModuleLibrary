@@ -259,8 +259,10 @@ class AttachmentStrategyManager {
             }
           } else {
             // 处理其他类型的异常
-            BrnToast.show("下载出错: $error", context);
-            MyLogger.e('下载出错 ${info.itemKey}: $error');
+            var errorMessage = error.toString();
+
+            BrnToast.show("下载出错: $errorMessage", context);
+            MyLogger.e('下载出错 ${info.itemKey}: $errorMessage');
           }
         },
       );

@@ -34,3 +34,18 @@ class ZipException implements Exception {
   final String message;
   ZipException(this.message);
 }
+
+class FileNotFoundException implements Exception {
+  final String message;
+  FileNotFoundException(this.message);
+}
+
+class AttachmentNotFoundException implements Exception {
+  final String message;
+  AttachmentNotFoundException(this.message);
+}
+
+class WedDAVException implements Exception {
+  final String message;
+  WedDAVException(this.message);
+}
