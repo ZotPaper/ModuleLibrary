@@ -10,6 +10,7 @@ import 'package:module_library/LibZoteroAttachDownloader/native/attachment_nativ
 import 'package:module_library/LibZoteroAttachDownloader/webdav_attachment_transfer.dart';
 import 'package:module_library/LibZoteroAttachDownloader/zotero_attach_downloader_helper.dart';
 import 'package:module_library/LibZoteroAttachDownloader/zotero_attachment_transfer.dart';
+import 'package:module_library/LibZoteroAttachment/attachment_strategy_manager.dart';
 import 'package:module_library/LibZoteroStorage/database/dao/RecentlyOpenedAttachmentDao.dart';
 import 'package:module_library/ModuleLibrary/model/list_entry.dart';
 import 'package:module_library/ModuleLibrary/model/page_type.dart';
@@ -1062,7 +1063,7 @@ class LibraryViewModel with ChangeNotifier {
     bool isDownloaded = await DefaultAttachmentStorage.instance.attachmentExists(targetPdfAttachmentItem);
     if (isDownloaded) {
       // 打开pdf
-      await openDownloadedPdf(context, targetPdfAttachmentItem);
+      await AttachmentStrategyManager.instance.openDownloadedPdf(context, targetPdfAttachmentItem);
       return;
     }
 
@@ -1306,72 +1307,6 @@ class LibraryViewModel with ChangeNotifier {
 
       // 调用自身，确保初次使用可以通知webdav的配置变化回调
       WebdavConfiguration.setUseWebdav(WebdavConfiguration.useWebdav);
-    }
-  }
-
-  Future<void> openDownloadedPdf(BuildContext context, Item targetPdfAttachmentItem) async {
-    bool isDownloaded = await DefaultAttachmentStorage.instance.attachmentExists(targetPdfAttachmentItem);
-
-    if (!isDownloaded) {
-      BrnToast.show('请先下载${targetPdfAttachmentItem.getTitle()}', context);
-      MyLogger.d('请先下载${targetPdfAttachmentItem.getTitle()}');
-      return;
-    }
-
-    // BrnToast.show('${targetPdfAttachmentItem.getTitle()}已下载, 打开pdf功能待开发...', context);
-    MyLogger.d('${targetPdfAttachmentItem.getTitle()}已下载');
-
-    final attachmentFile = await DefaultAttachmentStorage.instance.getAttachmentFile(targetPdfAttachmentItem);
-
-    //  判断是否使用其他阅读器打开pdf
-    var useExternalPdfReader = DefaultAttachmentStorage.instance.isOpenPdfExternalReader;
-    if (useExternalPdfReader) {
-      // 使用其他阅读器打开pdf
-      openPdfWithUrlLauncher(context, attachmentFile, targetPdfAttachmentItem);
-    } else {
-      final res = await PdfViewerNativeChannel.openPdfViewer(
-        attachmentKey: targetPdfAttachmentItem.itemKey,
-        attachmentPath: attachmentFile.path,
-        attachmentType: targetPdfAttachmentItem.getContentType(),
-      );
-
-      if (res != null) {
-        // 添加到最近打开的附件
-        zoteroDB.addRecentlyOpenedAttachments(targetPdfAttachmentItem);
-      }
-    }
-  }
-
-  Future<void> openPdfWithUrlLauncher(BuildContext context, File pdfFile, Item targetPdfAttachmentItem) async {
-    try {
-      final result = await OpenFilex.open(
-        pdfFile.path,
-        type: "application/pdf",
-      );
-
-      MyLogger.d('打开PDF结果: ${result.type} - ${result.message}');
-
-      switch (result.type) {
-        case ResultType.done:
-          MyLogger.d('已打开 ${targetPdfAttachmentItem.getTitle()}');
-          zoteroDB.addRecentlyOpenedAttachments(targetPdfAttachmentItem);
-          break;
-        case ResultType.noAppToOpen:
-          BrnToast.show('未找到可以打开PDF的应用，请安装PDF阅读器', context);
-          break;
-        case ResultType.fileNotFound:
-          BrnToast.show('文件不存在', context);
-          break;
-        case ResultType.permissionDenied:
-          BrnToast.show('没有权限打开文件', context);
-          break;
-        case ResultType.error:
-          BrnToast.show('打开失败: ${result.message}', context);
-          break;
-      }
-    } catch (e) {
-      MyLogger.e('打开PDF失败: $e');
-      BrnToast.show('打开PDF失败: $e', context);
     }
   }
 
