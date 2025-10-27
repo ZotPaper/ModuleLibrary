@@ -1,5 +1,6 @@
 import 'package:flutter/cupertino.dart';
 
+import '../LibZoteroStorage/entity/Item.dart';
 import '../LibZoteroStorage/entity/Note.dart';
 import '../routers.dart';
 
@@ -14,6 +15,12 @@ class NoteEditManager {
     MyRouter.instance.pushNamed(context, MyRouter.PAGE_NOTE_EDIT, arguments: {
       "note": note,
     });
+  }
+
+  void editNoteItem(BuildContext context, Item noteItem) {
+    noteItem.isNoteItem();
+    Note note = Note.create(noteItem.data['note'] ?? "", noteItem.getParentItemKey());
+    editNote(context, note);
   }
 
 }

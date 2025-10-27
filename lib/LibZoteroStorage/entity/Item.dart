@@ -196,4 +196,8 @@ class Item {
   bool isNoteItem() {
     return itemType == "note";
   }
+
+  String getParentItemKey() {
+    return data["parentItem"] ?? "";
+  }
 }

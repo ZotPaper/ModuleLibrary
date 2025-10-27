@@ -594,7 +594,10 @@ class _LibraryPageState extends State<LibraryPage> with WidgetsBindingObserver, 
             viewModel: _viewModel,
             onTap: () {
               debugPrint("Moyear==== item click");
-              _showItemInfo(context, entry.item!);
+              _viewModel.onItemTap(context, entry.item!);
+            },
+            onLongPress: () {
+              _viewModel.showItemInfoDetail(context, entry.item!);
             },
             onMorePressed: () {
               ItemOperationPanel.show(
@@ -720,16 +723,7 @@ class _LibraryPageState extends State<LibraryPage> with WidgetsBindingObserver, 
         });
   }
 
-  void _showItemInfo(BuildContext context, Item item) {
-    // BrnToast.show("item: ${item.getTitle()}", context);
-    // 跳转到详情页
-    try {
-      MyRouter.instance.pushNamed(context, "itemDetailPage", arguments: { "item": item });
-    } catch (e) {
-      debugPrint(e.toString());
-      BrnToast.show("跳转详情页失败", context);
-    }
-  }
+
 
   void _navigationTagManager() {
     MyRouter.instance.pushNamed(context, "tagsManagerPage");
@@ -758,7 +752,7 @@ class _LibraryPageState extends State<LibraryPage> with WidgetsBindingObserver, 
             )
         ),
         const SizedBox(height: 18,),
-        const Text('(((ﾟДﾟ;))) Oops! 页面发生了错误!!!'),
+        const Text('(((ﾟДﾟ;))) Oops! 页面内容为空或发生了错误'),
       ],
     )
     );

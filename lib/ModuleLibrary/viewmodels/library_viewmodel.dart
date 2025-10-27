@@ -18,6 +18,7 @@ import 'package:module_library/ModuleLibrary/my_library_filter.dart';
 import 'package:module_library/ModuleLibrary/utils/my_logger.dart';
 import 'package:module_library/ModuleLibrary/viewmodels/zotero_database.dart';
 import 'package:module_library/ModuleLibrary/zotero_provider.dart';
+import 'package:module_library/ModuleNoteEdit/note_edit_manager.dart';
 import 'package:module_library/ModuleTagManager/item_tagmanager.dart';
 import 'package:module_library/utils/local_zotero_credential.dart';
 import 'package:module_library/utils/webdav_configuration.dart';
@@ -29,7 +30,9 @@ import '../../LibZoteroAttachDownloader/model/transfer_info.dart';
 import '../../LibZoteroStorage/entity/Collection.dart';
 import '../../LibZoteroStorage/entity/Item.dart';
 import '../../LibZoteroStorage/entity/ItemCollection.dart';
+import '../../LibZoteroStorage/entity/Note.dart';
 import '../../ModuleSync/zotero_sync_manager.dart';
+import '../../routers.dart';
 import '../api/ZoteroDataHttp.dart';
 import '../api/ZoteroDataSql.dart';
 import '../model/my_item_entity.dart';
@@ -39,6 +42,8 @@ import 'package:rxdart/rxdart.dart';
 import 'package:url_launcher/url_launcher.dart';
 import '../store/library_settings.dart';
 import 'package:module_base/stores/hive_stores.dart';
+
+import '../widget/bottomsheet/item_operation_panel.dart';
 
 class LibraryViewModel with ChangeNotifier {
 
@@ -1301,6 +1306,31 @@ class LibraryViewModel with ChangeNotifier {
   /// 仅清除修改标记，不上传
   Future<void> clearModifiedAttachmentsMarks(List<RecentlyOpenedAttachment> attachments) async {
     // await _clearModifiedAttachmentsMarks(attachments);
+  }
+
+  void onItemTap(BuildContext context, Item item) {
+    if (item.isNoteItem()) {
+      NoteEditManager.instance.editNoteItem(context, item);
+      return;
+    }
+
+    if (_itemHasPdfAttachment(item)) {
+      AttachmentStrategyManager.instance.openOrDownloadPdf(context, item);
+      return;
+    }
+
+    showItemInfoDetail(context, item);
+  }
+
+  void showItemInfoDetail(BuildContext context, Item item) {
+    // BrnToast.show("item: ${item.getTitle()}", context);
+    // 跳转到详情页
+    try {
+      MyRouter.instance.pushNamed(context, "itemDetailPage", arguments: { "item": item });
+    } catch (e) {
+      debugPrint(e.toString());
+      BrnToast.show("跳转详情页失败", context);
+    }
   }
 
 }
