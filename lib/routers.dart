@@ -2,12 +2,14 @@ import 'package:bruno/bruno.dart';
 import 'package:flutter/cupertino.dart';
 import 'package:flutter/material.dart';
 import 'LibZoteroStorage/entity/Item.dart';
+import 'LibZoteroStorage/entity/Note.dart';
 import 'ModuleItemDetail/page/item_details_page.dart';
 import 'ModuleLibrary/page/LibraryPage.dart';
 import 'ModuleLibrary/page/launch_page.dart';
 import 'ModuleLibrary/page/select_collection_page/collection_select_page.dart';
 import 'ModuleLibrary/page/sync_page/sync_page.dart';
 import 'ModuleLibrary/utils/my_logger.dart';
+import 'ModuleNoteEdit/note_edit_page.dart';
 import 'ModuleTagManager/page/item_tagsmanager_page.dart';
 
 // 全局RouteObserver，用于监听页面路由变化
@@ -18,6 +20,8 @@ class MyRouter {
   static final MyRouter instance = MyRouter._internal();
   factory MyRouter() => instance;
   MyRouter._internal();
+
+  static const String PAGE_NOTE_EDIT = 'noteEditPage';
 
   bool _enableExceptionCatch = false;
 
@@ -111,5 +115,13 @@ Map<String, WidgetBuilder> libraryRouters() {
       }
       return CollectionSelector();
     },
+    MyRouter.PAGE_NOTE_EDIT: (context) {
+      final arguments = ModalRoute.of(context)?.settings.arguments;
+      Note note = Note(parent: '', key: '', note: '');
+      if (arguments is Map<String, dynamic>) {
+        note = arguments['note'] as Note;
+      }
+      return NoteEditPage(note);
+    }
   };
 }
