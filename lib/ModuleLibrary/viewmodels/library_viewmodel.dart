@@ -584,7 +584,7 @@ class LibraryViewModel with ChangeNotifier {
     
     // 筛选只含笔记的条目
     if (_libraryStore.showOnlyWithNotes.get()) {
-      filteredItems = filteredItems.where((item) => _itemHasNotes(item)).toList();
+      filteredItems = filteredItems.where((item) => item.isNoteItem() || _itemHasNotes(item)).toList();
     }
     
     return filteredItems;
@@ -612,7 +612,6 @@ class LibraryViewModel with ChangeNotifier {
   bool _itemHasNotes(Item item) {
     return item.notes.isNotEmpty;
   }
-
   /// 返回上一个浏览记录
   void backToPreviousPos() async {
     var locationKey = _viewStack.removeLast();

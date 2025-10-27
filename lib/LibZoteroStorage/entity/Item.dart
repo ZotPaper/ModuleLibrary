@@ -192,4 +192,8 @@ class Item {
   bool hasAttachments() {
     return attachments.isNotEmpty;
   }
+
+  bool isNoteItem() {
+    return itemType == "note";
+  }
 }
