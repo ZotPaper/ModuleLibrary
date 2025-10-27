@@ -126,7 +126,7 @@ class ItemOperationPanel {
     }
 
     // 4. 删除已下载的附件
-    if (item.hasAttachments()) {
+    if (item.hasAttachments() || viewModel.isPdfAttachmentItem(item)) {
       items.add(ItemClickProxy(
         title: "删除已下载的附件",
         actionStyle: "alert",
