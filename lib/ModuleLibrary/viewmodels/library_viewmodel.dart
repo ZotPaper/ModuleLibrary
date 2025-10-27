@@ -286,6 +286,21 @@ class LibraryViewModel with ChangeNotifier {
 
       // 初始化PDF查看器
       await PdfViewerNativeChannel.init();
+      
+      // 设置附件管理器的状态更新回调
+      AttachmentStrategyManager.instance.setDownloadStateUpdateCallback((downloadInfo) {
+        _updateDownloadState(downloadInfo);
+      });
+      AttachmentStrategyManager.instance.setDownloadStateRemoveCallback((itemKey) {
+        _removeDownloadState(itemKey);
+      });
+      AttachmentStrategyManager.instance.setFileExistsCacheUpdateCallback((itemKey, exists) {
+        if (exists) {
+          _fileExistsCache[itemKey] = true;
+        } else {
+          _fileExistsCache.remove(itemKey);
+        }
+      });
     }
 
     setLoading(false);
@@ -1036,157 +1051,9 @@ class LibraryViewModel with ChangeNotifier {
   }
 
   /// 下载pdf或取消下载
+  /// 现在委托给 AttachmentStrategyManager 处理
   Future<void> openOrDownloadedPdf(BuildContext context, Item item) async {
-    // 找到item对应的pdf文件
-    Item? targetPdfAttachmentItem;
-    // 检测item自身是否是pdf文件
-    if (isPdfAttachmentItem(item)) {
-      targetPdfAttachmentItem = item;
-    } else {
-      // 检测item的附件中是否有pdf文件
-      if (itemHasPdfAttachment(item)) {
-        targetPdfAttachmentItem = item.attachments.firstWhere((element) => isPdfAttachmentItem(element));
-      }
-    }
-
-    if (targetPdfAttachmentItem == null) {
-      throw "没有找到pdf文件";
-    }
-
-    // 检查是否正在下载，如果是则取消下载
-    if (isAttachmentDownloading(targetPdfAttachmentItem.itemKey)) {
-      await _cancelDownload(context, targetPdfAttachmentItem);
-      return;
-    }
-
-    // 检查是否已下载
-    bool isDownloaded = await DefaultAttachmentStorage.instance.attachmentExists(targetPdfAttachmentItem);
-    if (isDownloaded) {
-      // 打开pdf
-      await AttachmentStrategyManager.instance.openDownloadedPdf(context, targetPdfAttachmentItem);
-      return;
-    }
-
-    // 开始下载
-    await _startDownload(context, targetPdfAttachmentItem);
-  }
-
-  /// 开始下载附件
-  Future<void> _startDownload(BuildContext context, Item targetPdfAttachmentItem) async {
-    final downloadHelper = ZoteroAttachDownloaderHelper.instance;
-
-    try {
-      final itemKey = targetPdfAttachmentItem.itemKey;
-      
-      // 清除文件存在状态缓存，因为要开始下载了
-      _fileExistsCache.remove(itemKey);
-      
-      // 立即设置初始下载状态，确保UI显示进度环
-      final initialDownloadInfo = AttachmentDownloadInfo(
-        itemKey: itemKey,
-        filename: targetPdfAttachmentItem.getTitle(),
-        progress: 0,
-        total: 100,
-        status: DownloadStatus.downloading,
-      );
-      _updateDownloadState(initialDownloadInfo);
-      
-      await downloadHelper.startDownloadAttachment(
-        targetPdfAttachmentItem,
-        onProgress: (info) {
-          // 更新下载进度状态
-          _updateDownloadState(info);
-          MyLogger.d('下载进度 ${info.itemKey}: ${info.progressPercent.toStringAsFixed(1)}%');
-        },
-        onComplete: (info, success) {
-          if (success) {
-            // 下载完成，更新文件存在状态缓存并移除下载状态
-            _fileExistsCache[info.itemKey] = true;
-            _removeDownloadState(info.itemKey);
-            BrnToast.show("下载完成附件: ${info.filename}", context);
-            MyLogger.d('下载完成 ${info.itemKey}: ${info.filename}');
-          } else {
-            // 下载失败，更新状态为失败
-            _updateDownloadState(info.copyWith(status: DownloadStatus.failed));
-            MyLogger.e('下载失败 ${info.itemKey}');
-          }
-        },
-        onError: (info, error) {
-          // 下载错误，移除下载状态
-          _removeDownloadState(info.itemKey);
-          
-          if (error is DownloadException) {
-            switch (error.errorType) {
-              case DownloadErrorType.notFound:
-                BrnToast.show("在Zotero服务器找不到附件，请确认该附件是否保存在WebDAV服务器中", context);
-                MyLogger.w('下载失败，附件[${info.itemKey}, ${info.filename}]不存在');
-                break;
-              case DownloadErrorType.network:
-                BrnToast.show("网络连接失败，请检查网络设置", context);
-                MyLogger.w('下载失败，网络错误: ${info.itemKey}');
-                break;
-              case DownloadErrorType.timeout:
-                BrnToast.show("下载超时，请重试", context);
-                MyLogger.w('下载失败，超时: ${info.itemKey}');
-                break;
-              default:
-                BrnToast.show("下载出错: ${error.message}", context);
-                MyLogger.e('下载出错 ${info.itemKey}: ${error.message}');
-            }
-          } else {
-            // 处理其他类型的异常
-            BrnToast.show("下载出错: $error", context);
-            MyLogger.e('下载出错 ${info.itemKey}: $error');
-          }
-        },
-      );
-    } catch (e) {
-      // 处理同步错误（如未初始化、正在下载等），移除下载状态
-      _removeDownloadState(targetPdfAttachmentItem.itemKey);
-      
-      if (e is DownloadException) {
-        BrnToast.show(e.message, context);
-      } else {
-        BrnToast.show("下载失败: $e", context);
-      }
-      MyLogger.e('下载启动失败: $e');
-    }
-  }
-
-  /// 取消下载
-  Future<void> _cancelDownload(BuildContext context, Item targetPdfAttachmentItem) async {
-    final downloadHelper = ZoteroAttachDownloaderHelper.instance;
-    
-    try {
-      await downloadHelper.cancelDownload(targetPdfAttachmentItem.itemKey);
-      
-      // 清理临时文件
-      await _cleanupTempFiles(targetPdfAttachmentItem);
-      
-      // 移除下载状态
-      _removeDownloadState(targetPdfAttachmentItem.itemKey);
-      
-      // BrnToast.show("已取消下载", context);
-      MyLogger.d('取消下载: ${targetPdfAttachmentItem.itemKey}');
-    } catch (e) {
-      BrnToast.show("取消下载失败: $e", context);
-      MyLogger.e('取消下载失败: $e');
-    }
-  }
-
-  /// 清理临时文件
-  Future<void> _cleanupTempFiles(Item item) async {
-    try {
-      final storage = DefaultAttachmentStorage.instance;
-      final tempFile = await storage.getDownloadTempFile(item);
-      
-      if (await tempFile.exists()) {
-        await tempFile.delete();
-        MyLogger.d('清理临时文件: ${tempFile.path}');
-      }
-    } catch (e) {
-      MyLogger.w('清理临时文件失败: $e');
-    }
+    await AttachmentStrategyManager.instance.openOrDownloadPdf(context, item);
   }
 
   /// 删除item下所有已下载的附件
