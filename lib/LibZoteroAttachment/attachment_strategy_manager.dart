@@ -32,24 +32,67 @@ class AttachmentStrategyManager {
   // 下载状态跟踪
   final Map<String, AttachmentDownloadInfo> _downloadStates = {};
   
-  // 状态更新回调
-  DownloadStateCallback? _onDownloadStateUpdate;
-  DownloadStateRemoveCallback? _onDownloadStateRemove;
-  FileExistsCacheCallback? _onFileExistsCacheUpdate;
+  // 状态更新回调列表（支持多个监听者）
+  final List<DownloadStateCallback> _downloadStateUpdateListeners = [];
+  final List<DownloadStateRemoveCallback> _downloadStateRemoveListeners = [];
+  final List<FileExistsCacheCallback> _fileExistsCacheUpdateListeners = [];
   
-  /// 设置下载状态更新回调
+  /// 添加下载状态更新监听器
+  void addDownloadStateUpdateListener(DownloadStateCallback callback) {
+    if (!_downloadStateUpdateListeners.contains(callback)) {
+      _downloadStateUpdateListeners.add(callback);
+    }
+  }
+  
+  /// 移除下载状态更新监听器
+  void removeDownloadStateUpdateListener(DownloadStateCallback callback) {
+    _downloadStateUpdateListeners.remove(callback);
+  }
+  
+  /// 添加下载状态移除监听器
+  void addDownloadStateRemoveListener(DownloadStateRemoveCallback callback) {
+    if (!_downloadStateRemoveListeners.contains(callback)) {
+      _downloadStateRemoveListeners.add(callback);
+    }
+  }
+  
+  /// 移除下载状态移除监听器
+  void removeDownloadStateRemoveListener(DownloadStateRemoveCallback callback) {
+    _downloadStateRemoveListeners.remove(callback);
+  }
+  
+  /// 添加文件存在缓存更新监听器
+  void addFileExistsCacheUpdateListener(FileExistsCacheCallback callback) {
+    if (!_fileExistsCacheUpdateListeners.contains(callback)) {
+      _fileExistsCacheUpdateListeners.add(callback);
+    }
+  }
+  
+  /// 移除文件存在缓存更新监听器
+  void removeFileExistsCacheUpdateListener(FileExistsCacheCallback callback) {
+    _fileExistsCacheUpdateListeners.remove(callback);
+  }
+  
+  // 保留旧的方法以保持向后兼容
+  @Deprecated('Use addDownloadStateUpdateListener instead')
   void setDownloadStateUpdateCallback(DownloadStateCallback? callback) {
-    _onDownloadStateUpdate = callback;
+    if (callback != null) {
+      addDownloadStateUpdateListener(callback);
+    }
   }
   
-  /// 设置下载状态移除回调
+  @Deprecated('Use addDownloadStateRemoveListener instead')
   void setDownloadStateRemoveCallback(DownloadStateRemoveCallback? callback) {
-    _onDownloadStateRemove = callback;
+    if (callback != null) {
+      addDownloadStateRemoveListener(callback);
+    }
   }
   
-  /// 设置文件存在缓存更新回调
+  @Deprecated('Use addFileExistsCacheUpdateListener instead')
   void setFileExistsCacheUpdateCallback(FileExistsCacheCallback? callback) {
-    _onFileExistsCacheUpdate = callback;
+    if (callback != null) {
+      addFileExistsCacheUpdateListener(callback);
+    }
   }
 
   /// 获取附件下载状态
@@ -148,14 +191,20 @@ class AttachmentStrategyManager {
   void _updateDownloadState(AttachmentDownloadInfo downloadInfo) {
     _downloadStates[downloadInfo.itemKey] = downloadInfo;
     MyLogger.d('更新下载状态: ${downloadInfo.itemKey} - ${downloadInfo.status} - ${downloadInfo.progressPercent}%');
-    _onDownloadStateUpdate?.call(downloadInfo);
+    // 通知所有监听者
+    for (var listener in _downloadStateUpdateListeners) {
+      listener(downloadInfo);
+    }
   }
   
   /// 移除下载状态（内部方法）
   void _removeDownloadState(String itemKey) {
     _downloadStates.remove(itemKey);
     MyLogger.d('移除下载状态: $itemKey');
-    _onDownloadStateRemove?.call(itemKey);
+    // 通知所有监听者
+    for (var listener in _downloadStateRemoveListeners) {
+      listener(itemKey);
+    }
   }
   
   /// 打开pdf或下载（如果未下载）
@@ -203,7 +252,9 @@ class AttachmentStrategyManager {
       final itemKey = targetPdfAttachmentItem.itemKey;
       
       // 清除文件存在状态缓存，因为要开始下载了
-      _onFileExistsCacheUpdate?.call(itemKey, false);
+      for (var listener in _fileExistsCacheUpdateListeners) {
+        listener(itemKey, false);
+      }
       
       // 立即设置初始下载状态，确保UI显示进度环
       final initialDownloadInfo = AttachmentDownloadInfo(
@@ -225,7 +276,9 @@ class AttachmentStrategyManager {
         onComplete: (info, success) {
           if (success) {
             // 下载完成，更新文件存在状态缓存并移除下载状态
-            _onFileExistsCacheUpdate?.call(info.itemKey, true);
+            for (var listener in _fileExistsCacheUpdateListeners) {
+              listener(info.itemKey, true);
+            }
             _removeDownloadState(info.itemKey);
             BrnToast.show("下载完成附件: ${info.filename}", context);
             MyLogger.d('下载完成 ${info.itemKey}: ${info.filename}');
