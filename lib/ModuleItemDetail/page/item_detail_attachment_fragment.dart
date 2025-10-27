@@ -1,11 +1,15 @@
 import 'package:flutter/cupertino.dart';
 import 'package:flutter/material.dart';
+import 'package:module_base/view/dialog/neat_dialog.dart';
 import 'package:module_base/view/toast/neat_toast.dart';
 import 'package:module_library/LibZoteroAttachment/attachment_strategy_manager.dart';
 import 'package:module_library/LibZoteroAttachDownloader/default_attachment_storage.dart';
 import 'package:module_library/LibZoteroAttachDownloader/model/transfer_info.dart';
 
 import '../../LibZoteroStorage/entity/Item.dart';
+import '../../ModuleLibrary/utils/my_logger.dart';
+import '../../ModuleLibrary/viewmodels/library_viewmodel.dart';
+import 'package:provider/provider.dart';
 
 class ItemDetailAttachmentFragment extends StatefulWidget {
   final Item item;
@@ -18,6 +22,8 @@ class ItemDetailAttachmentFragment extends StatefulWidget {
 class _ItemDetailAttachmentFragmentState extends State<ItemDetailAttachmentFragment> with SingleTickerProviderStateMixin {
   late AnimationController _controller;
 
+  late LibraryViewModel _viewModel;
+
   List<Item> attachments = [];
   
   // 下载状态回调，用于监听下载进度
@@ -27,6 +33,10 @@ class _ItemDetailAttachmentFragmentState extends State<ItemDetailAttachmentFragm
   @override
   void initState() {
     super.initState();
+
+    // 在这里通过 Provider 获取 ViewModel
+    _viewModel = Provider.of<LibraryViewModel>(context, listen: false);
+
     _controller = AnimationController(vsync: this);
 
     widget.item.attachments.forEach((attachment) {
@@ -91,7 +101,7 @@ class _ItemDetailAttachmentFragmentState extends State<ItemDetailAttachmentFragm
             ),
             const SizedBox(height: 4),
             ...attachments.map((attachment) => _attachmentItem(attachment)),
-            _addAttachmentButton(),
+            // _addAttachmentButton(),
           ],
         ));
   }
@@ -107,6 +117,9 @@ class _ItemDetailAttachmentFragmentState extends State<ItemDetailAttachmentFragm
       child: InkWell(
         onTap: () {
           _openOrDownload(context, attachment);
+        },
+        onLongPress: () {
+          _showAttachmentOptions(context, attachment);
         },
         child: Container(
             height: 42,
@@ -176,6 +189,29 @@ class _ItemDetailAttachmentFragmentState extends State<ItemDetailAttachmentFragm
     } catch (e) {
       context.toastError("操作失败: $e");
     }
+  }
+
+  void _showAttachmentOptions(BuildContext context, Item attachment) {
+    NeatDialogManager.showConfirmDialog(
+      context,
+      title: "删除下载的附件",
+      confirm: "确定",
+      cancel: "取消",
+      message: "是否删除本地下载的附件《${attachment.getTitle()}》",
+      onConfirm: (dialogContext) async {
+        Navigator.of(dialogContext).pop();
+        await _viewModel.deleteAllDownloadedAttachmentsOfItems(
+          dialogContext,
+          attachment,
+          onCallback: () {
+            MyLogger.d('所有附件删除操作完成');
+          },
+        );
+      },
+      onCancel: (dialogContext) {
+        Navigator.of(dialogContext).pop();
+      },
+    );
   }
 
 }
