@@ -1319,6 +1319,12 @@ class LibraryViewModel with ChangeNotifier {
       return;
     }
 
+    // // todo 如果是网页html 点击直接打开
+    // if (item.isWebPageItem()) {
+    //   AttachmentStrategyManager.instance.openWebpageAttachment(context, item);
+    //   return;
+    // }
+
     showItemInfoDetail(context, item);
   }
 

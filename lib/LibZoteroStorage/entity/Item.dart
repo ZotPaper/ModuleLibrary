@@ -197,6 +197,9 @@ class Item {
     return itemType == "note";
   }
 
+  bool isWebPageItem() {
+    return itemType == "attachment" && data['contentType'] == "text/html";
+  }
   String getParentItemKey() {
     return data["parentItem"] ?? "";
   }

@@ -13,6 +13,7 @@ import '../LibZoteroAttachDownloader/zotero_attach_downloader_helper.dart';
 import '../LibZoteroStorage/entity/Item.dart';
 import '../ModuleLibrary/viewmodels/zotero_database.dart';
 import '../ModuleLibrary/zotero_provider.dart';
+import 'package:url_launcher/url_launcher.dart';
 import 'package:bruno/bruno.dart';
 
 /// 下载状态更新回调类型
@@ -226,22 +227,7 @@ class AttachmentStrategyManager {
       throw "没有找到pdf文件";
     }
 
-    // 检查是否正在下载，如果是则取消下载
-    if (isAttachmentDownloading(targetPdfAttachmentItem.itemKey)) {
-      await _cancelDownload(context, targetPdfAttachmentItem);
-      return;
-    }
-
-    // 检查是否已下载
-    bool isDownloaded = await DefaultAttachmentStorage.instance.attachmentExists(targetPdfAttachmentItem);
-    if (isDownloaded) {
-      // 打开pdf
-      await openDownloadedPdf(context, targetPdfAttachmentItem);
-      return;
-    }
-
-    // 开始下载
-    await _startDownload(context, targetPdfAttachmentItem);
+    await _performDownloadAttachment(context, targetPdfAttachmentItem);
   }
   
   /// 开始下载附件
@@ -367,4 +353,26 @@ class AttachmentStrategyManager {
       MyLogger.w('清理临时文件失败: $e');
     }
   }
+
+  /// 开始下载附件
+  /// 该方法在不存在本地附件的时候才调用
+  Future _performDownloadAttachment(BuildContext context, Item targetPdfAttachmentItem) async {
+    // 检查是否正在下载，如果是则取消下载
+    if (isAttachmentDownloading(targetPdfAttachmentItem.itemKey)) {
+      await _cancelDownload(context, targetPdfAttachmentItem);
+      return;
+    }
+
+    // 检查是否已下载
+    bool isDownloaded = await DefaultAttachmentStorage.instance.attachmentExists(targetPdfAttachmentItem);
+    if (isDownloaded) {
+      // 打开pdf
+      await openDownloadedPdf(context, targetPdfAttachmentItem);
+      return;
+    }
+
+    // 开始下载
+    await _startDownload(context, targetPdfAttachmentItem);
+  }
+
 }
