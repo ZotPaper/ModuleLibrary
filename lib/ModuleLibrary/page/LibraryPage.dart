@@ -766,7 +766,7 @@ class _LibraryPageState extends State<LibraryPage> with WidgetsBindingObserver, 
             )
         ),
         const SizedBox(height: 18,),
-        const Text('(((ﾟДﾟ;))) Oops! 页面内容为空或发生了错误'),
+        const Text('Oops! 页面内容为空或发生了错误'),
       ],
     )
     );
