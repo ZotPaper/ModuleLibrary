@@ -3,6 +3,7 @@ import 'dart:collection';
 import 'package:flutter/cupertino.dart';
 import 'package:flutter/material.dart';
 import 'package:bruno/bruno.dart';
+import 'package:module_base/view/appbar/neat_appbar.dart';
 import 'package:module_library/LibZoteroApi/Model/ZoteroSettingsResponse.dart';
 import 'package:module_library/ModuleLibrary/utils/color_utils.dart';
 import 'package:module_library/ModuleLibrary/utils/my_logger.dart';
@@ -190,7 +191,7 @@ class _ItemDetailTagFragmentState extends State<TagsManagerPage> {
   @override
   Widget build(BuildContext context) {
     return Scaffold(
-      appBar: BrnAppBar(
+      appBar: simpleAppBar(
         title: '标签管理',
         actions: [
           IconButton(
