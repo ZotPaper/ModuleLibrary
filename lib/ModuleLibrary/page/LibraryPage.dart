@@ -63,7 +63,7 @@ class _LibraryPageState extends State<LibraryPage> with WidgetsBindingObserver, 
   TextEditingController textController = TextEditingController();
 
   final focusNode = FocusNode();
-
+ 
   late RefreshController _phoneRefreshController;
   late RefreshController _tabletRefreshController;
   
@@ -551,18 +551,30 @@ class _LibraryPageState extends State<LibraryPage> with WidgetsBindingObserver, 
             child: _viewModel.displayEntries.isEmpty ? _emptyView() : Container(
               color: ResColor.bgColor,
               width: double.infinity,
-              child: SmartRefresher(
-                key: ValueKey('refresher_${isTablet ? "tablet" : "phone"}'),
-                enablePullDown: true,
-                controller: isTablet ? _tabletRefreshController : _phoneRefreshController,
-                header: _refreshHeader(),
-                onRefresh: _onRefresh,
-                child: ListView.builder(
-                  itemCount: _viewModel.displayEntries.length,
-                  itemBuilder: (context, index) {
-                    final entry = _viewModel.displayEntries[index];
-                    return widgetListEntry(entry);
-                  },
+              child: NotificationListener<ScrollNotification>(
+                onNotification: (ScrollNotification notification) {
+                  // 当列表开始滚动时，移除焦点
+                  if (notification is ScrollStartNotification) {
+                    if (focusNode.hasFocus) {
+                      FocusScope.of(context).unfocus();
+                      focusNode.unfocus();
+                    }
+                  }
+                  return false;
+                },
+                child: SmartRefresher(
+                  key: ValueKey('refresher_${isTablet ? "tablet" : "phone"}'),
+                  enablePullDown: true,
+                  controller: isTablet ? _tabletRefreshController : _phoneRefreshController,
+                  header: _refreshHeader(),
+                  onRefresh: _onRefresh,
+                  child: ListView.builder(
+                    itemCount: _viewModel.displayEntries.length,
+                    itemBuilder: (context, index) {
+                      final entry = _viewModel.displayEntries[index];
+                      return widgetListEntry(entry);
+                    },
+                  ),
                 ),
               ),
             ),
