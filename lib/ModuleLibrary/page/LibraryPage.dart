@@ -64,7 +64,14 @@ class _LibraryPageState extends State<LibraryPage> with WidgetsBindingObserver, 
 
   final focusNode = FocusNode();
 
-  final RefreshController _refreshController = RefreshController(initialRefresh: false);
+  late RefreshController _phoneRefreshController;
+  late RefreshController _tabletRefreshController;
+  
+  /// 获取当前布局对应的RefreshController
+  RefreshController get _currentRefreshController {
+    final bool isTablet = DeviceUtils.shouldShowFixedDrawer(context);
+    return isTablet ? _tabletRefreshController : _phoneRefreshController;
+  }
   
   // 对话框显示标志位，防止重复显示
   bool _isModifiedAttachmentsDialogShowing = false;
@@ -80,6 +87,9 @@ class _LibraryPageState extends State<LibraryPage> with WidgetsBindingObserver, 
   void initState() {
     super.initState();
     WidgetsBinding.instance.addObserver(this);
+
+    _phoneRefreshController = RefreshController(initialRefresh: false);
+    _tabletRefreshController = RefreshController(initialRefresh: false);
 
     ///initState 中添加监听，记得销毁
     textController.addListener((){
@@ -299,7 +309,7 @@ class _LibraryPageState extends State<LibraryPage> with WidgetsBindingObserver, 
       }
 
       // 上传附件后，无论成功或者失败都会自动执行与服务器同步操作
-      _refreshController.requestRefresh();
+      _currentRefreshController.requestRefresh();
 
     } catch (e) {
       MyLogger.e('上传附件时发生错误: $e');
@@ -362,7 +372,8 @@ class _LibraryPageState extends State<LibraryPage> with WidgetsBindingObserver, 
     globalRouteObserver.unsubscribe(this);
     textController.dispose();
     focusNode.dispose();
-    _refreshController.dispose();
+    _phoneRefreshController.dispose();
+    _tabletRefreshController.dispose();
     super.dispose();
   }
 
@@ -484,12 +495,14 @@ class _LibraryPageState extends State<LibraryPage> with WidgetsBindingObserver, 
 
 
   Widget _buildPageContent() {
+    final bool isTablet = DeviceUtils.shouldShowFixedDrawer(context);
+    
     if (_viewModel.curPage == PageType.sync) {
       return const SyncPageFragment();
     } else if (_viewModel.curPage == PageType.library) {
       return Stack(
         children: [
-          libraryListPage(),
+          libraryListPage(isTablet: isTablet),
           // 全局下载进度指示器
           _buildGlobalDownloadIndicator(),
           // 全局上传进度指示器
@@ -516,7 +529,7 @@ class _LibraryPageState extends State<LibraryPage> with WidgetsBindingObserver, 
   }
 
   /// 文库列表页面
-  Widget libraryListPage() {
+  Widget libraryListPage({required bool isTablet}) {
     return GestureDetector(
       onTap: () {
         // 移除焦点
@@ -539,8 +552,9 @@ class _LibraryPageState extends State<LibraryPage> with WidgetsBindingObserver, 
               color: ResColor.bgColor,
               width: double.infinity,
               child: SmartRefresher(
+                key: ValueKey('refresher_${isTablet ? "tablet" : "phone"}'),
                 enablePullDown: true,
-                controller: _refreshController,
+                controller: isTablet ? _tabletRefreshController : _phoneRefreshController,
                 header: _refreshHeader(),
                 onRefresh: _onRefresh,
                 child: ListView.builder(
@@ -733,7 +747,7 @@ class _LibraryPageState extends State<LibraryPage> with WidgetsBindingObserver, 
     // 开始与服务器同步
     _viewModel.startSync(onSyncCompleteCallback: () {
       // 关闭刷新动画
-      _refreshController.refreshCompleted();
+      _currentRefreshController.refreshCompleted();
     });
   }
 
