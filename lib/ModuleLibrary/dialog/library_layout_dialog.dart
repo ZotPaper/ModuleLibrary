@@ -108,7 +108,7 @@ class _LibraryLayoutDialogState extends State<LibraryLayoutDialog> {
         constraints: const BoxConstraints(maxWidth: _maxDialogWidth),
         decoration: BoxDecoration(
           color: Theme.of(context).scaffoldBackgroundColor,
-          borderRadius: BorderRadius.circular(20),
+          borderRadius: BorderRadius.circular(12),
           boxShadow: [
             BoxShadow(
               color: Colors.black.withOpacity(0.1),
@@ -126,11 +126,11 @@ class _LibraryLayoutDialogState extends State<LibraryLayoutDialog> {
             
             // 内容区域
             Padding(
-              padding: const EdgeInsets.fromLTRB(24, 0, 24, 24),
+              padding: const EdgeInsets.fromLTRB(24, 8, 24, 24),
               child: Column(
                 children: [
                   _buildSortSection(),
-                  const SizedBox(height: 24),
+                  const SizedBox(height: 12),
                   _buildFilterSection(),
                 ],
               ),
@@ -143,12 +143,12 @@ class _LibraryLayoutDialogState extends State<LibraryLayoutDialog> {
 
   Widget _buildDialogHeader() {
     return Container(
-      padding: const EdgeInsets.symmetric(horizontal: 24, vertical: 12),
+      padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 4),
       decoration: BoxDecoration(
         color: ResColor.selectedBgColor.withOpacity(0.3),
         borderRadius: const BorderRadius.only(
-          topLeft: Radius.circular(20),
-          topRight: Radius.circular(20),
+          topLeft: Radius.circular(12),
+          topRight: Radius.circular(12),
         ),
       ),
       child: Row(
@@ -158,12 +158,12 @@ class _LibraryLayoutDialogState extends State<LibraryLayoutDialog> {
             color: ResColor.selectedTextColor,
             size: 24,
           ),
-          const SizedBox(width: 12),
+          const SizedBox(width: 8),
           Expanded(
             child: Text(
               '排序与筛选',
               style: TextStyle(
-                fontSize: 18,
+                fontSize: 16,
                 fontWeight: FontWeight.w600,
                 color: ResColor.textMain,
               ),
@@ -210,12 +210,12 @@ class _LibraryLayoutDialogState extends State<LibraryLayoutDialog> {
             ),
           ],
         ),
-        const SizedBox(height: 16),
+        const SizedBox(height: 8),
         Container(
-          padding: const EdgeInsets.symmetric(vertical:12, horizontal: 8),
+          padding: const EdgeInsets.symmetric(vertical:8, horizontal: 8),
           decoration: BoxDecoration(
             color: ResColor.bgColor,
-            borderRadius: BorderRadius.circular(12),
+            borderRadius: BorderRadius.circular(8),
             border: Border.all(
               color: ResColor.divideColor.withOpacity(0.3),
               width: 1,
@@ -256,11 +256,11 @@ class _LibraryLayoutDialogState extends State<LibraryLayoutDialog> {
             ),
           ],
         ),
-        const SizedBox(height: 16),
+        const SizedBox(height: 8),
         Container(
           decoration: BoxDecoration(
             color: ResColor.bgColor,
-            borderRadius: BorderRadius.circular(12),
+            borderRadius: BorderRadius.circular(8),
             border: Border.all(
               color: ResColor.divideColor.withOpacity(0.3),
               width: 1,
@@ -299,7 +299,7 @@ class _LibraryLayoutDialogState extends State<LibraryLayoutDialog> {
     required Function(bool) onChanged,
   }) {
     return Container(
-      padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 12),
+      padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 6),
       child: Row(
         children: [
           Container(
@@ -315,7 +315,7 @@ class _LibraryLayoutDialogState extends State<LibraryLayoutDialog> {
               size: 20,
             ),
           ),
-          const SizedBox(width: 12),
+          const SizedBox(width: 8),
           Expanded(
             child: Text(
               title,
