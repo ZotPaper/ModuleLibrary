@@ -21,6 +21,8 @@ class MyRouter {
   factory MyRouter() => instance;
   MyRouter._internal();
 
+  static const String PAGE_LAUNCH= 'launchPage';
+  static const String PAGE_LIBRARY = 'libraryPage';
   static const String PAGE_NOTE_EDIT = 'noteEditPage';
 
   bool _enableExceptionCatch = false;
