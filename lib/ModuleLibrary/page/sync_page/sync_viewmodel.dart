@@ -36,7 +36,7 @@ class SyncViewModel with ChangeNotifier {
     // 判断是否初次启动,没有就开始完整同步数据
     bool isNeverSynced = await zoteroSyncManager.isNeverSynced();
     if (isNeverSynced) {
-      debugPrint("=============isNeverSynced userId: $_userId apiKey: $_apiKey");
+      MyLogger.d("=============isNeverSynced userId: $_userId apiKey: $_apiKey");
       // 初次启动，从网络获取数据并保存到数据库
       await _performCompleteSync();
     }
