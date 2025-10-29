@@ -56,10 +56,19 @@ class ItemEntryWidget extends StatelessWidget {
                     maxLines: 2,
                     style: TextStyle(color: ResColor.textMain),
                   ),
-                  Text(
-                    item.getAuthor(),
-                    maxLines: 1,
-                    style: TextStyle(color: Colors.grey.shade500),
+                  Row(
+                    children: [
+                      Text(
+                        item.getAuthor(),
+                        maxLines: 1,
+                        style: TextStyle(color: Colors.grey.shade500),
+                      ),
+                      Text(
+                        item.getYearStr().isNotEmpty ? '(${item.getYearStr()})' : '',
+                        maxLines: 1,
+                        style: TextStyle(color: Colors.grey.shade500),
+                      ),
+                    ],
                   ),
                   _buildImportantTags(),
                 ],
