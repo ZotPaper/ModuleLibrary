@@ -1,5 +1,6 @@
 import 'package:flutter/material.dart';
 import 'package:bruno/bruno.dart';
+import 'package:module_base/theme/my_theme.dart';
 import 'package:module_base/view/dialog/neat_dialog.dart';
 import 'package:module_library/LibZoteroStorage/entity/Item.dart';
 import 'package:module_library/ModuleLibrary/utils/my_logger.dart';
@@ -59,6 +60,12 @@ class ItemOperationPanel {
           title: item.getTitle(),
           actions: actionSheetItems,
           cancelTitle: "取消",
+          themeData: BrnActionSheetConfig(
+            titleStyle: BrnTextStyle(color: AppThemes.textMain, fontSize: 14.0, fontWeight: FontWeight.w600),
+            itemTitleStyle: BrnTextStyle(color: AppThemes.textMain),
+            itemDescStyle: BrnTextStyle(color: Colors.grey.shade500),
+            cancelStyle: BrnTextStyle(color: AppThemes.textMain),
+          ),
           clickCallBack: (int index, BrnCommonActionSheetItem actionEle) {
             operationItems[index].onClick?.call();
           },
