@@ -547,7 +547,7 @@ class _LibraryPageState extends State<LibraryPage> with WidgetsBindingObserver, 
               onDismiss: _dismissModifiedBanner,
             ),
           Expanded(
-            child: _viewModel.displayEntries.isEmpty ? _emptyView() : Container(
+            child: Container(
               color: ResColor.bgColor,
               width: double.infinity,
               child: NotificationListener<ScrollNotification>(
@@ -567,7 +567,7 @@ class _LibraryPageState extends State<LibraryPage> with WidgetsBindingObserver, 
                   controller: isTablet ? _tabletRefreshController : _phoneRefreshController,
                   header: _refreshHeader(),
                   onRefresh: _onRefresh,
-                  child: ListView.builder(
+                  child: _viewModel.displayEntries.isEmpty ? _emptyView() : ListView.builder(
                     itemCount: _viewModel.displayEntries.length,
                     itemBuilder: (context, index) {
                       final entry = _viewModel.displayEntries[index];
