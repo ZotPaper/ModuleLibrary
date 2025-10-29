@@ -104,26 +104,26 @@ class ItemOperationPanel {
       ));
     }
 
-    // 3. 回收站/还原
-    final isItemDeleted = viewModel.isItemDeleted(item);
-    if (isItemDeleted) {
-      items.add(ItemClickProxy(
-        title: "还原到文献库中",
-        onClick: () {
-          viewModel.restoreItem(context, item);
-        },
-      ));
-    } else {
-      items.add(ItemClickProxy(
-        title: "移动到回收站",
-        actionStyle: "alert",
-        onClick: () {
-          Future.delayed(const Duration(milliseconds: 200), () {
-            viewModel.moveItemToTrash(context, item);
-          });
-        },
-      ));
-    }
+    // // 3. 回收站/还原
+    // final isItemDeleted = viewModel.isItemDeleted(item);
+    // if (isItemDeleted) {
+    //   items.add(ItemClickProxy(
+    //     title: "还原到文献库中",
+    //     onClick: () {
+    //       viewModel.restoreItem(context, item);
+    //     },
+    //   ));
+    // } else {
+    //   items.add(ItemClickProxy(
+    //     title: "移动到回收站",
+    //     actionStyle: "alert",
+    //     onClick: () {
+    //       Future.delayed(const Duration(milliseconds: 200), () {
+    //         viewModel.moveItemToTrash(context, item);
+    //       });
+    //     },
+    //   ));
+    // }
 
     // 4. 删除已下载的附件
     if (item.hasAttachments() || viewModel.isPdfAttachmentItem(item)) {
@@ -142,17 +142,17 @@ class ItemOperationPanel {
       ));
     }
 
-    // 5. 更改所属集合
-    if (!isItemDeleted) {
-      items.add(ItemClickProxy(
-        title: "更改所属集合",
-        onClick: () {
-          Future.delayed(const Duration(milliseconds: 200), () {
-            viewModel.showChangeCollectionSelector(context, item: item);
-          });
-        },
-      ));
-    }
+    // // 5. 更改所属集合
+    // if (!isItemDeleted) {
+    //   items.add(ItemClickProxy(
+    //     title: "更改所属集合",
+    //     onClick: () {
+    //       Future.delayed(const Duration(milliseconds: 200), () {
+    //         viewModel.showChangeCollectionSelector(context, item: item);
+    //       });
+    //     },
+    //   ));
+    // }
 
     return items;
   }
