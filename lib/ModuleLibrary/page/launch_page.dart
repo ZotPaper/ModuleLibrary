@@ -112,7 +112,12 @@ class _LaunchPageState extends State<LaunchPage> with SingleTickerProviderStateM
   /// 检查是否由v0.0.2以下升级到新版本
   Future<bool> _checkAndMigrationForV002() async {
     // 是否是debug模式
-    var credentialMap = await ZoteroChannel.getLocalCredentialV1();
+    Map? credentialMap;
+    try {
+      credentialMap = await ZoteroChannel.getLocalCredentialV1();
+    } catch (e) {
+      // 没有这一方法，忽略
+    }
     if (credentialMap == null) {
       MyLogger.d("找不到旧的本地凭证，忽略");
       return false;
