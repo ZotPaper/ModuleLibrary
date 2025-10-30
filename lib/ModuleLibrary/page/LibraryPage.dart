@@ -342,7 +342,8 @@ class _LibraryPageState extends State<LibraryPage> with WidgetsBindingObserver, 
       return '服务器错误: $errorStr';
     } else {
       // 返回简化的错误信息
-      return errorStr.length > 50 ? '${errorStr.substring(0, 50)}...' : errorStr;
+      return errorStr;
+      // return errorStr.length > 50 ? '${errorStr.substring(0, 50)}...' : errorStr;
     }
   }
 
