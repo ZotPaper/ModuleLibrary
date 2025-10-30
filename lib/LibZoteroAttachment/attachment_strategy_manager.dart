@@ -1,7 +1,9 @@
 import 'dart:io';
 
 import 'package:flutter/material.dart';
+import 'package:module_base/utils/log/app_log_event.dart';
 import 'package:module_library/ModuleLibrary/utils/my_logger.dart';
+import 'package:module_library/utils/log/module_library_log_helper.dart';
 import 'package:open_filex/open_filex.dart';
 
 import '../LibZoteroAttachDownloader/bean/exception/zotero_download_exception.dart';
@@ -9,12 +11,15 @@ import '../LibZoteroAttachDownloader/default_attachment_storage.dart';
 import '../LibZoteroAttachDownloader/model/status.dart';
 import '../LibZoteroAttachDownloader/model/transfer_info.dart';
 import '../LibZoteroAttachDownloader/native/attachment_native_channel.dart';
+import '../LibZoteroAttachDownloader/webdav_attachment_transfer.dart';
 import '../LibZoteroAttachDownloader/zotero_attach_downloader_helper.dart';
 import '../LibZoteroStorage/entity/Item.dart';
 import '../ModuleLibrary/viewmodels/zotero_database.dart';
 import '../ModuleLibrary/zotero_provider.dart';
 import 'package:url_launcher/url_launcher.dart';
 import 'package:bruno/bruno.dart';
+
+import '../utils/webdav_configuration.dart';
 
 /// 下载状态更新回调类型
 typedef DownloadStateCallback = void Function(AttachmentDownloadInfo);
@@ -268,6 +273,8 @@ class AttachmentStrategyManager {
             _removeDownloadState(info.itemKey);
             BrnToast.show("下载完成附件: ${info.filename}", context);
             MyLogger.d('下载完成 ${info.itemKey}: ${info.filename}');
+
+            ModuleLibraryLogHelper.attachmentTransfer.logDownloadSuccess(info, targetPdfAttachmentItem);
           } else {
             // 下载失败，更新状态为失败
             _updateDownloadState(info.copyWith(status: DownloadStatus.failed));
@@ -303,6 +310,9 @@ class AttachmentStrategyManager {
             BrnToast.show("下载出错: $errorMessage", context);
             MyLogger.e('下载出错 ${info.itemKey}: $errorMessage');
           }
+
+          // 记录下载失败
+          ModuleLibraryLogHelper.attachmentTransfer.logDownloadError(targetPdfAttachmentItem, error);
         },
       );
     } catch (e) {
