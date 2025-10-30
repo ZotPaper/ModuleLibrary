@@ -60,6 +60,9 @@ dependencies:
   #      url: https://github.com/moyearzhou/ModuleBase.git
 
   open_filex: ^4.5.0
+  
+  # HTML渲染支持，用于显示笔记的富文本内容
+  flutter_html: ^3.0.0-beta.2
 
 dev_dependencies:
   flutter_test:

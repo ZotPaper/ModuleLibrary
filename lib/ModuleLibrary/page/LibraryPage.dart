@@ -18,7 +18,6 @@ import 'package:module_library/LibZoteroStorage/database/dao/RecentlyOpenedAttac
 import 'package:module_library/ModuleItemDetail/page/item_details_page.dart';
 import 'package:module_library/ModuleLibrary/model/list_entry.dart';
 import 'package:module_library/ModuleLibrary/model/page_type.dart';
-import 'package:module_library/ModuleLibrary/page/blank_page.dart';
 import 'package:module_library/ModuleLibrary/page/sync_page/sync_page.dart';
 import 'package:module_library/ModuleLibrary/res/ResColor.dart';
 import 'package:module_library/ModuleLibrary/utils/sheet_item_helper.dart';
@@ -63,8 +62,15 @@ class _LibraryPageState extends State<LibraryPage> with WidgetsBindingObserver, 
   TextEditingController textController = TextEditingController();
 
   final focusNode = FocusNode();
-
-  final RefreshController _refreshController = RefreshController(initialRefresh: false);
+ 
+  late RefreshController _phoneRefreshController;
+  late RefreshController _tabletRefreshController;
+  
+  /// 获取当前布局对应的RefreshController
+  RefreshController get _currentRefreshController {
+    final bool isTablet = DeviceUtils.shouldShowFixedDrawer(context);
+    return isTablet ? _tabletRefreshController : _phoneRefreshController;
+  }
   
   // 对话框显示标志位，防止重复显示
   bool _isModifiedAttachmentsDialogShowing = false;
@@ -80,6 +86,9 @@ class _LibraryPageState extends State<LibraryPage> with WidgetsBindingObserver, 
   void initState() {
     super.initState();
     WidgetsBinding.instance.addObserver(this);
+
+    _phoneRefreshController = RefreshController(initialRefresh: false);
+    _tabletRefreshController = RefreshController(initialRefresh: false);
 
     ///initState 中添加监听，记得销毁
     textController.addListener((){
@@ -299,7 +308,7 @@ class _LibraryPageState extends State<LibraryPage> with WidgetsBindingObserver, 
       }
 
       // 上传附件后，无论成功或者失败都会自动执行与服务器同步操作
-      _refreshController.requestRefresh();
+      _currentRefreshController.requestRefresh();
 
     } catch (e) {
       MyLogger.e('上传附件时发生错误: $e');
@@ -333,7 +342,8 @@ class _LibraryPageState extends State<LibraryPage> with WidgetsBindingObserver, 
       return '服务器错误: $errorStr';
     } else {
       // 返回简化的错误信息
-      return errorStr.length > 50 ? '${errorStr.substring(0, 50)}...' : errorStr;
+      return errorStr;
+      // return errorStr.length > 50 ? '${errorStr.substring(0, 50)}...' : errorStr;
     }
   }
 
@@ -362,7 +372,8 @@ class _LibraryPageState extends State<LibraryPage> with WidgetsBindingObserver, 
     globalRouteObserver.unsubscribe(this);
     textController.dispose();
     focusNode.dispose();
-    _refreshController.dispose();
+    _phoneRefreshController.dispose();
+    _tabletRefreshController.dispose();
     super.dispose();
   }
 
@@ -484,12 +495,14 @@ class _LibraryPageState extends State<LibraryPage> with WidgetsBindingObserver, 
 
 
   Widget _buildPageContent() {
+    final bool isTablet = DeviceUtils.shouldShowFixedDrawer(context);
+    
     if (_viewModel.curPage == PageType.sync) {
       return const SyncPageFragment();
     } else if (_viewModel.curPage == PageType.library) {
       return Stack(
         children: [
-          libraryListPage(),
+          libraryListPage(isTablet: isTablet),
           // 全局下载进度指示器
           _buildGlobalDownloadIndicator(),
           // 全局上传进度指示器
@@ -516,7 +529,7 @@ class _LibraryPageState extends State<LibraryPage> with WidgetsBindingObserver, 
   }
 
   /// 文库列表页面
-  Widget libraryListPage() {
+  Widget libraryListPage({required bool isTablet}) {
     return GestureDetector(
       onTap: () {
         // 移除焦点
@@ -535,20 +548,33 @@ class _LibraryPageState extends State<LibraryPage> with WidgetsBindingObserver, 
               onDismiss: _dismissModifiedBanner,
             ),
           Expanded(
-            child: _viewModel.displayEntries.isEmpty ? _emptyView() : Container(
+            child: Container(
               color: ResColor.bgColor,
               width: double.infinity,
-              child: SmartRefresher(
-                enablePullDown: true,
-                controller: _refreshController,
-                header: _refreshHeader(),
-                onRefresh: _onRefresh,
-                child: ListView.builder(
-                  itemCount: _viewModel.displayEntries.length,
-                  itemBuilder: (context, index) {
-                    final entry = _viewModel.displayEntries[index];
-                    return widgetListEntry(entry);
-                  },
+              child: NotificationListener<ScrollNotification>(
+                onNotification: (ScrollNotification notification) {
+                  // 当列表开始滚动时，移除焦点
+                  if (notification is ScrollStartNotification) {
+                    if (focusNode.hasFocus) {
+                      FocusScope.of(context).unfocus();
+                      focusNode.unfocus();
+                    }
+                  }
+                  return false;
+                },
+                child: SmartRefresher(
+                  key: ValueKey('refresher_${isTablet ? "tablet" : "phone"}'),
+                  enablePullDown: true,
+                  controller: isTablet ? _tabletRefreshController : _phoneRefreshController,
+                  header: _refreshHeader(),
+                  onRefresh: _onRefresh,
+                  child: _viewModel.displayEntries.isEmpty ? _emptyView() : ListView.builder(
+                    itemCount: _viewModel.displayEntries.length,
+                    itemBuilder: (context, index) {
+                      final entry = _viewModel.displayEntries[index];
+                      return widgetListEntry(entry);
+                    },
+                  ),
                 ),
               ),
             ),
@@ -594,7 +620,10 @@ class _LibraryPageState extends State<LibraryPage> with WidgetsBindingObserver, 
             viewModel: _viewModel,
             onTap: () {
               debugPrint("Moyear==== item click");
-              _showItemInfo(context, entry.item!);
+              _viewModel.onItemTap(context, entry.item!);
+            },
+            onLongPress: () {
+              _viewModel.showItemInfoDetail(context, entry.item!);
             },
             onMorePressed: () {
               ItemOperationPanel.show(
@@ -720,16 +749,7 @@ class _LibraryPageState extends State<LibraryPage> with WidgetsBindingObserver, 
         });
   }
 
-  void _showItemInfo(BuildContext context, Item item) {
-    // BrnToast.show("item: ${item.getTitle()}", context);
-    // 跳转到详情页
-    try {
-      MyRouter.instance.pushNamed(context, "itemDetailPage", arguments: { "item": item });
-    } catch (e) {
-      debugPrint(e.toString());
-      BrnToast.show("跳转详情页失败", context);
-    }
-  }
+
 
   void _navigationTagManager() {
     MyRouter.instance.pushNamed(context, "tagsManagerPage");
@@ -739,7 +759,7 @@ class _LibraryPageState extends State<LibraryPage> with WidgetsBindingObserver, 
     // 开始与服务器同步
     _viewModel.startSync(onSyncCompleteCallback: () {
       // 关闭刷新动画
-      _refreshController.refreshCompleted();
+      _currentRefreshController.refreshCompleted();
     });
   }
 
@@ -758,7 +778,7 @@ class _LibraryPageState extends State<LibraryPage> with WidgetsBindingObserver, 
             )
         ),
         const SizedBox(height: 18,),
-        const Text('(((ﾟДﾟ;))) Oops! 页面发生了错误!!!'),
+        const Text('Oops! 页面内容为空或发生了错误'),
       ],
     )
     );

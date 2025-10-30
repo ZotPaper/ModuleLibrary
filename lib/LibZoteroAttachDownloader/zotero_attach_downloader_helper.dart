@@ -1,4 +1,5 @@
 import 'dart:async';
+import 'package:module_base/utils/log/app_log_event.dart';
 import 'package:module_library/LibZoteroAttachDownloader/default_attachment_storage.dart';
 import 'package:module_library/LibZoteroAttachDownloader/webdav_attachment_transfer.dart';
 import 'package:module_library/ModuleLibrary/utils/my_logger.dart';
@@ -8,6 +9,7 @@ import '../LibZoteroStorage/entity/AttachmentInfo.dart';
 import '../LibZoteroStorage/entity/Item.dart';
 import 'package:module_library/LibZoteroAttachDownloader/zotero_attachment_transfer.dart';
 
+import '../utils/webdav_configuration.dart';
 import 'bean/exception/zotero_download_exception.dart';
 import 'model/status.dart';
 import 'model/transfer_info.dart';
@@ -119,33 +121,11 @@ class ZoteroAttachDownloaderHelper {
 
     if (error is ZoteroNotFoundException) {
       return DownloadException(
-        message: '服务器找不到文件',
+        message: 'Zotero服务器找不到文件',
         originalError: error.message,
         errorType: DownloadErrorType.notFound,
       );
     }
-    
-    // if (errorStr.contains('network') || errorStr.contains('connection')) {
-    //   return const DownloadException(
-    //     message: '网络连接失败，请检查网络设置',
-    //     errorType: DownloadErrorType.network,
-    //   );
-    // } else if (errorStr.contains('timeout')) {
-    //   return const DownloadException(
-    //     message: '下载超时，请重试',
-    //     errorType: DownloadErrorType.timeout,
-    //   );
-    // } else if (errorStr.contains('unauthorized') || errorStr.contains('401')) {
-    //   return const DownloadException(
-    //     message: 'API密钥无效，请重新登录',
-    //     errorType: DownloadErrorType.unauthorized,
-    //   );
-    // } else if (errorStr.contains('forbidden') || errorStr.contains('403')) {
-    //   return const DownloadException(
-    //     message: '无权限访问此附件',
-    //     errorType: DownloadErrorType.forbidden,
-    //   );
-    // }
 
     if (error is ZipException) {
       return DownloadException(
@@ -251,6 +231,22 @@ class ZoteroAttachDownloaderHelper {
 
     } catch (e) {
       _handleDownloadError(item, e, null, onProgress, onComplete, onError, shouldThrow: true);
+
+      var downloadErrorLog = {
+        'type': 'Zotero',
+        'title': item.getTitle(),
+        'error': e.toString(),
+      };
+      if (transfer is WebDAVAttachmentTransfer) {
+        downloadErrorLog = {
+          'type': 'WebDAV',
+          'title': item.getTitle(),
+          'webdav_path': WebdavConfiguration.webdavUrl,
+          'error': e.toString(),
+        };
+      }
+
+      logEvent(message: "附件下载失败：$downloadErrorLog", logLevel: LogLevel.error);
     }
   }
 
@@ -470,6 +466,23 @@ class ZoteroAttachDownloaderHelper {
       
     } catch (e) {
       MyLogger.e('附件上传失败: ${item.getTitle()}, 错误: $e');
+
+      var uploadErrorLog = {
+            'type': 'Zotero',
+            'title': item.getTitle(),
+            'error': e.toString(),
+      };
+      if (transfer is WebDAVAttachmentTransfer) {
+        uploadErrorLog = {
+          'type': 'WebDAV',
+          'title': item.getTitle(),
+          'webdav_path': WebdavConfiguration.webdavUrl,
+          'error': e.toString(),
+        };
+      }
+
+      logEvent(message: "附件上传失败: $uploadErrorLog", logLevel: LogLevel.error);
+
       if (e is AlreadyUploadedException) {
         final newMd5Key = await defaultStorageManager.calculateMd5(item);
         final mtime = int.tryParse(item.data['mtime'] ?? '0') ?? 0;

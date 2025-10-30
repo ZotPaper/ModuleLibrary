@@ -1,8 +1,17 @@
 import 'package:flutter/cupertino.dart';
 import 'package:flutter/material.dart';
+import 'package:module_base/view/dialog/neat_dialog.dart';
 import 'package:module_base/view/toast/neat_toast.dart';
+import 'package:module_library/LibZoteroAttachment/attachment_strategy_manager.dart';
+import 'package:module_library/LibZoteroAttachDownloader/default_attachment_storage.dart';
+import 'package:module_library/LibZoteroAttachDownloader/model/transfer_info.dart';
 
 import '../../LibZoteroStorage/entity/Item.dart';
+import '../../ModuleLibrary/utils/my_logger.dart';
+import '../../ModuleLibrary/viewmodels/library_viewmodel.dart';
+import 'package:provider/provider.dart';
+
+import '../common_epmty_view.dart';
 
 class ItemDetailAttachmentFragment extends StatefulWidget {
   final Item item;
@@ -15,21 +24,69 @@ class ItemDetailAttachmentFragment extends StatefulWidget {
 class _ItemDetailAttachmentFragmentState extends State<ItemDetailAttachmentFragment> with SingleTickerProviderStateMixin {
   late AnimationController _controller;
 
+  late LibraryViewModel _viewModel;
+
   List<Item> attachments = [];
+  
+  // 下载状态回调，用于监听下载进度
+  DownloadStateCallback? _downloadStateCallback;
+  DownloadStateRemoveCallback? _downloadStateRemoveCallback;
 
   @override
   void initState() {
     super.initState();
+
+    // 在这里通过 Provider 获取 ViewModel
+    _viewModel = Provider.of<LibraryViewModel>(context, listen: false);
+
     _controller = AnimationController(vsync: this);
 
     widget.item.attachments.forEach((attachment) {
       attachments.add(attachment);
     });
+    
+    // 设置下载状态回调
+    _setupDownloadCallbacks();
+  }
+  
+  void _setupDownloadCallbacks() {
+    final manager = AttachmentStrategyManager.instance;
+    
+    // 监听下载状态更新
+    _downloadStateCallback = (downloadInfo) {
+      if (mounted) {
+        setState(() {
+          // 触发重建以更新进度显示
+        });
+      }
+    };
+    
+    _downloadStateRemoveCallback = (itemKey) {
+      if (mounted) {
+        setState(() {
+          // 触发重建以清除进度显示
+        });
+      }
+    };
+    
+    // 注册监听器
+    manager.addDownloadStateUpdateListener(_downloadStateCallback!);
+    manager.addDownloadStateRemoveListener(_downloadStateRemoveCallback!);
   }
 
   @override
   void dispose() {
     _controller.dispose();
+    
+    // 清理监听器，避免内存泄漏
+    final manager = AttachmentStrategyManager.instance;
+    if (_downloadStateCallback != null) {
+      manager.removeDownloadStateUpdateListener(_downloadStateCallback!);
+    }
+    if (_downloadStateRemoveCallback != null) {
+      manager.removeDownloadStateRemoveListener(_downloadStateRemoveCallback!);
+    }
+    
     super.dispose();
   }
 
@@ -45,19 +102,27 @@ class _ItemDetailAttachmentFragmentState extends State<ItemDetailAttachmentFragm
               child: Text('附件列表', style: TextStyle(fontSize: 16)),
             ),
             const SizedBox(height: 4),
-            ...attachments.map((attachment) => _attachmentItem(attachment)),
-            _addAttachmentButton(),
+            if (attachments.isNotEmpty) ...attachments.map((attachment) => _attachmentItem(attachment))
+            else const CommonEmptyView(text: "该条目记录下无附件",)
+            // _addAttachmentButton(),
           ],
         ));
   }
 
   Widget _attachmentItem(Item attachment) {
+    // 获取下载状态
+    final downloadInfo = AttachmentStrategyManager.instance.getDownloadStatus(attachment.itemKey);
+    final isDownloading = AttachmentStrategyManager.instance.isAttachmentDownloading(attachment.itemKey);
+    
     return Card(
       color: Colors.grey[100],
       elevation: 0,
       child: InkWell(
         onTap: () {
-          context.toastNormal("打开附件，功能待开发！！！");
+          _openOrDownload(context, attachment);
+        },
+        onLongPress: () {
+          _showAttachmentOptions(context, attachment);
         },
         child: Container(
             height: 42,
@@ -65,7 +130,8 @@ class _ItemDetailAttachmentFragmentState extends State<ItemDetailAttachmentFragm
             alignment: Alignment.centerLeft,
             child: Row(
               children: [
-                const Icon(Icons.attach_file, size: 20, color: Colors.blue),
+                // 根据下载状态显示不同的图标
+                _buildAttachmentIcon(attachment, isDownloading, downloadInfo),
                 const SizedBox(width: 8),
                 Expanded(child: Text(attachment.getTitle(), overflow: TextOverflow.ellipsis,)),
               ],
@@ -73,6 +139,27 @@ class _ItemDetailAttachmentFragmentState extends State<ItemDetailAttachmentFragm
         ),
       ),
     );
+  }
+  
+  /// 构建附件图标，下载时显示进度
+  Widget _buildAttachmentIcon(Item attachment, bool isDownloading, AttachmentDownloadInfo? downloadInfo) {
+    if (isDownloading && downloadInfo != null) {
+      // 显示下载进度（环形进度条）
+      final progress = downloadInfo.progressPercent / 100;
+      return SizedBox(
+        width: 20,
+        height: 20,
+        child: CircularProgressIndicator(
+          value: progress,
+          strokeWidth: 2.5,
+          valueColor: const AlwaysStoppedAnimation<Color>(Colors.blue),
+          backgroundColor: Colors.grey[300],
+        ),
+      );
+    } else {
+      // 显示普通附件图标
+      return const Icon(Icons.attach_file, size: 20, color: Colors.blue);
+    }
   }
 
   Widget _addAttachmentButton() {
@@ -94,6 +181,39 @@ class _ItemDetailAttachmentFragmentState extends State<ItemDetailAttachmentFragm
           ],
         ),
       ),
+    );
+  }
+
+  void _openOrDownload(BuildContext context, Item attachment) {
+    try {
+      // 使用 AttachmentStrategyManager 处理打开或下载
+      // 这会自动处理：1. 如果正在下载则取消 2. 如果已下载则打开 3. 如果未下载则开始下载
+      AttachmentStrategyManager.instance.openOrDownloadPdf(context, attachment);
+    } catch (e) {
+      context.toastError("操作失败: $e");
+    }
+  }
+
+  void _showAttachmentOptions(BuildContext context, Item attachment) {
+    NeatDialogManager.showConfirmDialog(
+      context,
+      title: "删除下载的附件",
+      confirm: "确定",
+      cancel: "取消",
+      message: "是否删除本地下载的附件《${attachment.getTitle()}》",
+      onConfirm: (dialogContext) async {
+        Navigator.of(dialogContext).pop();
+        await _viewModel.deleteAllDownloadedAttachmentsOfItems(
+          dialogContext,
+          attachment,
+          onCallback: () {
+            MyLogger.d('所有附件删除操作完成');
+          },
+        );
+      },
+      onCancel: (dialogContext) {
+        Navigator.of(dialogContext).pop();
+      },
     );
   }
 

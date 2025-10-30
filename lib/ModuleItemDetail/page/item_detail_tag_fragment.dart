@@ -12,6 +12,7 @@ import '../../LibZoteroApi/Model/ZoteroSettingsResponse.dart';
 import '../../LibZoteroStorage/entity/Item.dart';
 import '../../ModuleLibrary/utils/color_utils.dart';
 import '../../ModuleLibrary/utils/my_logger.dart';
+import '../common_epmty_view.dart';
 
 class ItemDetailTagFragment extends StatefulWidget {
   final Item item;
@@ -62,8 +63,9 @@ class _ItemDetailTagFragmentState extends State<ItemDetailTagFragment> with Sing
             child: Text('标签列表', style: TextStyle(fontSize: 16)),
           ),
           const SizedBox(height: 4),
-          ...showedTags.map((tag) => _tagItem(tag)),
-          _addTagButton(),
+          if (showedTags.isNotEmpty) ...showedTags.map((tag) => _tagItem(tag))
+          else const CommonEmptyView(text: "该条目记录下无标签",)
+          // _addTagButton(),
         ],
     ));
   }
@@ -74,7 +76,8 @@ class _ItemDetailTagFragmentState extends State<ItemDetailTagFragment> with Sing
       elevation: 0,
       child: InkWell(
         onTap: () {
-          context.toastNormal("功能待开发！！！");
+          // context.toastNormal("功能待开发！！！");
+          context.toastNormal(tag.name);
         },
         child: Container(
             height: 42,

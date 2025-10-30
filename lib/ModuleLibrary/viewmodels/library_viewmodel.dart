@@ -10,6 +10,7 @@ import 'package:module_library/LibZoteroAttachDownloader/native/attachment_nativ
 import 'package:module_library/LibZoteroAttachDownloader/webdav_attachment_transfer.dart';
 import 'package:module_library/LibZoteroAttachDownloader/zotero_attach_downloader_helper.dart';
 import 'package:module_library/LibZoteroAttachDownloader/zotero_attachment_transfer.dart';
+import 'package:module_library/LibZoteroAttachment/attachment_strategy_manager.dart';
 import 'package:module_library/LibZoteroStorage/database/dao/RecentlyOpenedAttachmentDao.dart';
 import 'package:module_library/ModuleLibrary/model/list_entry.dart';
 import 'package:module_library/ModuleLibrary/model/page_type.dart';
@@ -17,6 +18,7 @@ import 'package:module_library/ModuleLibrary/my_library_filter.dart';
 import 'package:module_library/ModuleLibrary/utils/my_logger.dart';
 import 'package:module_library/ModuleLibrary/viewmodels/zotero_database.dart';
 import 'package:module_library/ModuleLibrary/zotero_provider.dart';
+import 'package:module_library/ModuleNoteEdit/note_edit_manager.dart';
 import 'package:module_library/ModuleTagManager/item_tagmanager.dart';
 import 'package:module_library/utils/local_zotero_credential.dart';
 import 'package:module_library/utils/webdav_configuration.dart';
@@ -28,7 +30,9 @@ import '../../LibZoteroAttachDownloader/model/transfer_info.dart';
 import '../../LibZoteroStorage/entity/Collection.dart';
 import '../../LibZoteroStorage/entity/Item.dart';
 import '../../LibZoteroStorage/entity/ItemCollection.dart';
+import '../../LibZoteroStorage/entity/Note.dart';
 import '../../ModuleSync/zotero_sync_manager.dart';
+import '../../routers.dart';
 import '../api/ZoteroDataHttp.dart';
 import '../api/ZoteroDataSql.dart';
 import '../model/my_item_entity.dart';
@@ -38,6 +42,8 @@ import 'package:rxdart/rxdart.dart';
 import 'package:url_launcher/url_launcher.dart';
 import '../store/library_settings.dart';
 import 'package:module_base/stores/hive_stores.dart';
+
+import '../widget/bottomsheet/item_operation_panel.dart';
 
 class LibraryViewModel with ChangeNotifier {
 
@@ -285,6 +291,21 @@ class LibraryViewModel with ChangeNotifier {
 
       // 初始化PDF查看器
       await PdfViewerNativeChannel.init();
+      
+      // 设置附件管理器的状态更新回调
+      AttachmentStrategyManager.instance.setDownloadStateUpdateCallback((downloadInfo) {
+        _updateDownloadState(downloadInfo);
+      });
+      AttachmentStrategyManager.instance.setDownloadStateRemoveCallback((itemKey) {
+        _removeDownloadState(itemKey);
+      });
+      AttachmentStrategyManager.instance.setFileExistsCacheUpdateCallback((itemKey, exists) {
+        if (exists) {
+          _fileExistsCache[itemKey] = true;
+        } else {
+          _fileExistsCache.remove(itemKey);
+        }
+      });
     }
 
     setLoading(false);
@@ -568,7 +589,7 @@ class LibraryViewModel with ChangeNotifier {
     
     // 筛选只含笔记的条目
     if (_libraryStore.showOnlyWithNotes.get()) {
-      filteredItems = filteredItems.where((item) => _itemHasNotes(item)).toList();
+      filteredItems = filteredItems.where((item) => item.isNoteItem() || _itemHasNotes(item)).toList();
     }
     
     return filteredItems;
@@ -596,7 +617,6 @@ class LibraryViewModel with ChangeNotifier {
   bool _itemHasNotes(Item item) {
     return item.notes.isNotEmpty;
   }
-
   /// 返回上一个浏览记录
   void backToPreviousPos() async {
     var locationKey = _viewStack.removeLast();
@@ -1035,157 +1055,9 @@ class LibraryViewModel with ChangeNotifier {
   }
 
   /// 下载pdf或取消下载
+  /// 现在委托给 AttachmentStrategyManager 处理
   Future<void> openOrDownloadedPdf(BuildContext context, Item item) async {
-    // 找到item对应的pdf文件
-    Item? targetPdfAttachmentItem;
-    // 检测item自身是否是pdf文件
-    if (isPdfAttachmentItem(item)) {
-      targetPdfAttachmentItem = item;
-    } else {
-      // 检测item的附件中是否有pdf文件
-      if (itemHasPdfAttachment(item)) {
-        targetPdfAttachmentItem = item.attachments.firstWhere((element) => isPdfAttachmentItem(element));
-      }
-    }
-
-    if (targetPdfAttachmentItem == null) {
-      throw "没有找到pdf文件";
-    }
-
-    // 检查是否正在下载，如果是则取消下载
-    if (isAttachmentDownloading(targetPdfAttachmentItem.itemKey)) {
-      await _cancelDownload(context, targetPdfAttachmentItem);
-      return;
-    }
-
-    // 检查是否已下载
-    bool isDownloaded = await DefaultAttachmentStorage.instance.attachmentExists(targetPdfAttachmentItem);
-    if (isDownloaded) {
-      // 打开pdf
-      await openDownloadedPdf(context, targetPdfAttachmentItem);
-      return;
-    }
-
-    // 开始下载
-    await _startDownload(context, targetPdfAttachmentItem);
-  }
-
-  /// 开始下载附件
-  Future<void> _startDownload(BuildContext context, Item targetPdfAttachmentItem) async {
-    final downloadHelper = ZoteroAttachDownloaderHelper.instance;
-
-    try {
-      final itemKey = targetPdfAttachmentItem.itemKey;
-      
-      // 清除文件存在状态缓存，因为要开始下载了
-      _fileExistsCache.remove(itemKey);
-      
-      // 立即设置初始下载状态，确保UI显示进度环
-      final initialDownloadInfo = AttachmentDownloadInfo(
-        itemKey: itemKey,
-        filename: targetPdfAttachmentItem.getTitle(),
-        progress: 0,
-        total: 100,
-        status: DownloadStatus.downloading,
-      );
-      _updateDownloadState(initialDownloadInfo);
-      
-      await downloadHelper.startDownloadAttachment(
-        targetPdfAttachmentItem,
-        onProgress: (info) {
-          // 更新下载进度状态
-          _updateDownloadState(info);
-          MyLogger.d('下载进度 ${info.itemKey}: ${info.progressPercent.toStringAsFixed(1)}%');
-        },
-        onComplete: (info, success) {
-          if (success) {
-            // 下载完成，更新文件存在状态缓存并移除下载状态
-            _fileExistsCache[info.itemKey] = true;
-            _removeDownloadState(info.itemKey);
-            BrnToast.show("下载完成附件: ${info.filename}", context);
-            MyLogger.d('下载完成 ${info.itemKey}: ${info.filename}');
-          } else {
-            // 下载失败，更新状态为失败
-            _updateDownloadState(info.copyWith(status: DownloadStatus.failed));
-            MyLogger.e('下载失败 ${info.itemKey}');
-          }
-        },
-        onError: (info, error) {
-          // 下载错误，移除下载状态
-          _removeDownloadState(info.itemKey);
-          
-          if (error is DownloadException) {
-            switch (error.errorType) {
-              case DownloadErrorType.notFound:
-                BrnToast.show("在Zotero服务器找不到附件，请确认该附件是否保存在WebDAV服务器中", context);
-                MyLogger.w('下载失败，附件[${info.itemKey}, ${info.filename}]不存在');
-                break;
-              case DownloadErrorType.network:
-                BrnToast.show("网络连接失败，请检查网络设置", context);
-                MyLogger.w('下载失败，网络错误: ${info.itemKey}');
-                break;
-              case DownloadErrorType.timeout:
-                BrnToast.show("下载超时，请重试", context);
-                MyLogger.w('下载失败，超时: ${info.itemKey}');
-                break;
-              default:
-                BrnToast.show("下载出错: ${error.message}", context);
-                MyLogger.e('下载出错 ${info.itemKey}: ${error.message}');
-            }
-          } else {
-            // 处理其他类型的异常
-            BrnToast.show("下载出错: $error", context);
-            MyLogger.e('下载出错 ${info.itemKey}: $error');
-          }
-        },
-      );
-    } catch (e) {
-      // 处理同步错误（如未初始化、正在下载等），移除下载状态
-      _removeDownloadState(targetPdfAttachmentItem.itemKey);
-      
-      if (e is DownloadException) {
-        BrnToast.show(e.message, context);
-      } else {
-        BrnToast.show("下载失败: $e", context);
-      }
-      MyLogger.e('下载启动失败: $e');
-    }
-  }
-
-  /// 取消下载
-  Future<void> _cancelDownload(BuildContext context, Item targetPdfAttachmentItem) async {
-    final downloadHelper = ZoteroAttachDownloaderHelper.instance;
-    
-    try {
-      await downloadHelper.cancelDownload(targetPdfAttachmentItem.itemKey);
-      
-      // 清理临时文件
-      await _cleanupTempFiles(targetPdfAttachmentItem);
-      
-      // 移除下载状态
-      _removeDownloadState(targetPdfAttachmentItem.itemKey);
-      
-      // BrnToast.show("已取消下载", context);
-      MyLogger.d('取消下载: ${targetPdfAttachmentItem.itemKey}');
-    } catch (e) {
-      BrnToast.show("取消下载失败: $e", context);
-      MyLogger.e('取消下载失败: $e');
-    }
-  }
-
-  /// 清理临时文件
-  Future<void> _cleanupTempFiles(Item item) async {
-    try {
-      final storage = DefaultAttachmentStorage.instance;
-      final tempFile = await storage.getDownloadTempFile(item);
-      
-      if (await tempFile.exists()) {
-        await tempFile.delete();
-        MyLogger.d('清理临时文件: ${tempFile.path}');
-      }
-    } catch (e) {
-      MyLogger.w('清理临时文件失败: $e');
-    }
+    await AttachmentStrategyManager.instance.openOrDownloadPdf(context, item);
   }
 
   /// 删除item下所有已下载的附件
@@ -1306,72 +1178,6 @@ class LibraryViewModel with ChangeNotifier {
 
       // 调用自身，确保初次使用可以通知webdav的配置变化回调
       WebdavConfiguration.setUseWebdav(WebdavConfiguration.useWebdav);
-    }
-  }
-
-  Future<void> openDownloadedPdf(BuildContext context, Item targetPdfAttachmentItem) async {
-    bool isDownloaded = await DefaultAttachmentStorage.instance.attachmentExists(targetPdfAttachmentItem);
-
-    if (!isDownloaded) {
-      BrnToast.show('请先下载${targetPdfAttachmentItem.getTitle()}', context);
-      MyLogger.d('请先下载${targetPdfAttachmentItem.getTitle()}');
-      return;
-    }
-
-    // BrnToast.show('${targetPdfAttachmentItem.getTitle()}已下载, 打开pdf功能待开发...', context);
-    MyLogger.d('${targetPdfAttachmentItem.getTitle()}已下载');
-
-    final attachmentFile = await DefaultAttachmentStorage.instance.getAttachmentFile(targetPdfAttachmentItem);
-
-    //  判断是否使用其他阅读器打开pdf
-    var useExternalPdfReader = DefaultAttachmentStorage.instance.isOpenPdfExternalReader;
-    if (useExternalPdfReader) {
-      // 使用其他阅读器打开pdf
-      openPdfWithUrlLauncher(context, attachmentFile, targetPdfAttachmentItem);
-    } else {
-      final res = await PdfViewerNativeChannel.openPdfViewer(
-        attachmentKey: targetPdfAttachmentItem.itemKey,
-        attachmentPath: attachmentFile.path,
-        attachmentType: targetPdfAttachmentItem.getContentType(),
-      );
-
-      if (res != null) {
-        // 添加到最近打开的附件
-        zoteroDB.addRecentlyOpenedAttachments(targetPdfAttachmentItem);
-      }
-    }
-  }
-
-  Future<void> openPdfWithUrlLauncher(BuildContext context, File pdfFile, Item targetPdfAttachmentItem) async {
-    try {
-      final result = await OpenFilex.open(
-        pdfFile.path,
-        type: "application/pdf",
-      );
-
-      MyLogger.d('打开PDF结果: ${result.type} - ${result.message}');
-
-      switch (result.type) {
-        case ResultType.done:
-          MyLogger.d('已打开 ${targetPdfAttachmentItem.getTitle()}');
-          zoteroDB.addRecentlyOpenedAttachments(targetPdfAttachmentItem);
-          break;
-        case ResultType.noAppToOpen:
-          BrnToast.show('未找到可以打开PDF的应用，请安装PDF阅读器', context);
-          break;
-        case ResultType.fileNotFound:
-          BrnToast.show('文件不存在', context);
-          break;
-        case ResultType.permissionDenied:
-          BrnToast.show('没有权限打开文件', context);
-          break;
-        case ResultType.error:
-          BrnToast.show('打开失败: ${result.message}', context);
-          break;
-      }
-    } catch (e) {
-      MyLogger.e('打开PDF失败: $e');
-      BrnToast.show('打开PDF失败: $e', context);
     }
   }
 
@@ -1500,6 +1306,37 @@ class LibraryViewModel with ChangeNotifier {
   /// 仅清除修改标记，不上传
   Future<void> clearModifiedAttachmentsMarks(List<RecentlyOpenedAttachment> attachments) async {
     // await _clearModifiedAttachmentsMarks(attachments);
+  }
+
+  void onItemTap(BuildContext context, Item item) {
+    if (item.isNoteItem()) {
+      NoteEditManager.instance.editNoteItem(context, item);
+      return;
+    }
+
+    if (_itemHasPdfAttachment(item)) {
+      AttachmentStrategyManager.instance.openOrDownloadPdf(context, item);
+      return;
+    }
+
+    // // todo 如果是网页html 点击直接打开
+    // if (item.isWebPageItem()) {
+    //   AttachmentStrategyManager.instance.openWebpageAttachment(context, item);
+    //   return;
+    // }
+
+    showItemInfoDetail(context, item);
+  }
+
+  void showItemInfoDetail(BuildContext context, Item item) {
+    // BrnToast.show("item: ${item.getTitle()}", context);
+    // 跳转到详情页
+    try {
+      MyRouter.instance.pushNamed(context, "itemDetailPage", arguments: { "item": item });
+    } catch (e) {
+      debugPrint(e.toString());
+      BrnToast.show("跳转详情页失败", context);
+    }
   }
 
 }

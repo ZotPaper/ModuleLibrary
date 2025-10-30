@@ -21,6 +21,7 @@ class ItemEntryWidget extends StatelessWidget {
   final Item item;
   final LibraryViewModel viewModel;
   final VoidCallback? onTap;
+  final VoidCallback? onLongPress;
   final VoidCallback? onMorePressed;
   final VoidCallback? onPdfTap;
 
@@ -29,6 +30,7 @@ class ItemEntryWidget extends StatelessWidget {
     required this.item,
     required this.viewModel,
     this.onTap,
+    this.onLongPress,
     this.onMorePressed,
     this.onPdfTap,
   });
@@ -37,6 +39,7 @@ class ItemEntryWidget extends StatelessWidget {
   Widget build(BuildContext context) {
     return InkWell(
       onTap: onTap,
+      onLongPress: onLongPress,
       child: Container(
         padding: const EdgeInsets.all(10),
         width: double.infinity,
@@ -53,10 +56,19 @@ class ItemEntryWidget extends StatelessWidget {
                     maxLines: 2,
                     style: TextStyle(color: ResColor.textMain),
                   ),
-                  Text(
-                    item.getAuthor(),
-                    maxLines: 1,
-                    style: TextStyle(color: Colors.grey.shade500),
+                  Row(
+                    children: [
+                      Text(
+                        item.getAuthor(),
+                        maxLines: 1,
+                        style: TextStyle(color: Colors.grey.shade500),
+                      ),
+                      Text(
+                        item.getYearStr().isNotEmpty ? '(${item.getYearStr()})' : '',
+                        maxLines: 1,
+                        style: TextStyle(color: Colors.grey.shade500),
+                      ),
+                    ],
                   ),
                   _buildImportantTags(),
                 ],

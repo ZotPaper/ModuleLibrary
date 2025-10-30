@@ -3,6 +3,7 @@ import 'package:flutter/material.dart';
 import 'package:module_library/LibZoteroStorage/entity/Collection.dart';
 
 import '../../../routers.dart';
+import '../../../utils/local_zotero_credential.dart';
 import '../../res/ResColor.dart';
 
 typedef DrawerItemTapCallback = void Function(DrawerBtn DrawerBtn);
@@ -51,6 +52,8 @@ class _DrawerContentState extends State<DrawerContent>
   late AnimationController _animationController;
   late AnimationController _headerAnimationController;
 
+  String _userName = 'ZotPaper';
+
   @override
   void initState() {
     super.initState();
@@ -69,6 +72,12 @@ class _DrawerContentState extends State<DrawerContent>
     });
     Future.delayed(const Duration(milliseconds: 200), () {
       _animationController.forward();
+    });
+
+    LocalZoteroCredential.getUserName().then((value) {
+      setState(() {
+        _userName = value;
+      });
     });
   }
 
@@ -190,9 +199,9 @@ class _DrawerContentState extends State<DrawerContent>
                 child: Column(
                   crossAxisAlignment: CrossAxisAlignment.start,
                   children: [
-                    const Text(
-                      "ZotPaper",
-                      style: TextStyle(
+                    Text(
+                      _userName,
+                      style: const TextStyle(
                         color: Colors.white,
                         fontSize: 16,
                         fontWeight: FontWeight.w600,
@@ -200,7 +209,7 @@ class _DrawerContentState extends State<DrawerContent>
                     ),
                     const SizedBox(height: 2),
                     Text(
-                      "点击查看账户设置",
+                      "Zone of thought",
                       style: TextStyle(
                         color: Colors.white.withOpacity(0.8),
                         fontSize: 12,
