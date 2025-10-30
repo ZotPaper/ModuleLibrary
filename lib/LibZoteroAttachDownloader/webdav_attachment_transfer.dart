@@ -3,6 +3,8 @@ import 'dart:io';
 import 'dart:math' as math;
 import 'package:archive/archive.dart';
 import 'package:flutter/foundation.dart';
+import 'package:module_base/utils/log/app_log_event.dart';
+import 'package:module_library/LibZoteroAttachDownloader/bean/exception/zotero_upload_exception.dart';
 import 'package:module_library/LibZoteroAttachDownloader/zotero_attachment_transfer.dart';
 import 'package:module_library/LibZoteroStorage/entity/Item.dart';
 import 'package:module_library/ModuleLibrary/utils/my_logger.dart';
@@ -291,7 +293,11 @@ class WebDAVAttachmentTransfer implements IAttachmentTransfer {
       await zipFile.delete();
       await propFile.delete();
     } catch (e) {
-      throw Exception('Upload failed: $e');
+      if (e is UploadException) {
+        rethrow;
+      } else {
+        throw UploadException(message: 'Upload failed: $e', errorType: ErrorType.unknown);
+      }
     }
   }
 
@@ -318,7 +324,7 @@ class WebDAVAttachmentTransfer implements IAttachmentTransfer {
 
       // 验证源文件
       if (sourceBytes.isEmpty) {
-        throw Exception('源文件为空');
+        throw UploadException(message: '找不到源文件：${sourceFile.path}', errorType: ErrorType.notFound);
       }
 
       // 创建ZIP归档
@@ -352,7 +358,7 @@ class WebDAVAttachmentTransfer implements IAttachmentTransfer {
       }
 
       if (kDebugMode) {
-        print('成功创建ZIP文件: $filename -> ${zipFile.path} ($zipSize bytes)');
+        MyLogger.d('成功创建ZIP文件: $filename -> ${zipFile.path} ($zipSize bytes)');
       }
 
       return zipFile;
@@ -392,23 +398,29 @@ class WebDAVAttachmentTransfer implements IAttachmentTransfer {
 
     // 删除可能存在的旧的_NEW文件
     try {
+      await client.remove(newPropPath);
       await client.remove(newZipPath);
     } catch (e) {
       // 忽略错误，文件可能不存在
     }
 
-    try {
-      await client.remove(newPropPath);
-    } catch (e) {
-      // 忽略错误，文件可能不存在
-    }
+    MyLogger.d("准备上传新的文件到webdav: ${zipFile.path} -> $newZipPath");
 
     // 上传新文件
     final propBytes = await propFile.readAsBytes();
     final zipBytes = await zipFile.readAsBytes();
 
-    await client.write(newPropPath, Uint8List.fromList(propBytes));
-    await client.write(newZipPath, Uint8List.fromList(zipBytes));
+    try {
+      await client.write(newPropPath, Uint8List.fromList(propBytes));
+    } catch (e) {
+      MyLogger.e("上传新的文件[${newPropPath}]到webdav发生错误：$e");
+    }
+
+    try {
+      await client.write(newZipPath, Uint8List.fromList(zipBytes));
+    } catch (e) {
+      MyLogger.e("上传新的文件[${newZipPath}]到webdav发生错误：$e");
+    }
   }
 
   /// 完成上传：删除旧文件并重命名新文件
