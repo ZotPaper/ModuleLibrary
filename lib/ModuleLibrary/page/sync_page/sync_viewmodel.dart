@@ -1,11 +1,13 @@
 import 'dart:async';
 import 'package:flutter/material.dart';
 import 'package:flutter/cupertino.dart';
+import 'package:module_base/utils/tracking/dot_tracker.dart';
 import 'package:module_library/ModuleSync/zotero_sync_manager.dart';
 import '../../../LibZoteroStorage/entity/Item.dart';
 import '../../../utils/local_zotero_credential.dart';
 import '../../share_pref.dart';
 import '../../utils/my_logger.dart';
+import '../../zotero_provider.dart';
 
 class SyncViewModel with ChangeNotifier {
 
@@ -28,12 +30,20 @@ class SyncViewModel with ChangeNotifier {
     // 获取本地保存的 Zotero 用户信息
     await fetchZoteroUserCredential();
 
+    // 初始化zotero api
+    ZoteroProvider.initZoteroProvider(_userId, _apiKey);
     zoteroSyncManager.init(_userId, _apiKey);
 
     // 判断是否初次启动,没有就开始完整同步数据
     bool isNeverSynced = await zoteroSyncManager.isNeverSynced();
     if (isNeverSynced) {
-      debugPrint("=============isNeverSynced userId: $_userId apiKey: $_apiKey");
+      MyLogger.d("=============isNeverSynced userId: $_userId apiKey: $_apiKey");
+
+      // 完整同步埋点
+      DotTracker
+          .addBot("FIRST_COMPLETE_SYNC", description: "初次启动时完整同步数据")
+          .report();
+
       // 初次启动，从网络获取数据并保存到数据库
       await _performCompleteSync();
     }
@@ -45,6 +55,12 @@ class SyncViewModel with ChangeNotifier {
       onProgressCallback: onProgressCallback,
       onFinishCallback: (total) {
         _onSyncComplete();
+
+        // 完整同步埋点
+        DotTracker
+            .addBot("FIRST_COMPLETE_SYNC_FINISH", description: "初次完整同步完成")
+            .addParam("totalItemCount", total)
+            .report();
       },
     );
   }

@@ -4,6 +4,7 @@ class MyLogger {
   static const String TAG = "ModuleLibrary";
 
   static void d(String msg, {String tag = TAG,}){
+    if (!kDebugMode) return;
     debugPrint("$tag: $msg");
   }
 

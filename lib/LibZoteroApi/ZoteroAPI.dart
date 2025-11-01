@@ -2,6 +2,7 @@ import 'package:dio/dio.dart';
 import 'package:flutter/cupertino.dart';
 import 'package:module_library/LibZoteroApi/Model/CollectionPojo.dart';
 import 'package:module_library/LibZoteroApi/Model/KeyInfo.dart';
+import 'package:module_library/LibZoteroApi/Model/exception/zotero_api_exception.dart';
 import 'package:module_library/LibZoteroApi/Model/zotero_collections_response.dart';
 import 'package:module_library/LibZoteroApi/Model/zotero_items_response.dart';
 import 'package:module_library/ModuleLibrary/utils/my_logger.dart';
@@ -256,10 +257,18 @@ class ZoteroAPI {
       Map<String, dynamic> json, int ifUnmodifiedSinceVersion) async {
     final itemRes =
         await service.patchItem(user, itemKey, json, ifUnmodifiedSinceVersion);
-    if (itemRes.statusCode != 200) {
-      throw Exception('请求失败，状态码: ${itemRes.statusCode}');
-    } else if (itemRes.statusCode == 200) {
+
+    if (itemRes.statusCode == 200 || itemRes.statusCode == 204) {
+      MyLogger.d("success on patch. response data: ${itemRes.data}");
       return itemRes.data;
+    } else if (itemRes.statusCode == 409) {
+      throw ItemLockedException("You do not have write permission.", 409);
+      debugPrint('Moyear==== 304 item already updated.');
+    } else if (itemRes.statusCode == 412) {
+      throw ItemChangedSinceException("Local item out of date, please sync first.", 412);
+      debugPrint('Local item out of date, please sync first.');
+    } else {
+      throw Exception('Zotero server gave back code: ${itemRes.statusCode}');
     }
     return null;
   }

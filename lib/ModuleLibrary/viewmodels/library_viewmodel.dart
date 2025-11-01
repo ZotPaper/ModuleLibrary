@@ -1,25 +1,39 @@
 import 'dart:async';
 import 'dart:collection';
+import 'dart:io';
 import 'package:bruno/bruno.dart';
 import 'package:flutter/foundation.dart';
 import 'package:flutter/material.dart';
 import 'package:module_library/LibZoteroApi/Model/ZoteroSettingsResponse.dart';
+import 'package:module_library/LibZoteroAttachDownloader/model/upload_attachment.dart';
+import 'package:module_library/LibZoteroAttachDownloader/native/attachment_native_channel.dart';
 import 'package:module_library/LibZoteroAttachDownloader/webdav_attachment_transfer.dart';
 import 'package:module_library/LibZoteroAttachDownloader/zotero_attach_downloader_helper.dart';
 import 'package:module_library/LibZoteroAttachDownloader/zotero_attachment_transfer.dart';
+import 'package:module_library/LibZoteroAttachment/attachment_strategy_manager.dart';
+import 'package:module_library/LibZoteroStorage/database/dao/RecentlyOpenedAttachmentDao.dart';
 import 'package:module_library/ModuleLibrary/model/list_entry.dart';
 import 'package:module_library/ModuleLibrary/model/page_type.dart';
 import 'package:module_library/ModuleLibrary/my_library_filter.dart';
 import 'package:module_library/ModuleLibrary/utils/my_logger.dart';
 import 'package:module_library/ModuleLibrary/viewmodels/zotero_database.dart';
+import 'package:module_library/ModuleLibrary/zotero_provider.dart';
+import 'package:module_library/ModuleNoteEdit/note_edit_manager.dart';
 import 'package:module_library/ModuleTagManager/item_tagmanager.dart';
 import 'package:module_library/utils/local_zotero_credential.dart';
 import 'package:module_library/utils/webdav_configuration.dart';
+import 'package:open_filex/open_filex.dart';
+import '../../LibZoteroAttachDownloader/bean/exception/zotero_download_exception.dart';
 import '../../LibZoteroAttachDownloader/default_attachment_storage.dart';
+import '../../LibZoteroAttachDownloader/model/status.dart';
+import '../../LibZoteroAttachDownloader/model/transfer_info.dart';
 import '../../LibZoteroStorage/entity/Collection.dart';
 import '../../LibZoteroStorage/entity/Item.dart';
 import '../../LibZoteroStorage/entity/ItemCollection.dart';
+import '../../LibZoteroStorage/entity/Note.dart';
 import '../../ModuleSync/zotero_sync_manager.dart';
+import '../../routers.dart';
+import '../../utils/log/module_library_log_helper.dart';
 import '../api/ZoteroDataHttp.dart';
 import '../api/ZoteroDataSql.dart';
 import '../model/my_item_entity.dart';
@@ -30,12 +44,14 @@ import 'package:url_launcher/url_launcher.dart';
 import '../store/library_settings.dart';
 import 'package:module_base/stores/hive_stores.dart';
 
+import '../widget/bottomsheet/item_operation_panel.dart';
+
 class LibraryViewModel with ChangeNotifier {
 
   bool _initialized = false;
   bool get initialized => _initialized;
 
-  final ZoteroDataSql zoteroDataSql = ZoteroDataSql();
+  final ZoteroDataSql zoteroDataSql = ZoteroProvider.getZoteroDataSql();
 
   String _userId = "";
   String _apiKey = "";
@@ -63,7 +79,7 @@ class LibraryViewModel with ChangeNotifier {
   // 当前位置的key
   String currentLocationKey = "";
 
-  final ZoteroDB zoteroDB = ZoteroDB();
+  final ZoteroDB zoteroDB = ZoteroProvider.getZoteroDB();
 
   TagManager tagManager = TagManager();
 
@@ -73,6 +89,9 @@ class LibraryViewModel with ChangeNotifier {
   // 下载状态跟踪
   final Map<String, AttachmentDownloadInfo> _downloadStates = {};
   
+  // 上传状态跟踪
+  final Map<String, AttachmentUploadInfo> _uploadStates = {};
+  
   // 文件存在状态缓存
   final Map<String, bool> _fileExistsCache = {};
   
@@ -80,11 +99,80 @@ class LibraryViewModel with ChangeNotifier {
   AttachmentDownloadInfo? getDownloadStatus(String itemKey) {
     return _downloadStates[itemKey];
   }
+
+  /// 获取所有正在进行的下载任务
+  List<AttachmentDownloadInfo> getActiveDownloads() {
+    return _downloadStates.values
+        .where((info) => 
+            info.status == DownloadStatus.downloading || 
+            info.status == DownloadStatus.extracting)
+        .toList();
+  }
+
+  /// 检查是否有正在进行的下载
+  bool hasActiveDownloads() {
+    return getActiveDownloads().isNotEmpty;
+  }
+
+  /// 获取所有正在进行的上传任务（包含失败状态，以便用户看到错误）
+  List<AttachmentUploadInfo> getActiveUploads() {
+    return _uploadStates.values
+        .where((info) => 
+            info.status == UploadStatus.uploading ||
+            info.status == UploadStatus.failed)
+        .toList();
+  }
+
+  /// 检查是否有正在进行的上传
+  bool hasActiveUploads() {
+    return getActiveUploads().isNotEmpty;
+  }
+
+  /// 更新上传状态
+  void _updateUploadState(AttachmentUploadInfo uploadInfo) {
+    _uploadStates[uploadInfo.itemKey] = uploadInfo;
+    MyLogger.d('更新上传状态: ${uploadInfo.itemKey} - ${uploadInfo.status}');
+    notifyListeners(); // 通知UI更新
+  }
+
+  /// 移除上传状态
+  void _removeUploadState(String itemKey) {
+    _uploadStates.remove(itemKey);
+    MyLogger.d('移除上传状态: $itemKey');
+    notifyListeners();
+  }
+
+  /// 更新上传进度（公开方法，供UI层调用）
+  void updateUploadProgress({
+    required Item item,
+    required int currentIndex,
+    required int totalCount,
+    UploadStatus status = UploadStatus.uploading,
+    String? errorMessage,
+  }) {
+    final uploadInfo = AttachmentUploadInfo(
+      itemKey: item.itemKey,
+      filename: item.getTitle(),
+      currentIndex: currentIndex,
+      totalCount: totalCount,
+      status: status,
+      errorMessage: errorMessage,
+    );
+    _updateUploadState(uploadInfo);
+  }
+
+  /// 移除上传进度（公开方法，供UI层调用）
+  void removeUploadProgress(String itemKey) {
+    _removeUploadState(itemKey);
+  }
   
   /// 获取缓存的文件存在状态
   bool? getCachedFileExists(String itemKey) {
     return _fileExistsCache[itemKey];
   }
+  
+  // 用于防止同一个文件被重复检查
+  final Map<String, Future<bool>> _fileCheckingFutures = {};
   
   /// 异步检查并缓存文件存在状态
   Future<bool> checkAndCacheFileExists(Item pdfAttachment) async {
@@ -95,11 +183,34 @@ class LibraryViewModel with ChangeNotifier {
       return _fileExistsCache[itemKey]!;
     }
     
-    // 异步检查文件是否存在
-    final exists = await DefaultAttachmentStorage.instance.attachmentExists(pdfAttachment);
-    _fileExistsCache[itemKey] = exists;
+    // 如果正在检查中，返回同一个Future
+    if (_fileCheckingFutures.containsKey(itemKey)) {
+      return _fileCheckingFutures[itemKey]!;
+    }
     
-    return exists;
+    // 创建新的检查Future
+    final checkFuture = _checkFileExists(pdfAttachment);
+    _fileCheckingFutures[itemKey] = checkFuture;
+    
+    try {
+      final exists = await checkFuture;
+      _fileExistsCache[itemKey] = exists;
+      MyLogger.d('文件存在检查完成: $itemKey = $exists');
+      return exists;
+    } finally {
+      // 检查完成后移除Future缓存
+      _fileCheckingFutures.remove(itemKey);
+    }
+  }
+  
+  /// 实际执行文件检查的方法
+  Future<bool> _checkFileExists(Item pdfAttachment) async {
+    try {
+      return await DefaultAttachmentStorage.instance.attachmentExists(pdfAttachment);
+    } catch (e) {
+      MyLogger.e('检查文件存在时出错: ${pdfAttachment.itemKey}, 错误: $e');
+      return false;
+    }
   }
   
   /// 检查附件是否正在下载
@@ -159,6 +270,7 @@ class LibraryViewModel with ChangeNotifier {
 
       MyLogger.d("fetch saved loginInfo locally: [userId: $_userId, apiKey: $_apiKey]");
 
+      ZoteroProvider.initZoteroProvider(_userId, _apiKey);
       // 初始化同步管理器
       if (!zoteroSyncManager.isConfigured()) {
         zoteroSyncManager.init(_userId, _apiKey);
@@ -177,6 +289,24 @@ class LibraryViewModel with ChangeNotifier {
 
       // 初始化下载助手
       await ensureDownloadHelperInitialized();
+
+      // 初始化PDF查看器
+      await PdfViewerNativeChannel.init();
+      
+      // 设置附件管理器的状态更新回调
+      AttachmentStrategyManager.instance.setDownloadStateUpdateCallback((downloadInfo) {
+        _updateDownloadState(downloadInfo);
+      });
+      AttachmentStrategyManager.instance.setDownloadStateRemoveCallback((itemKey) {
+        _removeDownloadState(itemKey);
+      });
+      AttachmentStrategyManager.instance.setFileExistsCacheUpdateCallback((itemKey, exists) {
+        if (exists) {
+          _fileExistsCache[itemKey] = true;
+        } else {
+          _fileExistsCache.remove(itemKey);
+        }
+      });
     }
 
     setLoading(false);
@@ -460,7 +590,7 @@ class LibraryViewModel with ChangeNotifier {
     
     // 筛选只含笔记的条目
     if (_libraryStore.showOnlyWithNotes.get()) {
-      filteredItems = filteredItems.where((item) => _itemHasNotes(item)).toList();
+      filteredItems = filteredItems.where((item) => item.isNoteItem() || _itemHasNotes(item)).toList();
     }
     
     return filteredItems;
@@ -468,6 +598,7 @@ class LibraryViewModel with ChangeNotifier {
 
   /// 检查条目是否有PDF附件
   bool _itemHasPdfAttachment(Item item) {
+    if (isPdfAttachmentItem(item)) return true;
     return item.attachments.any((attachment) => 
       isPdfAttachmentItem(attachment)
     );
@@ -487,7 +618,6 @@ class LibraryViewModel with ChangeNotifier {
   bool _itemHasNotes(Item item) {
     return item.notes.isNotEmpty;
   }
-
   /// 返回上一个浏览记录
   void backToPreviousPos() async {
     var locationKey = _viewStack.removeLast();
@@ -692,11 +822,15 @@ class LibraryViewModel with ChangeNotifier {
   }
 
   Future<List<ListEntry>> _getMyStarredEntries() async {
+    // 每次都创建新的列表，避免重复数据
     List<ListEntry> res = [];
     List<Item> starredItems = [];
     List<Collection> starredCollections = [];
     
-    MyItemFilter.instance.getMyStars().forEach((ele) {
+    // 获取收藏的items和collections
+    final myStars = MyItemFilter.instance.getMyStars();
+    
+    for (var ele in myStars) {
       if (ele.isCollection) {
         var collection = zoteroDB.getCollectionByKey(ele.itemKey);
         if (collection != null) {
@@ -708,7 +842,7 @@ class LibraryViewModel with ChangeNotifier {
           starredItems.add(item);
         }
       }
-    });
+    }
 
     // 对收藏的集合进行排序
     sortCollections(starredCollections);
@@ -719,6 +853,8 @@ class LibraryViewModel with ChangeNotifier {
     sortItems(starredItems);
     res.addAll(starredItems.map((item) => ListEntry(item: item)));
 
+    MyLogger.d('_getMyStarredEntries: 收藏集合=${starredCollections.length}, 收藏条目=${starredItems.length}, 总计=${res.length}');
+    
     return res;
   }
 
@@ -920,153 +1056,9 @@ class LibraryViewModel with ChangeNotifier {
   }
 
   /// 下载pdf或取消下载
+  /// 现在委托给 AttachmentStrategyManager 处理
   Future<void> openOrDownloadedPdf(BuildContext context, Item item) async {
-    // 找到item对应的pdf文件
-    Item? targetPdfAttachmentItem;
-    // 检测item自身是否是pdf文件
-    if (isPdfAttachmentItem(item)) {
-      targetPdfAttachmentItem = item;
-    } else {
-      // 检测item的附件中是否有pdf文件
-      if (itemHasPdfAttachment(item)) {
-        targetPdfAttachmentItem = item.attachments.firstWhere((element) => isPdfAttachmentItem(element));
-      }
-    }
-
-    if (targetPdfAttachmentItem == null) {
-      throw "没有找到pdf文件";
-    }
-
-    // 检查是否正在下载，如果是则取消下载
-    if (isAttachmentDownloading(targetPdfAttachmentItem.itemKey)) {
-      await _cancelDownload(context, targetPdfAttachmentItem);
-      return;
-    }
-
-    // 检查是否已下载
-    bool isDownloaded = await DefaultAttachmentStorage.instance.attachmentExists(targetPdfAttachmentItem);
-    if (isDownloaded) {
-      // 打开pdf
-      BrnToast.show('${targetPdfAttachmentItem.getTitle()}已下载, 打开pdf功能待开发...', context);
-      MyLogger.d('${targetPdfAttachmentItem.getTitle()}已下载');
-      return;
-    }
-
-    // 开始下载
-    await _startDownload(context, targetPdfAttachmentItem);
-  }
-
-  /// 开始下载附件
-  Future<void> _startDownload(BuildContext context, Item targetPdfAttachmentItem) async {
-    final downloadHelper = ZoteroAttachDownloaderHelper.instance;
-
-    try {
-      // 立即设置初始下载状态，确保UI显示进度环
-      final initialDownloadInfo = AttachmentDownloadInfo(
-        itemKey: targetPdfAttachmentItem.itemKey,
-        filename: targetPdfAttachmentItem.getTitle(),
-        progress: 0,
-        total: 100,
-        status: DownloadStatus.downloading,
-      );
-      _updateDownloadState(initialDownloadInfo);
-      
-      await downloadHelper.startDownloadAttachment(
-        targetPdfAttachmentItem,
-        onProgress: (info) {
-          // 更新下载进度状态
-          _updateDownloadState(info);
-          MyLogger.d('下载进度 ${info.itemKey}: ${info.progressPercent.toStringAsFixed(1)}%');
-        },
-        onComplete: (info, success) {
-          if (success) {
-            // 下载完成，更新文件存在状态缓存并移除下载状态
-            _fileExistsCache[info.itemKey] = true;
-            _removeDownloadState(info.itemKey);
-            BrnToast.show("下载完成附件: ${info.filename}", context);
-            MyLogger.d('下载完成 ${info.itemKey}: ${info.filename}');
-          } else {
-            // 下载失败，更新状态为失败
-            _updateDownloadState(info.copyWith(status: DownloadStatus.failed));
-            MyLogger.e('下载失败 ${info.itemKey}');
-          }
-        },
-        onError: (info, error) {
-          // 下载错误，移除下载状态
-          _removeDownloadState(info.itemKey);
-          
-          if (error is DownloadException) {
-            switch (error.errorType) {
-              case DownloadErrorType.notFound:
-                BrnToast.show("在服务器找不到附件", context);
-                MyLogger.w('下载失败，附件[${info.itemKey}, ${info.filename}]不存在');
-                break;
-              case DownloadErrorType.network:
-                BrnToast.show("网络连接失败，请检查网络设置", context);
-                MyLogger.w('下载失败，网络错误: ${info.itemKey}');
-                break;
-              case DownloadErrorType.timeout:
-                BrnToast.show("下载超时，请重试", context);
-                MyLogger.w('下载失败，超时: ${info.itemKey}');
-                break;
-              default:
-                BrnToast.show("下载出错: ${error.message}", context);
-                MyLogger.e('下载出错 ${info.itemKey}: ${error.message}');
-            }
-          } else {
-            // 处理其他类型的异常
-            BrnToast.show("下载出错: $error", context);
-            MyLogger.e('下载出错 ${info.itemKey}: $error');
-          }
-        },
-      );
-    } catch (e) {
-      // 处理同步错误（如未初始化、正在下载等），移除下载状态
-      _removeDownloadState(targetPdfAttachmentItem.itemKey);
-      
-      if (e is DownloadException) {
-        BrnToast.show(e.message, context);
-      } else {
-        BrnToast.show("下载失败: $e", context);
-      }
-      MyLogger.e('下载启动失败: $e');
-    }
-  }
-
-  /// 取消下载
-  Future<void> _cancelDownload(BuildContext context, Item targetPdfAttachmentItem) async {
-    final downloadHelper = ZoteroAttachDownloaderHelper.instance;
-    
-    try {
-      await downloadHelper.cancelDownload(targetPdfAttachmentItem.itemKey);
-      
-      // 清理临时文件
-      await _cleanupTempFiles(targetPdfAttachmentItem);
-      
-      // 移除下载状态
-      _removeDownloadState(targetPdfAttachmentItem.itemKey);
-      
-      // BrnToast.show("已取消下载", context);
-      MyLogger.d('取消下载: ${targetPdfAttachmentItem.itemKey}');
-    } catch (e) {
-      BrnToast.show("取消下载失败: $e", context);
-      MyLogger.e('取消下载失败: $e');
-    }
-  }
-
-  /// 清理临时文件
-  Future<void> _cleanupTempFiles(Item item) async {
-    try {
-      final storage = DefaultAttachmentStorage.instance;
-      final tempFile = await storage.getDownloadTempFile(item);
-      
-      if (await tempFile.exists()) {
-        await tempFile.delete();
-        MyLogger.d('清理临时文件: ${tempFile.path}');
-      }
-    } catch (e) {
-      MyLogger.w('清理临时文件失败: $e');
-    }
+    await AttachmentStrategyManager.instance.openOrDownloadPdf(context, item);
   }
 
   /// 删除item下所有已下载的附件
@@ -1119,10 +1111,14 @@ class LibraryViewModel with ChangeNotifier {
     for (var attachment in downloadedAttachments) {
       try {
         await storage.deleteAttachment(attachment);
+        // 【客户端】pdf文件删除下载本地文件后从最近修改的文档中移除
+        zoteroDB.removeRecentlyOpenedAttachment(attachment.itemKey);
         MyLogger.d('删除附件成功: ${attachment.getTitle()}');
         
-        // 更新文件存在状态缓存
+        // 更新文件存在状态缓存为false
         _fileExistsCache[attachment.itemKey] = false;
+        // 清除可能存在的检查Future
+        _fileCheckingFutures.remove(attachment.itemKey);
         
         successCount++;
       } catch (e) {
@@ -1183,6 +1179,166 @@ class LibraryViewModel with ChangeNotifier {
 
       // 调用自身，确保初次使用可以通知webdav的配置变化回调
       WebdavConfiguration.setUseWebdav(WebdavConfiguration.useWebdav);
+    }
+  }
+
+  // 检查已下载的附件是否被修改
+  Future<void> checkModifiedAttachments() async {
+    MyLogger.d('Moyear=== 检查打开过的附件是否被修改');
+
+    final recentlyOpenedAttachments = await zoteroDB.getRecentlyOpenedAttachments();
+    MyLogger.d('Moyear=== 开过的附件数量：${recentlyOpenedAttachments.length}');
+
+    List<RecentlyOpenedAttachment> modifiedAttachments = [];
+    for (var attachment in recentlyOpenedAttachments) {
+      final isModified = await zoteroDB.isAttachmentModified(attachment);
+      if (isModified) {
+        modifiedAttachments.add(attachment);
+      }
+    }
+
+    // modifiedAttachments.add(RecentlyOpenedAttachment(id: -1, itemKey: "QLTM3JVE", version: 570));
+
+    MyLogger.d('Moyear=== 修改的附件数量：${modifiedAttachments.length}');
+
+    if (modifiedAttachments.isNotEmpty) {
+      // 获取修改的附件详细信息
+      List<Item> modifiedItems = [];
+      for (var attachment in modifiedAttachments) {
+        final item = zoteroDB.getItemByKey(attachment.itemKey);
+        if (item != null) {
+          modifiedItems.add(item);
+        }
+      }
+
+      if (modifiedItems.isNotEmpty && onModifiedAttachmentsFound != null) {
+        // 通过回调通知UI层显示对话框
+        onModifiedAttachmentsFound!(modifiedItems, modifiedAttachments);
+      }
+    }
+  }
+
+  // 添加回调函数类型定义
+  Function(List<Item> modifiedItems, List<RecentlyOpenedAttachment> attachments)? onModifiedAttachmentsFound;
+
+  /// 设置修改附件发现回调
+  void setOnModifiedAttachmentsFoundCallback(Function(List<Item>, List<RecentlyOpenedAttachment>)? callback) {
+    onModifiedAttachmentsFound = callback;
+  }
+
+  // /// 开始上传修改的附件（纯数据处理，不涉及UI）
+  // Future<UploadResult> uploadModifiedAttachments(List<Item> modifiedItems, List<RecentlyOpenedAttachment> attachments) async {
+  //   try {
+  //     int successCount = 0;
+  //     int totalCount = modifiedItems.length;
+  //     List<String> failedItems = [];
+  //
+  //     for (int i = 0; i < modifiedItems.length; i++) {
+  //       final item = modifiedItems[i];
+  //       try {
+  //         await _uploadAttachment(item);
+  //         successCount++;
+  //         MyLogger.d('附件上传成功: ${item.getTitle()}');
+  //
+  //         ModuleLibraryLogHelper.attachmentTransfer.logUploadSuccess(item);
+  //
+  //         // 从最近打开的附件列表中移除，这样下次就不会再检测到修改
+  //         await zoteroDB.removeRecentlyOpenedAttachment(item.itemKey);
+  //       } catch (e) {
+  //         MyLogger.e('附件上传失败: ${item.getTitle()}, 错误: $e');
+  //         failedItems.add(item.getTitle());
+  //       }
+  //     }
+  //
+  //     // // 清除修改标记
+  //     // await _clearModifiedAttachmentsMarks(attachments);
+  //
+  //     return UploadResult(
+  //       successCount: successCount,
+  //       totalCount: totalCount,
+  //       failedItems: failedItems,
+  //     );
+  //
+  //   } catch (e) {
+  //     MyLogger.e('上传附件时发生错误: $e');
+  //     return UploadResult(
+  //       successCount: 0,
+  //       totalCount: modifiedItems.length,
+  //       failedItems: modifiedItems.map((item) => item.getTitle()).toList(),
+  //       error: e.toString(),
+  //     );
+  //   }
+  // }
+
+  /// 上传单个附件（公开方法，供UI层调用）
+  Future<void> uploadSingleAttachment(Item item) async {
+    await _uploadAttachment(item);
+  }
+
+  /// 上传单个附件（内部实现）
+  Future<void> _uploadAttachment(Item item) async {
+    try {
+      // 确保下载助手已初始化
+      await ensureDownloadHelperInitialized();
+      
+      final downloadHelper = ZoteroAttachDownloaderHelper.instance;
+
+      // 使用下载助手的上传功能
+      await downloadHelper.uploadAttachment(item);
+      
+      // 更新附件的修改时间标记
+      await zoteroDB.updateAttachmentAfterUpload(item);
+      
+    } catch (e) {
+      rethrow;
+    }
+  }
+
+  /// 清除修改的附件标记
+  Future<void> _clearModifiedAttachmentsMarks(List<RecentlyOpenedAttachment> attachments) async {
+    for (var attachment in attachments) {
+      try {
+        // 从最近打开的附件列表中移除，这样下次就不会再检测到修改
+        await zoteroDB.removeRecentlyOpenedAttachment(attachment.itemKey);
+      } catch (e) {
+        MyLogger.e('清除附件修改标记失败: ${attachment.itemKey}, 错误: $e');
+      }
+    }
+  }
+
+  /// 仅清除修改标记，不上传
+  Future<void> clearModifiedAttachmentsMarks(List<RecentlyOpenedAttachment> attachments) async {
+    // await _clearModifiedAttachmentsMarks(attachments);
+  }
+
+  void onItemTap(BuildContext context, Item item) {
+    if (item.isNoteItem()) {
+      NoteEditManager.instance.editNoteItem(context, item);
+      return;
+    }
+
+    if (_itemHasPdfAttachment(item)) {
+      AttachmentStrategyManager.instance.openOrDownloadPdf(context, item);
+      return;
+    }
+
+    // // todo 如果是网页html 点击直接打开
+    // if (item.isWebPageItem()) {
+    //   AttachmentStrategyManager.instance.openWebpageAttachment(context, item);
+    //   return;
+    // }
+
+    showItemInfoDetail(context, item);
+  }
+
+  void showItemInfoDetail(BuildContext context, Item item) {
+    // BrnToast.show("item: ${item.getTitle()}", context);
+    // 跳转到详情页
+    try {
+      MyRouter.instance.pushNamed(context, "itemDetailPage", arguments: { "item": item });
+    } catch (e) {
+      debugPrint(e.toString());
+      BrnToast.show("跳转详情页失败", context);
     }
   }
 

@@ -3,6 +3,7 @@ import 'dart:collection';
 import 'package:flutter/cupertino.dart';
 import 'package:flutter/material.dart';
 import 'package:bruno/bruno.dart';
+import 'package:module_base/view/appbar/neat_appbar.dart';
 import 'package:module_library/LibZoteroApi/Model/ZoteroSettingsResponse.dart';
 import 'package:module_library/ModuleLibrary/utils/color_utils.dart';
 import 'package:module_library/ModuleLibrary/utils/my_logger.dart';
@@ -69,6 +70,15 @@ class _ItemDetailTagFragmentState extends State<TagsManagerPage> {
 
       final Set<String> uniqueTags = results[0] as Set<String>;
       final List<TagColor> styledTags = results[1] as List<TagColor>;
+      
+      // 验证精选标签是否有重复
+      final styledTagNames = styledTags.map((e) => e.name).toList();
+      final uniqueStyledTagNames = styledTagNames.toSet();
+      if (styledTagNames.length != uniqueStyledTagNames.length) {
+        MyLogger.e("警告：精选标签数据源包含重复项！原始数量: ${styledTagNames.length}, 去重后: ${uniqueStyledTagNames.length}");
+      } else {
+        MyLogger.d("精选标签数据验证通过，无重复项，数量: ${styledTags.length}");
+      }
 
       // 优化的标签合并算法
       await _mergeTagsEfficiently(uniqueTags, styledTags);
@@ -145,6 +155,11 @@ class _ItemDetailTagFragmentState extends State<TagsManagerPage> {
       
              // 将排序后的未样式化标签添加到显示列表后面
        _displayTags.addAll(unstyledTags);
+
+        _displayTags.forEach((tag) {
+        MyLogger.e("Moyaer=== _displayTags name: ${tag.name} color: ${tag.color}");
+      });
+
        
        // 记录样式标签的数量，用于UI分组显示
        _styledTagsCount = styledTags.length;
@@ -176,7 +191,7 @@ class _ItemDetailTagFragmentState extends State<TagsManagerPage> {
   @override
   Widget build(BuildContext context) {
     return Scaffold(
-      appBar: BrnAppBar(
+      appBar: simpleAppBar(
         title: '标签管理',
         actions: [
           IconButton(
@@ -290,7 +305,7 @@ class _ItemDetailTagFragmentState extends State<TagsManagerPage> {
             ),
           ),
           const Spacer(),
-          _addTagButton(),
+          // _addTagButton(),
         ],
       ),
     );

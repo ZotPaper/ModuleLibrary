@@ -1,33 +1,54 @@
+import 'dart:async';
+
 import 'package:flutter/cupertino.dart';
 import 'package:flutter/material.dart';
 import 'package:flutter/services.dart';
+import 'package:module_base/my_eventbus.dart';
+import 'package:module_base/utils/logger.dart';
+import 'package:module_base/utils/tracking/dot_tracker.dart';
+import 'package:module_base/view/dialog/neat_dialog.dart';
 import 'package:module_library/LibZoteroApi/Model/ZoteroSettingsResponse.dart';
+import 'package:module_library/LibZoteroAttachDownloader/dialog/attachment_transfer_dialog_manager.dart';
+import 'package:module_library/LibZoteroAttachDownloader/event/event_check_attachment_modification.dart';
+import 'package:module_library/LibZoteroAttachDownloader/model/status.dart';
+import 'package:module_library/LibZoteroAttachDownloader/zotero_attachment_transfer.dart';
 import 'package:module_library/LibZoteroStorage/entity/Collection.dart';
 import 'package:module_library/LibZoteroStorage/entity/Item.dart';
 import 'package:module_library/LibZoteroAttachDownloader/zotero_attach_downloader_helper.dart';
+import 'package:module_library/LibZoteroStorage/database/dao/RecentlyOpenedAttachmentDao.dart';
 
 import 'package:module_library/ModuleItemDetail/page/item_details_page.dart';
 import 'package:module_library/ModuleLibrary/model/list_entry.dart';
 import 'package:module_library/ModuleLibrary/model/page_type.dart';
-import 'package:module_library/ModuleLibrary/page/blank_page.dart';
 import 'package:module_library/ModuleLibrary/page/sync_page/sync_page.dart';
 import 'package:module_library/ModuleLibrary/res/ResColor.dart';
 import 'package:module_library/ModuleLibrary/utils/sheet_item_helper.dart';
 import 'package:module_library/ModuleLibrary/utils/my_logger.dart';
 import 'package:module_library/ModuleLibrary/viewmodels/library_viewmodel.dart';
 import 'package:module_library/ModuleTagManager/item_tagmanager.dart';
-import 'package:module_library/routers.dart';
+import 'package:module_library/routers.dart' show MyRouter, globalRouteObserver;
 import 'package:provider/provider.dart';
 import 'package:pull_to_refresh/pull_to_refresh.dart';
 
+import '../../utils/log/module_library_log_helper.dart';
 import '../dialog/library_layout_dialog.dart';
 import '../utils/color_utils.dart';
 import '../utils/device_utils.dart';
+import '../widget/global_download_indicator.dart';
+import '../widget/attachment_indicator.dart';
+import '../widget/item_entry_widget.dart';
+import '../widget/collection_entry_widget.dart';
+import '../widget/item_type_icon.dart';
+import '../widget/bottomsheet/item_operation_panel.dart';
+import '../widget/modified_attachments_banner.dart';
+import '../widget/upload_progress_dialog.dart';
+import '../widget/global_upload_indicator.dart';
 import 'LibraryUI/appBar.dart';
 import 'LibraryUI/drawer.dart';
 import 'package:flutter_svg/flutter_svg.dart';
 import 'package:bruno/bruno.dart';
 import 'package:flutter/foundation.dart';
+import 'package:dio/dio.dart';
 
 class LibraryPage extends StatefulWidget {
   const LibraryPage({super.key});
@@ -36,7 +57,7 @@ class LibraryPage extends StatefulWidget {
   State<LibraryPage> createState() => _LibraryPageState();
 }
 
-class _LibraryPageState extends State<LibraryPage> {
+class _LibraryPageState extends State<LibraryPage> with WidgetsBindingObserver, RouteAware {
   late LibraryViewModel _viewModel;
   final GlobalKey<ScaffoldState> _scaffoldKey = GlobalKey<ScaffoldState>();
 
@@ -44,12 +65,34 @@ class _LibraryPageState extends State<LibraryPage> {
   TextEditingController textController = TextEditingController();
 
   final focusNode = FocusNode();
+ 
+  late RefreshController _phoneRefreshController;
+  late RefreshController _tabletRefreshController;
+  
+  /// 获取当前布局对应的RefreshController
+  RefreshController get _currentRefreshController {
+    final bool isTablet = DeviceUtils.shouldShowFixedDrawer(context);
+    return isTablet ? _tabletRefreshController : _phoneRefreshController;
+  }
+  
+  // 对话框显示标志位，防止重复显示
+  bool _isModifiedAttachmentsDialogShowing = false;
 
-  final RefreshController _refreshController = RefreshController(initialRefresh: false);
+  StreamSubscription? _subscription;
+
+  // 修改的附件信息
+  List<Item>? _modifiedItems;
+  List<RecentlyOpenedAttachment>? _modifiedAttachments;
+  bool _showModifiedBanner = false;
 
   @override
   void initState() {
     super.initState();
+    WidgetsBinding.instance.addObserver(this);
+
+    _phoneRefreshController = RefreshController(initialRefresh: false);
+    _tabletRefreshController = RefreshController(initialRefresh: false);
+
     ///initState 中添加监听，记得销毁
     textController.addListener((){
       if(focusNode.hasFocus){
@@ -67,22 +110,288 @@ class _LibraryPageState extends State<LibraryPage> {
         }
       }
     });
+
+    // 监听检查附件变更事件
+    _subscription = eventBus.on<EventCheckAttachmentModification>().listen((event) {
+      MyLogger.d("Moyear=== 收到监听检查附件变更事件");
+
+      // 延迟执行操作
+      Future.delayed(const Duration(seconds: 1), () {
+        // 检查附件变更
+        _viewModel.checkModifiedAttachments();
+      });
+    });
   }
 
 
   @override
-  void didChangeDependencies() {
+  void didChangeDependencies() { 
     super.didChangeDependencies();
 
     // 在这里通过 Provider 获取 ViewModel
     _viewModel = Provider.of<LibraryViewModel>(context, listen: false);
 
+    // 设置修改附件发现回调
+    _viewModel.setOnModifiedAttachmentsFoundCallback(_onModifiedAttachmentsFound);
+
     // 第一次进入页面时初始化数据
     if (!_viewModel.initialized) {
       _viewModel.init();
     }
+
+    // 注册路由观察者
+    final modalRoute = ModalRoute.of(context);
+    if (modalRoute is PageRoute) {
+      globalRouteObserver.subscribe(this, modalRoute);
+    }
   }
 
+  /// 当发现修改的附件时的回调处理
+  void _onModifiedAttachmentsFound(List<Item> modifiedItems, List<RecentlyOpenedAttachment> attachments) {
+    // 保存修改的附件信息并显示提示栏
+    setState(() {
+      _modifiedItems = modifiedItems;
+      _modifiedAttachments = attachments;
+      _showModifiedBanner = true;
+    });
+  }
+
+  /// 关闭修改附件提示栏
+  void _dismissModifiedBanner() {
+    setState(() {
+      _showModifiedBanner = false;
+    });
+    // 清除修改标记
+    if (_modifiedAttachments != null) {
+      _viewModel.clearModifiedAttachmentsMarks(_modifiedAttachments!);
+    }
+  }
+
+  /// 点击提示栏，显示对话框
+  void _onModifiedBannerTap() {
+    if (_modifiedItems != null && _modifiedAttachments != null) {
+      _showModifiedAttachmentsDialog(_modifiedItems!, _modifiedAttachments!);
+    }
+  }
+
+  /// 显示修改的附件对话框
+  void _showModifiedAttachmentsDialog(List<Item> modifiedItems, List<RecentlyOpenedAttachment> attachments) {
+    MyLogger.d("Moyear=== 显示修改的附件对话框");
+    // 检查对话框是否已经在显示中，避免重复显示
+    // if (_isModifiedAttachmentsDialogShowing) {
+    //   MyLogger.d('Moyear=== 修改附件对话框已经在显示中，跳过重复显示');
+    //   return;
+    // }
+    
+    // 设置标志位，表示对话框正在显示
+    _isModifiedAttachmentsDialogShowing = true;
+    
+    final strModified = modifiedItems.map((item) => "\<font color = '#8ac6d1'\>${ item.getTitle()}</font>" ).join(', ');
+
+    NeatDialogManager.showConfirmDialog(context,
+        cancel: "稍后处理",
+        confirm: "立即上传",
+        title: "检测到附件修改",
+        message: "检测到 ${modifiedItems.length} 个附件已被修改，是否需要上传到Zotero服务器？",
+        messageWidget: Padding(
+          padding: const EdgeInsets.only(top: 6, left: 24, right: 24),
+          child: BrnCSS2Text.toTextView(
+              "检测到 ${modifiedItems.length} 个附件已被修改，是否需要上传到服务器进行更新？\n" +
+                  "修改的附件：\n $strModified"
+            ,
+        ),),
+        showIcon: true,
+        onConfirm: (BuildContext dialogContext) {
+          // 重置标志位，允许下次显示对话框
+          _isModifiedAttachmentsDialogShowing = false;
+          
+          // 隐藏提示栏
+          setState(() {
+            _showModifiedBanner = false;
+          });
+
+          Navigator.of(dialogContext).pop();
+
+          // 开始上传修改的附件（会显示进度对话框）
+          _startUploadModifiedAttachments(modifiedItems, attachments);
+        },
+        onCancel: (BuildContext dialogContext) {
+          // 重置标志位，允许下次显示对话框
+          _isModifiedAttachmentsDialogShowing = false;
+          
+          // 隐藏提示栏并清除修改标记
+          setState(() {
+            _showModifiedBanner = false;
+          });
+
+          Navigator.of(dialogContext).pop();
+          
+          // 清除修改标记，用户选择不上传
+          // _viewModel.clearModifiedAttachmentsMarks(attachments);
+        },
+    );
+  }
+
+  /// 开始上传修改的附件
+  Future<void> _startUploadModifiedAttachments(List<Item> modifiedItems, List<RecentlyOpenedAttachment> attachments) async {
+    final totalCount = modifiedItems.length;
+    int successCount = 0;
+    Map<String, String> failedItemsWithErrors = {}; // 保存失败的附件和错误信息
+
+    try {
+      // 逐个上传附件
+      for (int i = 0; i < modifiedItems.length; i++) {
+        final item = modifiedItems[i];
+        
+        try {
+          MyLogger.d('开始上传附件 ${i + 1}/$totalCount: ${item.getTitle()}');
+          
+          // 更新上传状态到ViewModel（会自动通知全局指示器更新）
+          _viewModel.updateUploadProgress(
+            item: item,
+            currentIndex: i + 1,
+            totalCount: totalCount,
+          );
+
+          // 上传单个附件
+          await _viewModel.uploadSingleAttachment(item);
+          
+          // 从最近打开的附件列表中移除
+          await _viewModel.zoteroDB.removeRecentlyOpenedAttachment(item.itemKey);
+          
+          // 上传完成后移除该附件的上传状态
+          _viewModel.removeUploadProgress(item.itemKey);
+          
+          successCount++;
+          MyLogger.d('附件上传成功: ${item.getTitle()}');
+
+          // 附件上传成功 日志与埋点上报
+          ModuleLibraryLogHelper.attachmentTransfer.logUploadSuccess(item);
+          
+        } catch (e) {
+          final errorMsg = _parseUploadError(e);
+          MyLogger.e('附件上传失败: ${item.getTitle()}, 错误: $errorMsg');
+          failedItemsWithErrors[item.getTitle()] = errorMsg;
+          
+          // 更新为失败状态，显示在全局指示器中
+          _viewModel.updateUploadProgress(
+            item: item,
+            currentIndex: i + 1,
+            totalCount: totalCount,
+            status: UploadStatus.failed,
+            errorMessage: errorMsg,
+          );
+          
+          // 延迟移除失败状态，让用户有时间看到
+          Future.delayed(const Duration(seconds: 3), () {
+            _viewModel.removeUploadProgress(item.itemKey);
+          });
+        }
+      }
+
+      // 显示结果
+      if (!mounted) return;
+      
+      if (failedItemsWithErrors.isEmpty) {
+        // 全部成功
+        BrnToast.show('所有附件上传成功！', context);
+
+        var isZotero = ZoteroAttachDownloaderHelper.instance.transfer is ZoteroAttachmentTransfer;
+
+        // 埋点上报
+        DotTracker
+            .addBot("UPLOAD_ALL_MODIFIED_SUCCESS", description: "所有附件上传成功")
+            .addParam("total", modifiedItems.length)
+            .addParam("service", isZotero ? "Zotero" : "WEBDAV")
+            .report();
+
+      } else if (successCount > 0) {
+        // 部分成功 - 显示详细错误信息
+        AttachmentTransferDialogManager.showUploadErrorInfo(
+          context:  context,
+          successCount: successCount,
+          totalCount: totalCount,
+          failedItems: failedItemsWithErrors,
+        );
+      } else {
+        // 全部失败 - 显示详细错误信息
+        AttachmentTransferDialogManager.showUploadErrorInfo(
+          context: context,
+          successCount: 0,
+          totalCount: totalCount,
+          failedItems: failedItemsWithErrors,
+        );
+      }
+
+      // 上传附件后，无论成功或者失败都会自动执行与服务器同步操作
+      _currentRefreshController.requestRefresh();
+
+    } catch (e) {
+      MyLogger.e('上传附件时发生错误: $e');
+      // 清除所有上传状态
+      for (var item in modifiedItems) {
+        _viewModel.removeUploadProgress(item.itemKey);
+      }
+      if (mounted) {
+        final errorMsg = _parseUploadError(e);
+        BrnToast.show('上传失败：$errorMsg', context);
+      }
+    }
+  }
+
+  /// 解析上传错误信息，返回用户友好的错误描述
+  String _parseUploadError(dynamic error) {
+    String errorStr = error.toString();
+    if (error is DioException) {
+      errorStr = "errorCode[${error.response?.statusCode}], message: ${error.message}";
+    }
+
+    if (errorStr.contains('NetworkException')) {
+      return '网络连接失败: $errorStr';
+    } else if (errorStr.contains('timeout') || errorStr.contains('TimeoutException')) {
+      return '连接超时: $errorStr';
+    } else if (errorStr.contains('401') || errorStr.contains('unauthorized')) {
+      return '认证失败，请重新登录: $errorStr';
+    } else if (errorStr.contains('404') || errorStr.contains('not found') || errorStr.contains("PathNotFoundException")) {
+      return '文件未找到: $errorStr';
+    } else if (errorStr.contains('500') || errorStr.contains('server error')) {
+      return '服务器错误: $errorStr';
+    } else {
+      // 返回简化的错误信息
+      return errorStr;
+      // return errorStr.length > 50 ? '${errorStr.substring(0, 50)}...' : errorStr;
+    }
+  }
+
+  @override
+  void didChangeAppLifecycleState(AppLifecycleState state) {
+    if (state == AppLifecycleState.resumed) {
+      MyLogger.d("Moyear=== 应用从后台返回前台时检查修改的附件");
+      // 应用从后台返回前台时检查修改的附件
+      _viewModel.checkModifiedAttachments();
+    }
+  }
+
+  @override
+  void didPopNext() {
+    // 每次从其他页面返回时检查修改的附件
+    super.didPopNext();
+    _viewModel.checkModifiedAttachments();
+    MyLogger.d("Moyear=== 从其他页面返回时检查修改的附件");
+  }
+
+  @override
+  void dispose() {
+    // 记得取消订阅
+    _subscription?.cancel();
+    WidgetsBinding.instance.removeObserver(this);
+    globalRouteObserver.unsubscribe(this);
+    textController.dispose();
+    focusNode.dispose();
+    _phoneRefreshController.dispose();
+    _tabletRefreshController.dispose();
+    super.dispose();
+  }
 
   @override
   Widget build(BuildContext context) {
@@ -202,17 +511,41 @@ class _LibraryPageState extends State<LibraryPage> {
 
 
   Widget _buildPageContent() {
+    final bool isTablet = DeviceUtils.shouldShowFixedDrawer(context);
+    
     if (_viewModel.curPage == PageType.sync) {
       return const SyncPageFragment();
     } else if (_viewModel.curPage == PageType.library) {
-      return libraryListPage();
+      return Stack(
+        children: [
+          libraryListPage(isTablet: isTablet),
+          // 全局下载进度指示器
+          _buildGlobalDownloadIndicator(),
+          // 全局上传进度指示器
+          _buildGlobalUploadIndicator(),
+        ],
+      );
     } else {
       return _emptyView();
     }
   }
 
+  /// 构建全局下载进度指示器
+  Widget _buildGlobalDownloadIndicator() {
+    return GlobalDownloadIndicator(
+      viewModel: _viewModel,
+    );
+  }
+
+  /// 构建全局上传进度指示器
+  Widget _buildGlobalUploadIndicator() {
+    return GlobalUploadIndicator(
+      viewModel: _viewModel,
+    );
+  }
+
   /// 文库列表页面
-  Widget libraryListPage() {
+  Widget libraryListPage({required bool isTablet}) {
     return GestureDetector(
       onTap: () {
         // 移除焦点
@@ -223,21 +556,41 @@ class _LibraryPageState extends State<LibraryPage> {
       child: Column(
         children: [
           searchLine(),
+          // 修改附件提示栏
+          if (_showModifiedBanner)
+            ModifiedAttachmentsBanner(
+              modifiedCount: _modifiedItems?.length ?? 0,
+              onTap: _onModifiedBannerTap,
+              onDismiss: _dismissModifiedBanner,
+            ),
           Expanded(
-            child: _viewModel.displayEntries.isEmpty ? _emptyView() : Container(
+            child: Container(
               color: ResColor.bgColor,
               width: double.infinity,
-              child: SmartRefresher(
-                enablePullDown: true,
-                controller: _refreshController,
-                header: _refreshHeader(),
-                onRefresh: _onRefresh,
-                child: ListView.builder(
-                  itemCount: _viewModel.displayEntries.length,
-                  itemBuilder: (context, index) {
-                    final entry = _viewModel.displayEntries[index];
-                    return widgetListEntry(entry);
-                  },
+              child: NotificationListener<ScrollNotification>(
+                onNotification: (ScrollNotification notification) {
+                  // 当列表开始滚动时，移除焦点
+                  if (notification is ScrollStartNotification) {
+                    if (focusNode.hasFocus) {
+                      FocusScope.of(context).unfocus();
+                      focusNode.unfocus();
+                    }
+                  }
+                  return false;
+                },
+                child: SmartRefresher(
+                  key: ValueKey('refresher_${isTablet ? "tablet" : "phone"}'),
+                  enablePullDown: true,
+                  controller: isTablet ? _tabletRefreshController : _phoneRefreshController,
+                  header: _refreshHeader(),
+                  onRefresh: _onRefresh,
+                  child: _viewModel.displayEntries.isEmpty ? _emptyView() : ListView.builder(
+                    itemCount: _viewModel.displayEntries.length,
+                    itemBuilder: (context, index) {
+                      final entry = _viewModel.displayEntries[index];
+                      return widgetListEntry(entry);
+                    },
+                  ),
                 ),
               ),
             ),
@@ -277,141 +630,46 @@ class _LibraryPageState extends State<LibraryPage> {
     return Card(
       elevation: 0,
       color: ResColor.bgColor,
-      child: InkWell(
-        onTap: () {
-          debugPrint("Moyear==== item click");
-
-          if (entry.isCollection()) {
-            _viewModel.handleCollectionTap(entry.collection!);
-          } else if (entry.isItem()) {
-            _showItemInfo(context, entry.item!);
-          }
-
-        },
-        child: Container(
-          padding: const EdgeInsets.all(10),
-          width: double.infinity,
-          child: entry.isItem() ? _widgetItemEntry(entry.item!) : _widgetCollectionEntry(entry.collection!)
-        ),
-      ),
-    );
-  }
-  
-  /// 条目的列表widget
-  Widget _widgetItemEntry(Item item)  {
-    return Row(
-      children: [
-        _entryIcon(ListEntry(item: item)),
-        const SizedBox(width: 12),
-        Expanded(
-          child: Column(
-            children: [
-              Container(
-                width: double.infinity,
-                child: Text(item.getTitle(), maxLines: 2, style: TextStyle(color: ResColor.textMain),),
-              ),
-              Container(
-                width: double.infinity,
-                child: Text(
-                  item.getAuthor(),
-                  maxLines: 1,
-                  style: TextStyle(color: Colors.grey.shade500),
-                ),
-              ),
-              _itemImportantTags(item),
-            ],
+      child: entry.isItem() 
+        ? ItemEntryWidget(
+            item: entry.item!,
+            viewModel: _viewModel,
+            onTap: () {
+              debugPrint("Moyear==== item click");
+              _viewModel.onItemTap(context, entry.item!);
+            },
+            onLongPress: () {
+              _viewModel.showItemInfoDetail(context, entry.item!);
+            },
+            onMorePressed: () {
+              ItemOperationPanel.show(
+                context: context,
+                item: entry.item!,
+                viewModel: _viewModel,
+              );
+            },
+            onPdfTap: () {
+              try {
+                _viewModel.openOrDownloadedPdf(context, entry.item!);
+              } catch (e) {
+                debugPrint("pdf tap error: $e");
+                BrnToast.show("$e", context);
+              }
+            },
+          )
+        : CollectionEntryWidget(
+            collection: entry.collection!,
+            viewModel: _viewModel,
+            onTap: () {
+              debugPrint("Moyear==== collection click");
+              _viewModel.handleCollectionTap(entry.collection!);
+            },
+            onMorePressed: () {
+              _showCollectionEntryOperatePanel(context, entry.collection!);
+            },
           ),
-        ),
-        if (_hasPdfAttachment(item)) _attachmentIndicator(item),
-        IconButton(onPressed: () {
-          _showItemEntryOperatePanel(context, item);
-        }, icon: Icon(Icons.more_vert_sharp, color: Colors.grey.shade400, size: 20,)),
-      ],
     );
   }
-
-  /// 条目是否有pdf附件
-  bool _hasPdfAttachment(Item item) {
-    return _viewModel.itemHasPdfAttachment(item);
-  }
-  
-  Widget _widgetCollectionEntry(Collection collection)  {
-    int sizeSub = _viewModel.getNumInCollection(collection);
-
-    return Row(
-      children: [
-        _entryIcon(ListEntry(collection: collection)),
-        const SizedBox(width: 12),
-        Expanded(
-          child: Column(
-            children: [
-              SizedBox(
-                width: double.infinity,
-                child: Text(collection.name, maxLines: 2, style: TextStyle(color: ResColor.textMain)),
-              ),
-              SizedBox(
-                width: double.infinity,
-                child: Text(
-                  "$sizeSub条子项",
-                  maxLines: 1,
-                  style: TextStyle(color: Colors.grey.shade500),
-                ),
-              ),
-            ],
-          ),
-        ),
-        IconButton(onPressed: () {
-          _showCollectionEntryOperatePanel(context, collection);
-        }, icon: Icon(Icons.more_vert_sharp, color: Colors.grey.shade400, size: 20,)),
-      ],
-    );
-  }
-
-  /// Icon Widget
-  Widget _iconItemWidget(ListEntry entry) {
-    if (entry.isCollection()) {
-      return SvgPicture.asset(
-        'assets/items/opened_folder.svg',
-        package: 'module_library',
-        width: 16,
-        height: 16,
-        // color: Colors.blue, // 可选颜色
-      );
-    }
-
-    return requireItemIcon(entry.item?.itemType ?? "");
-  }
-
-  /// Entry Icon Widget
-  Widget _entryIcon(ListEntry entry) {
-    return Container(
-      height: 42,
-      width: 42,
-      padding: const EdgeInsets.all(10),
-      decoration: BoxDecoration(
-        color: Colors.grey[100],
-        borderRadius: BorderRadius.circular(26),
-      ),
-      child: _iconItemWidget(entry),
-    );
-  }
-
-  Widget _attachmentIndicator(Item item) {
-    return _AttachmentIndicatorWidget(
-      item: item,
-      viewModel: _viewModel,
-      onTap: () {
-        try {
-          _viewModel.openOrDownloadedPdf(context, item);
-        } catch (e) {
-          debugPrint("pdf tap error: $e");
-          BrnToast.show("$e", context);
-        }
-      },
-    );
-  }
-
-
 
   /// 下拉刷新 Header
   Widget _refreshHeader() {
@@ -445,277 +703,6 @@ class _LibraryPageState extends State<LibraryPage> {
       },
     );
   }
-
-  Widget requireItemIcon(String itemType) {
-    String iconPath;
-    // Assign SVG icon path based on itemType
-    switch (itemType) {
-      case "note":
-        iconPath = 'assets/items/ic_item_note.svg';
-        break;
-      case "book":
-        iconPath = 'assets/items/ic_book.svg';
-        break;
-      case "bookSection":
-        iconPath = 'assets/items/ic_book_section.svg';
-        break;
-      case "journalArticle":
-        iconPath = 'assets/items/journal_article.svg';
-        break;
-      case "magazineArticle":
-        iconPath = 'assets/items/magazine_article_24dp.svg';
-        break;
-      case "newspaperArticle":
-        iconPath = 'assets/items/newspaper_article_24dp.svg';
-        break;
-      case "thesis":
-        iconPath = 'assets/items/ic_thesis.svg';
-        break;
-      case "letter":
-        iconPath = 'assets/items/letter_24dp.svg';
-        break;
-      case "manuscript":
-        iconPath = 'assets/items/manuscript_24dp.svg';
-        break;
-      case "interview":
-        iconPath = 'assets/items/interview_24dp.svg';
-        break;
-      case "film":
-        iconPath = 'assets/items/film_24dp.svg';
-        break;
-      case "artwork":
-        iconPath = 'assets/items/artwork_24dp.svg';
-        break;
-      case "webpage":
-        iconPath = 'assets/items/ic_web_page.svg';
-        break;
-      case "attachment":
-        iconPath = 'assets/items/ic_treeitem_attachment.svg';
-        break;
-      case "report":
-        iconPath = 'assets/items/report_24dp.svg';
-        break;
-      case "bill":
-        iconPath = 'assets/items/bill_24dp.svg';
-        break;
-      case "case":
-        iconPath = 'assets/items/case_24dp.svg';
-        break;
-      case "hearing":
-        iconPath = 'assets/items/hearing_24dp.svg';
-        break;
-      case "patent":
-        iconPath = 'assets/items/patent_24dp.svg';
-        break;
-      case "statute":
-        iconPath = 'assets/items/statute_24dp.svg';
-        break;
-      case "email":
-        iconPath = 'assets/items/email_24dp.svg';
-        break;
-      case "map":
-        iconPath = 'assets/items/map_24dp.svg';
-        break;
-      case "blogPost":
-        iconPath = 'assets/items/blog_post_24dp.svg';
-        break;
-      case "instantMessage":
-        iconPath = 'assets/items/instant_message_24dp.svg';
-        break;
-      case "forumPost":
-        iconPath = 'assets/items/forum_post_24dp.svg';
-        break;
-      case "audioRecording":
-        iconPath = 'assets/items/audio_recording_24dp.svg';
-        break;
-      case "presentation":
-        iconPath = 'assets/items/presentation_24dp.svg';
-        break;
-      case "videoRecording":
-        iconPath = 'assets/items/video_recording_24dp.svg';
-        break;
-      case "tvBroadcast":
-        iconPath = 'assets/items/tv_broadcast_24dp.svg';
-        break;
-      case "radioBroadcast":
-        iconPath = 'assets/items/radio_broadcast_24dp.svg';
-        break;
-      case "podcast":
-        iconPath = 'assets/items/podcast_24dp.svg';
-        break;
-      case "computerProgram":
-        iconPath = 'assets/items/computer_program_24dp.svg';
-        break;
-      case "conferencePaper":
-        iconPath = 'assets/items/ic_conference_paper.svg';
-        break;
-      case "document":
-        iconPath = 'assets/items/ic_document.svg';
-        break;
-      case "encyclopediaArticle":
-        iconPath = 'assets/items/encyclopedia_article_24dp.svg';
-        break;
-      case "dictionaryEntry":
-        iconPath = 'assets/items/dictionary_entry_24dp.svg';
-        break;
-      default:
-        iconPath = 'assets/items/ic_item_known.svg';
-    }
-
-    // Return the appropriate SVG image
-    return SvgPicture.asset(
-      iconPath,
-      height: 14,
-      width: 14,
-      package: 'module_library',
-      colorFilter: ColorFilter.mode(ResColor.textMain, BlendMode.srcIn),
-    );
-  }
-
-  /// 显示条目操作面板
-  void _showItemEntryOperatePanel(BuildContext ctx, Item item) {
-    List<ItemClickProxy> itemClickProxies = [];
-    itemClickProxies.add(ItemClickProxy(
-      title: "在线查看",
-      desc: "在线查看条目的最新信息",
-      onClick: () {
-        _viewModel.viewItemOnline(context, item);
-      },
-    ));
-
-    bool isStared = _viewModel.isItemStarred(item);
-    if (isStared) {
-      itemClickProxies.add(ItemClickProxy(
-        title: "从收藏夹中移除",
-        desc: "从收藏夹中移除该条目",
-        actionStyle: "alert",
-        onClick: () {
-          _viewModel.removeStar(item: item);
-        },
-      ));
-    } else {
-      itemClickProxies.add(ItemClickProxy(
-        title: "添加到收藏",
-        onClick: () {
-          _viewModel.addToStaredItem(item);
-        },
-      ));
-    }
-
-    bool isItemDeleted = _viewModel.isItemDeleted(item);
-    if (isItemDeleted) {
-      itemClickProxies.add(ItemClickProxy(
-        title: "还原到文献库中",
-        onClick: () {
-          _viewModel.restoreItem(ctx, item);
-        },
-      ));
-    } else {
-      itemClickProxies.add(ItemClickProxy(
-        title: "移动到回收站",
-        actionStyle: "alert",
-        onClick: () {
-          Future.delayed(const Duration(milliseconds: 200), () {
-            _viewModel.moveItemToTrash(ctx, item);
-          });
-        },
-      ));
-    }
-
-    if (item.hasAttachments()) {
-      itemClickProxies.add(ItemClickProxy(
-        title: "删除已下载的附件",
-        actionStyle: "alert",
-        onClick: () {
-          Future.delayed(const Duration(milliseconds: 200), () {
-            BrnDialogManager.showConfirmDialog(context,
-                // showIcon: true,
-                // iconWidget: Image.asset(
-                //   "images/icon_warnning.png",
-                //   package: "bruno",
-                // ),
-                title: "删除下载的附件",
-                confirm: "确定",
-                cancel: "取消",
-                message: "是否删除《${item.getTitle()}》中已下载的附件",
-                                 onConfirm: () async {
-                   Navigator.of(ctx).pop();
-                   await _viewModel.deleteAllDownloadedAttachmentsOfItems(
-                       context,
-                       item,
-                       onCallback: () {
-                         // 删除完成后的回调，可以在这里添加额外的逻辑
-                         MyLogger.d('所有附件删除操作完成');
-                       });
-                 },
-                onCancel: () {
-                  Navigator.of(ctx).pop();
-                });
-          });
-        },
-      ));
-    }
-
-    if (!isItemDeleted) {
-      itemClickProxies.add(ItemClickProxy(
-        title: "更改所属集合",
-        onClick: () {
-          Future.delayed(const Duration(milliseconds: 200), () {
-            _viewModel.showChangeCollectionSelector(ctx, item: item);
-          });
-        },
-      ));
-    }
-
-    List<BrnCommonActionSheetItem> itemActions = itemClickProxies.map((ele) {
-      var actionStyle = BrnCommonActionSheetItemStyle.normal;
-      if (ele.actionStyle != null && ele.actionStyle == "alert") {
-        actionStyle = BrnCommonActionSheetItemStyle.alert;
-      }
-      return BrnCommonActionSheetItem(
-        ele.title,
-        desc: ele.desc,
-        actionStyle: actionStyle,
-      );
-    }).toList();
-
-
-
-    // itemActions.add(BrnCommonActionSheetItem(
-    //   '下载所有附件',
-    //   desc: '下载条目下的所有附件到本地',
-    //   actionStyle: BrnCommonActionSheetItemStyle.normal,
-    // ));
-    // itemActions.add(BrnCommonActionSheetItem(
-    //   '删除下载的附件',
-    //   desc: '该操作不可逆，请确保本地的附件修改同步至云端',
-    //   actionStyle: BrnCommonActionSheetItemStyle.alert,
-    // ));
-    // itemActions.add(BrnCommonActionSheetItem(
-    //   '分享条目',
-    //   // desc: '分享条目信息给朋友',
-    //   actionStyle: BrnCommonActionSheetItemStyle.normal,
-    // ));
-
-    var title = item.getTitle();
-
-    // 展示actionSheet
-    showModalBottomSheet(
-        context: ctx,
-        backgroundColor: Colors.transparent,
-        useRootNavigator: true,
-        builder: (BuildContext bottomSheetContext) {
-          return BrnCommonActionSheet(
-            title: title,
-            actions: itemActions,
-            cancelTitle: "取消",
-            clickCallBack: (int index, BrnCommonActionSheetItem actionEle) {
-              itemClickProxies[index].onClick?.call();
-            },
-          );
-        });
-  }
-
 
   /// 显示合集操作面板
   void _showCollectionEntryOperatePanel(BuildContext context, Collection collection) {
@@ -778,16 +765,7 @@ class _LibraryPageState extends State<LibraryPage> {
         });
   }
 
-  void _showItemInfo(BuildContext context, Item item) {
-    // BrnToast.show("item: ${item.getTitle()}", context);
-    // 跳转到详情页
-    try {
-      MyRouter.instance.pushNamed(context, "itemDetailPage", arguments: { "item": item });
-    } catch (e) {
-      debugPrint(e.toString());
-      BrnToast.show("跳转详情页失败", context);
-    }
-  }
+
 
   void _navigationTagManager() {
     MyRouter.instance.pushNamed(context, "tagsManagerPage");
@@ -797,29 +775,8 @@ class _LibraryPageState extends State<LibraryPage> {
     // 开始与服务器同步
     _viewModel.startSync(onSyncCompleteCallback: () {
       // 关闭刷新动画
-      _refreshController.refreshCompleted();
+      _currentRefreshController.refreshCompleted();
     });
-  }
-
-  Widget _itemImportantTags(Item item) {
-    if (item.getTagList().isEmpty) {
-      return Container();
-    }
-
-    // 获取item的标签
-    final tags =  _viewModel.getImportTagOfItemSync(item);
-    return Row(
-        children: tags.map<Widget>((tag) {
-      return Container(
-        margin: const EdgeInsets.only(right: 2),
-        child: BrnTagCustom(
-          tagText: tag.name,
-
-          textColor: ColorUtils.hexToColor(tag.color),
-          backgroundColor: const Color(0xFFF1F2FA),
-        ),
-      );
-    }).toList(),);
   }
 
   Widget _emptyView() {
@@ -837,7 +794,7 @@ class _LibraryPageState extends State<LibraryPage> {
             )
         ),
         const SizedBox(height: 18,),
-        const Text('暂无数据'),
+        const Text('Oops! 页面内容为空或发生了错误'),
       ],
     )
     );
@@ -903,247 +860,4 @@ class _LibraryPageState extends State<LibraryPage> {
     });
   }
 
-
-}
-
-/// 自定义的附件指示器Widget，避免不必要的重建
-class _AttachmentIndicatorWidget extends StatefulWidget {
-  final Item item;
-  final LibraryViewModel viewModel;
-  final VoidCallback onTap;
-
-  const _AttachmentIndicatorWidget({
-    required this.item,
-    required this.viewModel,
-    required this.onTap,
-  });
-
-  @override
-  State<_AttachmentIndicatorWidget> createState() => _AttachmentIndicatorWidgetState();
-}
-
-class _AttachmentIndicatorWidgetState extends State<_AttachmentIndicatorWidget> {
-  Item? targetPdfAttachmentItem;
-  String? targetItemKey;
-  AttachmentDownloadInfo? lastDownloadInfo;
-  bool? lastFileExists;
-
-  @override
-  void initState() {
-    super.initState();
-    _findTargetPdfAttachment();
-  }
-
-  void _findTargetPdfAttachment() {
-    if (widget.viewModel.isPdfAttachmentItem(widget.item)) {
-      targetPdfAttachmentItem = widget.item;
-    } else if (widget.viewModel.itemHasPdfAttachment(widget.item)) {
-      targetPdfAttachmentItem = widget.item.attachments.firstWhere(
-        (element) => widget.viewModel.isPdfAttachmentItem(element),
-      );
-    }
-    targetItemKey = targetPdfAttachmentItem?.itemKey;
-  }
-
-  @override
-  Widget build(BuildContext context) {
-    return ListenableBuilder(
-      listenable: widget.viewModel,
-      builder: (context, child) {
-        // 只有当这个特定项目的状态改变时才重建
-        final currentDownloadInfo = targetItemKey != null 
-            ? widget.viewModel.getDownloadStatus(targetItemKey!)
-            : null;
-        final currentFileExists = targetItemKey != null
-            ? widget.viewModel.getCachedFileExists(targetItemKey!)
-            : null;
-
-        // 检查是否需要重建
-        final needsRebuild = currentDownloadInfo != lastDownloadInfo || 
-                           currentFileExists != lastFileExists;
-
-        if (needsRebuild) {
-          lastDownloadInfo = currentDownloadInfo;
-          lastFileExists = currentFileExists;
-        }
-
-        return InkWell(
-          onTap: widget.onTap,
-          child: Container(
-            padding: const EdgeInsets.all(4),
-            child: _buildAttachmentIcon(currentDownloadInfo, targetPdfAttachmentItem),
-          ),
-        );
-      },
-    );
-  }
-
-  /// 根据下载状态构建附件图标
-  Widget _buildAttachmentIcon(AttachmentDownloadInfo? downloadInfo, Item? targetPdfAttachmentItem) {
-    // if (kDebugMode) {
-    //   print('构建附件图标: ${downloadInfo?.itemKey} - ${downloadInfo?.status} - ${downloadInfo?.progressPercent}%');
-    // }
-
-    if (downloadInfo == null) {
-      // 没有下载状态时，检查缓存的文件存在状态
-      if (targetPdfAttachmentItem != null) {
-        final itemKey = targetPdfAttachmentItem.itemKey;
-        final cachedExists = widget.viewModel.getCachedFileExists(itemKey);
-        
-        if (cachedExists != null) {
-          // 有缓存值，直接使用
-          return cachedExists ? _buildDownloadedIndicator() : _buildNotDownloadedIndicator();
-        } else {
-          // 没有缓存值，使用FutureBuilder检查一次并缓存
-          return FutureBuilder<bool>(
-            future: widget.viewModel.checkAndCacheFileExists(targetPdfAttachmentItem),
-            builder: (context, snapshot) {
-              if (snapshot.connectionState == ConnectionState.waiting) {
-                // 正在检查文件状态，显示默认图标
-                return _buildDefaultIndicator();
-              }
-              
-              final isDownloaded = snapshot.data ?? false;
-              return isDownloaded ? _buildDownloadedIndicator() : _buildNotDownloadedIndicator();
-            },
-          );
-        }
-      } else {
-        // 没有PDF附件，显示未下载图标
-        return _buildNotDownloadedIndicator();
-      }
-    }
-
-    switch (downloadInfo.status) {
-      case DownloadStatus.downloading:
-        return _buildDownloadingIndicator(downloadInfo);
-      case DownloadStatus.extracting:
-        return _buildExtractingIndicator();
-      case DownloadStatus.completed:
-        return _buildCompletedIndicator();
-      case DownloadStatus.failed:
-        return _buildFailedIndicator();
-      case DownloadStatus.cancelled:
-        return _buildCancelledIndicator();
-      default:
-        return _buildDefaultIndicator();
-    }
-  }
-
-  /// 下载中：圆形进度环
-  Widget _buildDownloadingIndicator(AttachmentDownloadInfo downloadInfo) {
-    return SizedBox(
-      width: 20,
-      height: 20,
-      child: Stack(
-        alignment: Alignment.center,
-        children: [
-          // 背景圆环
-          SizedBox(
-            width: 20,
-            height: 20,
-            child: CircularProgressIndicator(
-              value: downloadInfo.progressPercent / 100,
-              strokeWidth: 2.0,
-              backgroundColor: Colors.grey.shade300,
-              valueColor: const AlwaysStoppedAnimation<Color>(Colors.blue),
-            ),
-          ),
-          // 中心的取消图标
-          const Icon(
-            Icons.close,
-            size: 10,
-            color: Colors.blue,
-          ),
-        ],
-      ),
-    );
-  }
-
-  /// 解压中：旋转的进度环
-  Widget _buildExtractingIndicator() {
-    return const SizedBox(
-      width: 20,
-      height: 20,
-      child: CircularProgressIndicator(
-        strokeWidth: 2.0,
-        valueColor: AlwaysStoppedAnimation<Color>(Colors.orange),
-      ),
-    );
-  }
-
-  /// 下载完成：PDF图标（绿色）
-  Widget _buildCompletedIndicator() {
-    return ClipRRect(
-      child: SvgPicture.asset(
-        "assets/attachment_indicator_pdf.svg",
-        height: 20,
-        width: 20,
-        package: 'module_library',
-        colorFilter: const ColorFilter.mode(Colors.green, BlendMode.srcIn),
-      ),
-    );
-  }
-
-  /// 下载失败：PDF图标（红色）
-  Widget _buildFailedIndicator() {
-    return ClipRRect(
-      child: SvgPicture.asset(
-        "assets/attachment_indicator_pdf.svg",
-        height: 20,
-        width: 20,
-        package: 'module_library',
-        colorFilter: const ColorFilter.mode(Colors.red, BlendMode.srcIn),
-      ),
-    );
-  }
-
-  /// 下载取消：PDF图标（灰色）
-  Widget _buildCancelledIndicator() {
-    return ClipRRect(
-      child: SvgPicture.asset(
-        "assets/attachment_indicator_pdf.svg",
-        height: 20,
-        width: 20,
-        package: 'module_library',
-        colorFilter: const ColorFilter.mode(Colors.grey, BlendMode.srcIn),
-      ),
-    );
-  }
-
-  /// 默认状态：PDF图标
-  Widget _buildDefaultIndicator() {
-    return ClipRRect(
-      child: SvgPicture.asset(
-        "assets/attachment_indicator_pdf.svg",
-        height: 20,
-        width: 20,
-        package: 'module_library',
-      ),
-    );
-  }
-
-  /// 文件已下载：显示已下载图标
-  Widget _buildDownloadedIndicator() {
-    return ClipRRect(
-      child: SvgPicture.asset(
-        "assets/attachment_indicator_pdf.svg",
-        height: 20,
-        width: 20,
-        package: 'module_library',
-      ),
-    );
-  }
-
-  /// 文件未下载：显示未下载图标
-  Widget _buildNotDownloadedIndicator() {
-    return ClipRRect(
-      child: SvgPicture.asset(
-        "assets/attachment_indicator_pdf_not_download.svg",
-        height: 20,
-        width: 20,
-        package: 'module_library',
-      ),
-    );
-  }
 }

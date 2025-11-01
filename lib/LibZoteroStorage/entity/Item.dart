@@ -112,6 +112,35 @@ class Item {
     return date;
   }
 
+  /// 返回条目的年份字符串
+  /// 返回的是标准的YYYY的年份
+  String getYearStr() {
+    var date = getItemData("date") ?? "";
+    if (date.isEmpty) {
+      return "";
+    }
+    // 处理不同日期格式（格式可能有YYYY、YYYY-MM-DD、YYYY-MM、MM/YYYY这些格式），提取YYYY年份
+    RegExp yearPattern = RegExp(r'^(\d{4})');
+    RegExpMatch? match = yearPattern.firstMatch(date);
+
+    if (match != null) {
+      return match.group(1) ?? "";
+    }
+
+    // 处理 MM/YYYY 格式
+    RegExp mmYyPattern = RegExp(r'\d{1,2}/(\d{4})$');
+    match = mmYyPattern.firstMatch(date);
+
+    if (match != null) {
+      String year = match.group(1) ?? "";
+      if (year.isNotEmpty) {
+        // 假设 20XX 年
+        return year;
+      }
+    }
+    return date;
+  }
+
   bool query(String queryText) {
     var queryUpper = queryText.toUpperCase();
     return itemKey.toUpperCase().contains(queryUpper) ||
@@ -185,7 +214,22 @@ class Item {
     return extension;
   }
 
+  String getContentType() {
+    return data["contentType"] ?? "UNKNOWN";
+  }
+
   bool hasAttachments() {
     return attachments.isNotEmpty;
+  }
+
+  bool isNoteItem() {
+    return itemType == "note";
+  }
+
+  bool isWebPageItem() {
+    return itemType == "attachment" && data['contentType'] == "text/html";
+  }
+  String getParentItemKey() {
+    return data["parentItem"] ?? "";
   }
 }

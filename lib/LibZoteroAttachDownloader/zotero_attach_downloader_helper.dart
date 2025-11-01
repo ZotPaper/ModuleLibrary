@@ -1,93 +1,20 @@
 import 'dart:async';
+import 'package:module_base/utils/log/app_log_event.dart';
+import 'package:module_library/LibZoteroAttachDownloader/bean/exception/zotero_upload_exception.dart';
 import 'package:module_library/LibZoteroAttachDownloader/default_attachment_storage.dart';
 import 'package:module_library/LibZoteroAttachDownloader/webdav_attachment_transfer.dart';
 import 'package:module_library/ModuleLibrary/utils/my_logger.dart';
+import 'package:module_library/ModuleLibrary/zotero_provider.dart';
+import 'package:module_library/utils/log/module_library_log_helper.dart';
 
+import '../LibZoteroStorage/entity/AttachmentInfo.dart';
 import '../LibZoteroStorage/entity/Item.dart';
 import 'package:module_library/LibZoteroAttachDownloader/zotero_attachment_transfer.dart';
 
-/// 下载状态枚举
-enum DownloadStatus {
-  idle,        // 空闲
-  downloading, // 下载中
-  extracting,  // 解压中
-  completed,   // 完成
-  failed,      // 失败
-  cancelled,   // 取消
-}
-
-/// 自定义下载异常类
-class DownloadException implements Exception {
-  final String message;
-  final String? originalError;
-  final DownloadErrorType errorType;
-  
-  const DownloadException({
-    required this.message,
-    this.originalError,
-    required this.errorType,
-  });
-  
-  @override
-  String toString() => message;
-}
-
-/// 下载错误类型枚举
-enum DownloadErrorType {
-  network,          // 网络错误
-  timeout,          // 超时
-  notFound,         // 文件未找到
-  unauthorized,     // 未授权
-  forbidden,        // 无权限
-  storage,          // 存储错误
-  permission,       // 权限错误
-  alreadyDownloading, // 正在下载中
-  notInitialized,   // 未初始化
-  unknown,          // 未知错误
-}
-
-/// 附件下载信息
-class AttachmentDownloadInfo {
-  final String itemKey;
-  final String filename;
-  final int progress;
-  final int total;
-  final DownloadStatus status;
-  final String? errorMessage;
-  final double progressPercent;
-
-  AttachmentDownloadInfo({
-    required this.itemKey,
-    required this.filename,
-    required this.progress,
-    required this.total,
-    required this.status,
-    this.errorMessage,
-  }) : progressPercent = total > 0 ? (progress / total * 100) : 0.0;
-
-  AttachmentDownloadInfo copyWith({
-    String? itemKey,
-    String? filename,
-    int? progress,
-    int? total,
-    DownloadStatus? status,
-    String? errorMessage,
-  }) {
-    return AttachmentDownloadInfo(
-      itemKey: itemKey ?? this.itemKey,
-      filename: filename ?? this.filename,
-      progress: progress ?? this.progress,
-      total: total ?? this.total,
-      status: status ?? this.status,
-      errorMessage: errorMessage ?? this.errorMessage,
-    );
-  }
-
-  @override
-  String toString() {
-    return 'AttachmentDownloadInfo{itemKey: $itemKey, filename: $filename, progress: $progress/$total (${progressPercent.toStringAsFixed(1)}%), status: $status}';
-  }
-}
+import '../utils/webdav_configuration.dart';
+import 'bean/exception/zotero_download_exception.dart';
+import 'model/status.dart';
+import 'model/transfer_info.dart';
 
 /// 进度回调函数类型定义
 typedef ProgressCallback = void Function(AttachmentDownloadInfo downloadInfo);
@@ -196,35 +123,21 @@ class ZoteroAttachDownloaderHelper {
 
     if (error is ZoteroNotFoundException) {
       return DownloadException(
-        message: '服务器找不到文件',
+        message: 'Zotero服务器找不到文件',
         originalError: error.message,
         errorType: DownloadErrorType.notFound,
       );
     }
-    
-    // if (errorStr.contains('network') || errorStr.contains('connection')) {
-    //   return const DownloadException(
-    //     message: '网络连接失败，请检查网络设置',
-    //     errorType: DownloadErrorType.network,
-    //   );
-    // } else if (errorStr.contains('timeout')) {
-    //   return const DownloadException(
-    //     message: '下载超时，请重试',
-    //     errorType: DownloadErrorType.timeout,
-    //   );
-    // } else if (errorStr.contains('unauthorized') || errorStr.contains('401')) {
-    //   return const DownloadException(
-    //     message: 'API密钥无效，请重新登录',
-    //     errorType: DownloadErrorType.unauthorized,
-    //   );
-    // } else if (errorStr.contains('forbidden') || errorStr.contains('403')) {
-    //   return const DownloadException(
-    //     message: '无权限访问此附件',
-    //     errorType: DownloadErrorType.forbidden,
-    //   );
-    // }
+
+    if (error is ZipException) {
+      return DownloadException(
+        message: '${error.message}',
+        originalError: error.toString(),
+        errorType: DownloadErrorType.unknown,
+      );
+    }
     return DownloadException(
-      message: '下载失败: ${error.toString()}',
+      message: '${error.toString()}',
       originalError: error.toString(),
       errorType: DownloadErrorType.unknown,
     );
@@ -481,6 +394,83 @@ class ZoteroAttachDownloaderHelper {
         message: '只能重试失败的下载任务',
         errorType: DownloadErrorType.unknown,
       );
+    }
+  }
+
+  /// 上传附件
+  Future<void> uploadAttachment(Item item) async {
+    if (!_isInitialized) {
+      throw const UploadException(
+        message: '下载器未初始化，请先调用initialize方法',
+        errorType: ErrorType.notInitialized,
+      );
+    }
+
+    final itemKey = item.itemKey;
+    
+    try {
+      MyLogger.d('开始上传附件: ${item.getTitle()}');
+      
+      // 检查附件是否存在
+      if (!await isAttachmentExists(item)) {
+        throw const UploadException(
+          message: '本地附件不存在，无法上传',
+          errorType: ErrorType.notFound,
+        );
+      }
+
+      // 使用传输对象上传附件
+      await transfer.updateAttachment(item);
+
+      if (transfer is WebDAVAttachmentTransfer) {
+        //附件上传成功后，需要调用zotero api修补zotero服务器的数据
+        final newMd5Key = await defaultStorageManager.calculateMd5(item);
+        final mtime = int.tryParse(item.data['mtime'] ?? '0') ?? 0;
+
+        var res = await ZoteroProvider.getZoteroHttp().patchItem(
+          item: item,
+          json: {
+            "md5": newMd5Key,
+            "mtime": mtime,
+          },
+        );
+
+        MyLogger.d("Moyear==== pathItem[${item.itemKey}] result: $res");
+
+        // 更新本地数据库中的附件信息
+        await ZoteroProvider.getZoteroDB().updateAttachmentMetadata(
+          itemKey: itemKey,
+          md5Key: newMd5Key,
+          mtime: mtime,
+          downloadedFrom: AttachmentInfo.WEBDAV,
+        );
+
+        MyLogger.d("Moyear==== updateAttachmentMetadata[${item.itemKey}] result: $res");
+      }
+
+      MyLogger.d('附件上传成功: ${item.getTitle()}');
+      
+    } catch (e) {
+      MyLogger.e('附件上传失败: ${item.getTitle()}, 错误: $e');
+
+      // 上报上传失败信息
+      ModuleLibraryLogHelper.attachmentTransfer.logUploadError(item, e);
+
+      if (e is AlreadyUploadedException) {
+        final newMd5Key = await defaultStorageManager.calculateMd5(item);
+        final mtime = int.tryParse(item.data['mtime'] ?? '0') ?? 0;
+
+        await ZoteroProvider.getZoteroDB().updateAttachmentMetadata(
+          itemKey: itemKey,
+          md5Key: newMd5Key,
+          mtime: mtime,
+          downloadedFrom: AttachmentInfo.WEBDAV,
+        );
+
+        rethrow;
+      } else {
+        rethrow;
+      }
     }
   }
 

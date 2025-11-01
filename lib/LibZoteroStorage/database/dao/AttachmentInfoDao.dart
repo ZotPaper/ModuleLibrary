@@ -8,6 +8,19 @@ class AttachmentInfoDao {
 
   AttachmentInfoDao(this.dbHelper);
 
+  Future<List<AttachmentInfo>?> getAllAttachmentInfos({int? groupId = -1}) async {
+    final db = await dbHelper.database;
+    final maps = await db.query(
+      'AttachmentInfo',
+      where: 'groupId = ?',
+      whereArgs: [groupId],
+    );
+    if (maps.isNotEmpty)  {
+      return maps.map((map) => AttachmentInfo.fromJson(map)).toList();
+    }
+    return null;
+  }
+
   Future<int> insertAttachment(AttachmentInfo attachment) async {
     final db = await dbHelper.database;
     final map = attachment.toJson();

@@ -6,6 +6,7 @@ import 'package:module_library/routers.dart';
 import 'package:provider/provider.dart';
 
 import '../../res/ResColor.dart';
+import '../../utils/my_logger.dart';
 import '../launch_page.dart';
 
 class SyncPageFragment extends StatefulWidget {
@@ -64,11 +65,11 @@ class _SyncPageFragmentState extends State<SyncPageFragment>
               stream: _viewModel.navigationStream,
               builder: (context, snapshot) {
                 if (snapshot.hasData) {
-                  debugPrint('接收到跳转事件: ${snapshot.data}');
+                  MyLogger.d('接收到跳转事件: ${snapshot.data}');
                   // 确保在帧结束后执行导航
                   WidgetsBinding.instance.addPostFrameCallback((_) {
-                    debugPrint('执行页面跳转');
-                    MyRouter.instance.pushReplacementNamed(context, "launchPage");
+                    MyLogger.d('执行页面跳转');
+                    MyRouter.instance.pushReplacementNamed(context, MyRouter.PAGE_LIBRARY);
                   });
                 }
                 return Text(_loadingMessage);
@@ -82,7 +83,7 @@ class _SyncPageFragmentState extends State<SyncPageFragment>
 
 
   void _onUpdateProgress(int progress, int total, List<Item>? items) {
-    debugPrint('接收到进度更新: $progress/$total');
+    MyLogger.d('接收到进度更新: $progress/$total');
     // 更新进度
     _loadingMessage = "正在同步数据: ${progress}/${total}";
     setState(() {}); // 添加状态更新
