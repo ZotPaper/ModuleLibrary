@@ -30,6 +30,7 @@ import 'package:module_library/routers.dart' show MyRouter, globalRouteObserver;
 import 'package:provider/provider.dart';
 import 'package:pull_to_refresh/pull_to_refresh.dart';
 
+import '../../utils/log/module_library_log_helper.dart';
 import '../dialog/library_layout_dialog.dart';
 import '../utils/color_utils.dart';
 import '../utils/device_utils.dart';
@@ -263,6 +264,9 @@ class _LibraryPageState extends State<LibraryPage> with WidgetsBindingObserver, 
           
           successCount++;
           MyLogger.d('附件上传成功: ${item.getTitle()}');
+
+          // 附件上传成功 日志与埋点上报
+          ModuleLibraryLogHelper.attachmentTransfer.logUploadSuccess(item);
           
         } catch (e) {
           final errorMsg = _parseUploadError(e);
