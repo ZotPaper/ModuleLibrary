@@ -33,6 +33,7 @@ import '../../LibZoteroStorage/entity/ItemCollection.dart';
 import '../../LibZoteroStorage/entity/Note.dart';
 import '../../ModuleSync/zotero_sync_manager.dart';
 import '../../routers.dart';
+import '../../utils/log/module_library_log_helper.dart';
 import '../api/ZoteroDataHttp.dart';
 import '../api/ZoteroDataSql.dart';
 import '../model/my_item_entity.dart';
@@ -1225,47 +1226,49 @@ class LibraryViewModel with ChangeNotifier {
     onModifiedAttachmentsFound = callback;
   }
 
-  /// 开始上传修改的附件（纯数据处理，不涉及UI）
-  Future<UploadResult> uploadModifiedAttachments(List<Item> modifiedItems, List<RecentlyOpenedAttachment> attachments) async {
-    try {
-      int successCount = 0;
-      int totalCount = modifiedItems.length;
-      List<String> failedItems = [];
-      
-      for (int i = 0; i < modifiedItems.length; i++) {
-        final item = modifiedItems[i];
-        try {
-          await _uploadAttachment(item);
-          successCount++;
-          MyLogger.d('附件上传成功: ${item.getTitle()}');
-
-          // 从最近打开的附件列表中移除，这样下次就不会再检测到修改
-          await zoteroDB.removeRecentlyOpenedAttachment(item.itemKey);
-        } catch (e) {
-          MyLogger.e('附件上传失败: ${item.getTitle()}, 错误: $e');
-          failedItems.add(item.getTitle());
-        }
-      }
-
-      // // 清除修改标记
-      // await _clearModifiedAttachmentsMarks(attachments);
-
-      return UploadResult(
-        successCount: successCount,
-        totalCount: totalCount,
-        failedItems: failedItems,
-      );
-
-    } catch (e) {
-      MyLogger.e('上传附件时发生错误: $e');
-      return UploadResult(
-        successCount: 0,
-        totalCount: modifiedItems.length,
-        failedItems: modifiedItems.map((item) => item.getTitle()).toList(),
-        error: e.toString(),
-      );
-    }
-  }
+  // /// 开始上传修改的附件（纯数据处理，不涉及UI）
+  // Future<UploadResult> uploadModifiedAttachments(List<Item> modifiedItems, List<RecentlyOpenedAttachment> attachments) async {
+  //   try {
+  //     int successCount = 0;
+  //     int totalCount = modifiedItems.length;
+  //     List<String> failedItems = [];
+  //
+  //     for (int i = 0; i < modifiedItems.length; i++) {
+  //       final item = modifiedItems[i];
+  //       try {
+  //         await _uploadAttachment(item);
+  //         successCount++;
+  //         MyLogger.d('附件上传成功: ${item.getTitle()}');
+  //
+  //         ModuleLibraryLogHelper.attachmentTransfer.logUploadSuccess(item);
+  //
+  //         // 从最近打开的附件列表中移除，这样下次就不会再检测到修改
+  //         await zoteroDB.removeRecentlyOpenedAttachment(item.itemKey);
+  //       } catch (e) {
+  //         MyLogger.e('附件上传失败: ${item.getTitle()}, 错误: $e');
+  //         failedItems.add(item.getTitle());
+  //       }
+  //     }
+  //
+  //     // // 清除修改标记
+  //     // await _clearModifiedAttachmentsMarks(attachments);
+  //
+  //     return UploadResult(
+  //       successCount: successCount,
+  //       totalCount: totalCount,
+  //       failedItems: failedItems,
+  //     );
+  //
+  //   } catch (e) {
+  //     MyLogger.e('上传附件时发生错误: $e');
+  //     return UploadResult(
+  //       successCount: 0,
+  //       totalCount: modifiedItems.length,
+  //       failedItems: modifiedItems.map((item) => item.getTitle()).toList(),
+  //       error: e.toString(),
+  //     );
+  //   }
+  // }
 
   /// 上传单个附件（公开方法，供UI层调用）
   Future<void> uploadSingleAttachment(Item item) async {

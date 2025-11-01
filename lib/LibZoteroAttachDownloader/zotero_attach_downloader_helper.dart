@@ -1,9 +1,11 @@
 import 'dart:async';
 import 'package:module_base/utils/log/app_log_event.dart';
+import 'package:module_library/LibZoteroAttachDownloader/bean/exception/zotero_upload_exception.dart';
 import 'package:module_library/LibZoteroAttachDownloader/default_attachment_storage.dart';
 import 'package:module_library/LibZoteroAttachDownloader/webdav_attachment_transfer.dart';
 import 'package:module_library/ModuleLibrary/utils/my_logger.dart';
 import 'package:module_library/ModuleLibrary/zotero_provider.dart';
+import 'package:module_library/utils/log/module_library_log_helper.dart';
 
 import '../LibZoteroStorage/entity/AttachmentInfo.dart';
 import '../LibZoteroStorage/entity/Item.dart';
@@ -231,22 +233,6 @@ class ZoteroAttachDownloaderHelper {
 
     } catch (e) {
       _handleDownloadError(item, e, null, onProgress, onComplete, onError, shouldThrow: true);
-
-      var downloadErrorLog = {
-        'type': 'Zotero',
-        'title': item.getTitle(),
-        'error': e.toString(),
-      };
-      if (transfer is WebDAVAttachmentTransfer) {
-        downloadErrorLog = {
-          'type': 'WebDAV',
-          'title': item.getTitle(),
-          'webdav_path': WebdavConfiguration.webdavUrl,
-          'error': e.toString(),
-        };
-      }
-
-      logEvent(message: "附件下载失败：$downloadErrorLog", logLevel: LogLevel.error);
     }
   }
 
@@ -414,9 +400,9 @@ class ZoteroAttachDownloaderHelper {
   /// 上传附件
   Future<void> uploadAttachment(Item item) async {
     if (!_isInitialized) {
-      throw const DownloadException(
+      throw const UploadException(
         message: '下载器未初始化，请先调用initialize方法',
-        errorType: DownloadErrorType.notInitialized,
+        errorType: ErrorType.notInitialized,
       );
     }
 
@@ -427,15 +413,15 @@ class ZoteroAttachDownloaderHelper {
       
       // 检查附件是否存在
       if (!await isAttachmentExists(item)) {
-        throw const DownloadException(
+        throw const UploadException(
           message: '本地附件不存在，无法上传',
-          errorType: DownloadErrorType.notFound,
+          errorType: ErrorType.notFound,
         );
       }
 
       // 使用传输对象上传附件
       await transfer.updateAttachment(item);
-      
+
       if (transfer is WebDAVAttachmentTransfer) {
         //附件上传成功后，需要调用zotero api修补zotero服务器的数据
         final newMd5Key = await defaultStorageManager.calculateMd5(item);
@@ -467,21 +453,8 @@ class ZoteroAttachDownloaderHelper {
     } catch (e) {
       MyLogger.e('附件上传失败: ${item.getTitle()}, 错误: $e');
 
-      var uploadErrorLog = {
-            'type': 'Zotero',
-            'title': item.getTitle(),
-            'error': e.toString(),
-      };
-      if (transfer is WebDAVAttachmentTransfer) {
-        uploadErrorLog = {
-          'type': 'WebDAV',
-          'title': item.getTitle(),
-          'webdav_path': WebdavConfiguration.webdavUrl,
-          'error': e.toString(),
-        };
-      }
-
-      logEvent(message: "附件上传失败: $uploadErrorLog", logLevel: LogLevel.error);
+      // 上报上传失败信息
+      ModuleLibraryLogHelper.attachmentTransfer.logUploadError(item, e);
 
       if (e is AlreadyUploadedException) {
         final newMd5Key = await defaultStorageManager.calculateMd5(item);

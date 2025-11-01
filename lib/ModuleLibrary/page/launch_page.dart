@@ -1,6 +1,7 @@
 import 'package:flutter/cupertino.dart';
 import 'package:flutter/material.dart';
 import 'package:module_base/build.dart';
+import 'package:module_base/utils/tracking/dot_tracker.dart';
 import 'package:module_library/LibZoteroAttachDownloader/default_attachment_storage.dart';
 import 'package:module_library/routers.dart';
 import 'package:module_library/utils/webdav_configuration.dart';
@@ -137,6 +138,11 @@ class _LaunchPageState extends State<LaunchPage> with SingleTickerProviderStateM
       MyLogger.d("找到旧的本地凭证，开始迁移");
 
       LocalZoteroCredential.saveCredential(apiKey, userId, userName).then((onValue){
+        // 数据迁移埋点上报
+        DotTracker
+            .addBot("APP_MIGRATION_V002", description: "v0.0.2升级，账户重新同步")
+            .report();
+
         _jumpToSyncingPage();
         MyLogger.d("跳转到同步页面...");
       });

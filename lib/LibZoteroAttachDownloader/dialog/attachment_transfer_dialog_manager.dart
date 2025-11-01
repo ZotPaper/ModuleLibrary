@@ -1,4 +1,5 @@
 import 'package:flutter/material.dart';
+import 'package:module_base/utils/tracking/dot_tracker.dart';
 import 'package:module_base/view/dialog/neat_dialog.dart';
 import 'package:bruno/bruno.dart';
 
@@ -19,6 +20,13 @@ class AttachmentTransferDialogManager {
     "\<font color='#8ac6d1'\>${entry.key}</font>\n"
         "\<font color='#ff6b6b'\>错误：${entry.value}</font>")
         .join('\n\n');
+
+    // 埋点上报
+    DotTracker
+        .addBot("SHOW_UPLOAD_ERROR_RESULT", description: "显示上传结果对话框")
+        .addParam("successCount", successCount)
+        .addParam("failedCount", failedCount)
+        .report();
 
     NeatDialogManager.showConfirmDialog(
       context,

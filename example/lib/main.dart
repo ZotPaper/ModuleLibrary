@@ -1,7 +1,9 @@
 import 'package:flutter/material.dart';
 import 'package:module_base/initializer.dart';
 import 'package:module_base/stores/hive_stores.dart';
+import 'package:module_base/utils/device/crash_reporter.dart';
 import 'package:module_base/utils/log/app_log_event.dart';
+import 'package:module_base/utils/tracking/dot_tracker.dart';
 import 'package:module_library/LibZoteroStorage/stores/attachments_settings.dart';
 import 'package:module_library/ModuleLibrary/page/launch_page.dart';
 import 'package:module_library/ModuleLibrary/page/sync_page/sync_viewmodel.dart';
@@ -35,7 +37,11 @@ Future<void> init() async {
   await SharedPref.init();
   await initSupabase();
 
-  logEvent(message: "初始化APP");
+  CrashReporter.init();
+
+  DotTracker
+      .addBot("APP_INIT", description: "初始化APP")
+      .report();
 }
 
 Future initSupabase() async {

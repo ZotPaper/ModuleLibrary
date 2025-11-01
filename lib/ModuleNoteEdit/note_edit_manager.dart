@@ -1,4 +1,5 @@
 import 'package:flutter/cupertino.dart';
+import 'package:module_base/utils/tracking/dot_tracker.dart';
 
 import '../LibZoteroStorage/entity/Item.dart';
 import '../LibZoteroStorage/entity/Note.dart';
@@ -12,6 +13,11 @@ class NoteEditManager {
 
   /// 编辑笔记
   void editNote(BuildContext context, Note note) {
+    // 埋点上报
+    DotTracker
+        .addBot("VIEW_NOTE", description: "查看笔记")
+        .report();
+
     MyRouter.instance.pushNamed(context, MyRouter.PAGE_NOTE_EDIT, arguments: {
       "note": note,
     });

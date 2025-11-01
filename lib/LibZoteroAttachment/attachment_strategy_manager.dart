@@ -1,7 +1,10 @@
 import 'dart:io';
 
 import 'package:flutter/material.dart';
+import 'package:module_base/utils/log/app_log_event.dart';
+import 'package:module_base/utils/tracking/dot_tracker.dart';
 import 'package:module_library/ModuleLibrary/utils/my_logger.dart';
+import 'package:module_library/utils/log/module_library_log_helper.dart';
 import 'package:open_filex/open_filex.dart';
 
 import '../LibZoteroAttachDownloader/bean/exception/zotero_download_exception.dart';
@@ -9,12 +12,15 @@ import '../LibZoteroAttachDownloader/default_attachment_storage.dart';
 import '../LibZoteroAttachDownloader/model/status.dart';
 import '../LibZoteroAttachDownloader/model/transfer_info.dart';
 import '../LibZoteroAttachDownloader/native/attachment_native_channel.dart';
+import '../LibZoteroAttachDownloader/webdav_attachment_transfer.dart';
 import '../LibZoteroAttachDownloader/zotero_attach_downloader_helper.dart';
 import '../LibZoteroStorage/entity/Item.dart';
 import '../ModuleLibrary/viewmodels/zotero_database.dart';
 import '../ModuleLibrary/zotero_provider.dart';
 import 'package:url_launcher/url_launcher.dart';
 import 'package:bruno/bruno.dart';
+
+import '../utils/webdav_configuration.dart';
 
 /// 下载状态更新回调类型
 typedef DownloadStateCallback = void Function(AttachmentDownloadInfo);
@@ -116,11 +122,16 @@ class AttachmentStrategyManager {
 
     final attachmentFile = await DefaultAttachmentStorage.instance.getAttachmentFile(targetPdfAttachmentItem);
 
+    // 获取文件大小并转换为 KB
+    var fileSizeInKB = (await attachmentFile.length() ?? 0) / 1024;
+    var fileSizeStr = '${fileSizeInKB.toStringAsFixed(2)} KB';
+
     //  判断是否使用其他阅读器打开pdf
     var useExternalPdfReader = DefaultAttachmentStorage.instance.isOpenPdfExternalReader;
     if (useExternalPdfReader) {
       // 使用其他阅读器打开pdf
       openPdfWithUrlLauncher(context, attachmentFile, targetPdfAttachmentItem);
+
     } else {
       final res = await PdfViewerNativeChannel.openPdfViewer(
         attachmentKey: targetPdfAttachmentItem.itemKey,
@@ -133,6 +144,14 @@ class AttachmentStrategyManager {
         zoteroDB.addRecentlyOpenedAttachments(targetPdfAttachmentItem);
       }
     }
+
+    // 埋点上报
+    DotTracker
+        .addBot("VIEW_PDF_ATTACHMENT", description: "查看pdf附件")
+        .addParam("attachment_name", targetPdfAttachmentItem.getTitle())
+        .addParam("attachment_size", fileSizeStr)
+        .addParam("pdf_reader", useExternalPdfReader ? 'external' : "foxit")
+        .report();
   }
 
   Future<void> openPdfWithUrlLauncher(BuildContext context, File pdfFile, Item targetPdfAttachmentItem) async {
@@ -268,6 +287,8 @@ class AttachmentStrategyManager {
             _removeDownloadState(info.itemKey);
             BrnToast.show("下载完成附件: ${info.filename}", context);
             MyLogger.d('下载完成 ${info.itemKey}: ${info.filename}');
+
+            ModuleLibraryLogHelper.attachmentTransfer.logDownloadSuccess(info, targetPdfAttachmentItem);
           } else {
             // 下载失败，更新状态为失败
             _updateDownloadState(info.copyWith(status: DownloadStatus.failed));
@@ -303,6 +324,9 @@ class AttachmentStrategyManager {
             BrnToast.show("下载出错: $errorMessage", context);
             MyLogger.e('下载出错 ${info.itemKey}: $errorMessage');
           }
+
+          // 记录下载失败
+          ModuleLibraryLogHelper.attachmentTransfer.logDownloadError(targetPdfAttachmentItem, error);
         },
       );
     } catch (e) {
@@ -333,8 +357,11 @@ class AttachmentStrategyManager {
       
       // BrnToast.show("已取消下载", context);
       MyLogger.d('取消下载: ${targetPdfAttachmentItem.itemKey}');
-    } catch (e) {
-      BrnToast.show("取消下载失败: $e", context);
+    } catch (e, stackTrace) {
+      // BrnToast.show("取消下载失败: $e", context);
+
+      // 取消下载失败日志上报
+      logEvent(message: "取消下载失败: $e", logLevel: LogLevel.error, stackTrace: stackTrace.toString());
       MyLogger.e('取消下载失败: $e');
     }
   }

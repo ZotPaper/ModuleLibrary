@@ -5,11 +5,13 @@ import 'package:flutter/material.dart';
 import 'package:flutter/services.dart';
 import 'package:module_base/my_eventbus.dart';
 import 'package:module_base/utils/logger.dart';
+import 'package:module_base/utils/tracking/dot_tracker.dart';
 import 'package:module_base/view/dialog/neat_dialog.dart';
 import 'package:module_library/LibZoteroApi/Model/ZoteroSettingsResponse.dart';
 import 'package:module_library/LibZoteroAttachDownloader/dialog/attachment_transfer_dialog_manager.dart';
 import 'package:module_library/LibZoteroAttachDownloader/event/event_check_attachment_modification.dart';
 import 'package:module_library/LibZoteroAttachDownloader/model/status.dart';
+import 'package:module_library/LibZoteroAttachDownloader/zotero_attachment_transfer.dart';
 import 'package:module_library/LibZoteroStorage/entity/Collection.dart';
 import 'package:module_library/LibZoteroStorage/entity/Item.dart';
 import 'package:module_library/LibZoteroAttachDownloader/zotero_attach_downloader_helper.dart';
@@ -28,6 +30,7 @@ import 'package:module_library/routers.dart' show MyRouter, globalRouteObserver;
 import 'package:provider/provider.dart';
 import 'package:pull_to_refresh/pull_to_refresh.dart';
 
+import '../../utils/log/module_library_log_helper.dart';
 import '../dialog/library_layout_dialog.dart';
 import '../utils/color_utils.dart';
 import '../utils/device_utils.dart';
@@ -261,6 +264,9 @@ class _LibraryPageState extends State<LibraryPage> with WidgetsBindingObserver, 
           
           successCount++;
           MyLogger.d('附件上传成功: ${item.getTitle()}');
+
+          // 附件上传成功 日志与埋点上报
+          ModuleLibraryLogHelper.attachmentTransfer.logUploadSuccess(item);
           
         } catch (e) {
           final errorMsg = _parseUploadError(e);
@@ -289,6 +295,16 @@ class _LibraryPageState extends State<LibraryPage> with WidgetsBindingObserver, 
       if (failedItemsWithErrors.isEmpty) {
         // 全部成功
         BrnToast.show('所有附件上传成功！', context);
+
+        var isZotero = ZoteroAttachDownloaderHelper.instance.transfer is ZoteroAttachmentTransfer;
+
+        // 埋点上报
+        DotTracker
+            .addBot("UPLOAD_ALL_MODIFIED_SUCCESS", description: "所有附件上传成功")
+            .addParam("total", modifiedItems.length)
+            .addParam("service", isZotero ? "Zotero" : "WEBDAV")
+            .report();
+
       } else if (successCount > 0) {
         // 部分成功 - 显示详细错误信息
         AttachmentTransferDialogManager.showUploadErrorInfo(
