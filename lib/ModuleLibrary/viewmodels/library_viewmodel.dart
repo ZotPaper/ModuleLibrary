@@ -33,6 +33,7 @@ import '../../LibZoteroStorage/entity/ItemCollection.dart';
 import '../../LibZoteroStorage/entity/Note.dart';
 import '../../ModuleSync/zotero_sync_manager.dart';
 import '../../routers.dart';
+import '../../utils/log/module_library_log_helper.dart';
 import '../api/ZoteroDataHttp.dart';
 import '../api/ZoteroDataSql.dart';
 import '../model/my_item_entity.dart';
@@ -1238,6 +1239,8 @@ class LibraryViewModel with ChangeNotifier {
           await _uploadAttachment(item);
           successCount++;
           MyLogger.d('附件上传成功: ${item.getTitle()}');
+
+          ModuleLibraryLogHelper.attachmentTransfer.logUploadSuccess(item);
 
           // 从最近打开的附件列表中移除，这样下次就不会再检测到修改
           await zoteroDB.removeRecentlyOpenedAttachment(item.itemKey);

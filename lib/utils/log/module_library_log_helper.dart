@@ -1,4 +1,5 @@
 import 'package:module_base/utils/log/app_log_event.dart';
+import 'package:module_base/utils/tracking/dot_tracker.dart';
 
 import '../../LibZoteroAttachDownloader/bean/exception/zotero_download_exception.dart';
 import '../../LibZoteroAttachDownloader/default_attachment_storage.dart';
@@ -37,6 +38,10 @@ class AttachmentTransferLogger {
     }
 
     logEvent(message: "附件下载成功：$downloadSuccessLog", logLevel: LogLevel.info);
+    DotTracker
+        .addBot("ATTACHMENT_DOWNLOAD_SUCCESS", description: "附件下载成功")
+        .addParam("detail", downloadSuccessLog)
+        .report();
   }
 
   /// 记录下载失败
@@ -61,6 +66,10 @@ class AttachmentTransferLogger {
     }
 
     logEvent(message: "附件下载失败：$downloadErrorLog", logLevel: LogLevel.error);
+    DotTracker
+        .addBot("ATTACHMENT_DOWNLOAD_FAIL", description: "附件下载失败")
+        .addParam("detail", downloadErrorLog)
+        .report();
   }
 
 
@@ -81,8 +90,36 @@ class AttachmentTransferLogger {
     }
 
     logEvent(message: "附件上传失败: $uploadErrorLog", logLevel: LogLevel.error);
+    DotTracker
+        .addBot("ATTACHMENT_UPLOAD_SUCCESS", description: "附件上传失败")
+        .addParam("detail", uploadErrorLog)
+        .report();
   }
 
+  /// 上报上传成功信息
+  Future<void> logUploadSuccess(Item targetPdfAttachmentItem) async {
+    var totalSize = await DefaultAttachmentStorage.instance.getFileSizeFromItem(targetPdfAttachmentItem);
+    var totalSizeStr = "${(totalSize / 1024).floor()} KB";
+    var uploadSuccessLog = {
+      'type': 'Zotero',
+      'title': targetPdfAttachmentItem.getTitle(),
+      'totalSize': totalSizeStr,
+    };
+    if (ZoteroAttachDownloaderHelper.instance.transfer is WebDAVAttachmentTransfer) {
+      uploadSuccessLog = {
+        'type': 'WebDAV',
+        'title': targetPdfAttachmentItem.getTitle(),
+        'webdav_path': WebdavConfiguration.webdavUrl,
+        'totalSize': totalSizeStr,
+      };
+    }
+
+    logEvent(message: "附件上传成功：$uploadSuccessLog", logLevel: LogLevel.info);
+    DotTracker
+        .addBot("ATTACHMENT_UPLOAD_SUCCESS", description: "附件上传成功")
+        .addParam("detail", uploadSuccessLog)
+        .report();
+  }
 
 
 }

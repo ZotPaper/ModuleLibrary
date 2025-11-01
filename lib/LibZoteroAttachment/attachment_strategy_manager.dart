@@ -2,6 +2,7 @@ import 'dart:io';
 
 import 'package:flutter/material.dart';
 import 'package:module_base/utils/log/app_log_event.dart';
+import 'package:module_base/utils/tracking/dot_tracker.dart';
 import 'package:module_library/ModuleLibrary/utils/my_logger.dart';
 import 'package:module_library/utils/log/module_library_log_helper.dart';
 import 'package:open_filex/open_filex.dart';
@@ -121,11 +122,16 @@ class AttachmentStrategyManager {
 
     final attachmentFile = await DefaultAttachmentStorage.instance.getAttachmentFile(targetPdfAttachmentItem);
 
+    // 获取文件大小并转换为 KB
+    var fileSizeInKB = (await attachmentFile.length() ?? 0) / 1024;
+    var fileSizeStr = '${fileSizeInKB.toStringAsFixed(2)} KB';
+
     //  判断是否使用其他阅读器打开pdf
     var useExternalPdfReader = DefaultAttachmentStorage.instance.isOpenPdfExternalReader;
     if (useExternalPdfReader) {
       // 使用其他阅读器打开pdf
       openPdfWithUrlLauncher(context, attachmentFile, targetPdfAttachmentItem);
+
     } else {
       final res = await PdfViewerNativeChannel.openPdfViewer(
         attachmentKey: targetPdfAttachmentItem.itemKey,
@@ -138,6 +144,14 @@ class AttachmentStrategyManager {
         zoteroDB.addRecentlyOpenedAttachments(targetPdfAttachmentItem);
       }
     }
+
+    // 埋点上报
+    DotTracker
+        .addBot("VIEW_PDF_ATTACHMENT", description: "查看pdf附件")
+        .addParam("attachment_name", targetPdfAttachmentItem.getTitle())
+        .addParam("attachment_size", fileSizeStr)
+        .addParam("pdf_reader", useExternalPdfReader ? 'external' : "foxit")
+        .report();
   }
 
   Future<void> openPdfWithUrlLauncher(BuildContext context, File pdfFile, Item targetPdfAttachmentItem) async {

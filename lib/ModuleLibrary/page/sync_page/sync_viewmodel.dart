@@ -1,6 +1,7 @@
 import 'dart:async';
 import 'package:flutter/material.dart';
 import 'package:flutter/cupertino.dart';
+import 'package:module_base/utils/tracking/dot_tracker.dart';
 import 'package:module_library/ModuleSync/zotero_sync_manager.dart';
 import '../../../LibZoteroStorage/entity/Item.dart';
 import '../../../utils/local_zotero_credential.dart';
@@ -37,6 +38,12 @@ class SyncViewModel with ChangeNotifier {
     bool isNeverSynced = await zoteroSyncManager.isNeverSynced();
     if (isNeverSynced) {
       MyLogger.d("=============isNeverSynced userId: $_userId apiKey: $_apiKey");
+
+      // 完整同步埋点
+      DotTracker
+          .addBot("FIRST_COMPLETE_SYNC", description: "初次启动时完整同步数据")
+          .report();
+
       // 初次启动，从网络获取数据并保存到数据库
       await _performCompleteSync();
     }
@@ -48,6 +55,12 @@ class SyncViewModel with ChangeNotifier {
       onProgressCallback: onProgressCallback,
       onFinishCallback: (total) {
         _onSyncComplete();
+
+        // 完整同步埋点
+        DotTracker
+            .addBot("FIRST_COMPLETE_SYNC_FINISH", description: "初次完整同步完成")
+            .addParam("totalItemCount", total)
+            .report();
       },
     );
   }
