@@ -357,8 +357,11 @@ class AttachmentStrategyManager {
       
       // BrnToast.show("已取消下载", context);
       MyLogger.d('取消下载: ${targetPdfAttachmentItem.itemKey}');
-    } catch (e) {
-      BrnToast.show("取消下载失败: $e", context);
+    } catch (e, stackTrace) {
+      // BrnToast.show("取消下载失败: $e", context);
+
+      // 取消下载失败日志上报
+      logEvent(message: "取消下载失败: $e", logLevel: LogLevel.error, stackTrace: stackTrace.toString());
       MyLogger.e('取消下载失败: $e');
     }
   }
