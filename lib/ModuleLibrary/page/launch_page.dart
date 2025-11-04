@@ -140,7 +140,7 @@ class _LaunchPageState extends State<LaunchPage> with SingleTickerProviderStateM
       LocalZoteroCredential.saveCredential(apiKey, userId, userName).then((onValue){
         // 数据迁移埋点上报
         DotTracker
-            .addBot("APP_MIGRATION_V002", description: "v0.0.2升级，账户重新同步")
+            .addDot("APP_MIGRATION_V002", description: "v0.0.2升级，账户重新同步")
             .report();
 
         _jumpToSyncingPage();
