@@ -1,18 +1,18 @@
 import 'dart:io';
 
 import 'package:flutter/material.dart';
+import 'package:module_base/utils/file_open_manager.dart';
 import 'package:module_base/utils/log/app_log_event.dart';
 import 'package:module_base/utils/tracking/dot_tracker.dart';
+import 'package:module_base/view/toast/neat_toast.dart';
 import 'package:module_library/ModuleLibrary/utils/my_logger.dart';
 import 'package:module_library/utils/log/module_library_log_helper.dart';
-import 'package:open_filex/open_filex.dart';
 
 import '../LibZoteroAttachDownloader/bean/exception/zotero_download_exception.dart';
 import '../LibZoteroAttachDownloader/default_attachment_storage.dart';
 import '../LibZoteroAttachDownloader/model/status.dart';
 import '../LibZoteroAttachDownloader/model/transfer_info.dart';
 import '../LibZoteroAttachDownloader/native/attachment_native_channel.dart';
-import '../LibZoteroAttachDownloader/webdav_attachment_transfer.dart';
 import '../LibZoteroAttachDownloader/zotero_attach_downloader_helper.dart';
 import '../LibZoteroStorage/entity/Item.dart';
 import '../ModuleLibrary/viewmodels/zotero_database.dart';
@@ -155,28 +155,32 @@ class AttachmentStrategyManager {
 
   Future<void> openPdfWithUrlLauncher(BuildContext context, File pdfFile, Item targetPdfAttachmentItem) async {
     try {
-      final result = await OpenFilex.open(
+      final result = await FileOpenManager.openFile(
         pdfFile.path,
         type: "application/pdf",
+        onError: (error) {
+          MyLogger.e('打开PDF失败: $error');
+          context.toastError('打开PDF失败: $error');
+        },
       );
 
       MyLogger.d('打开PDF结果: ${result.type} - ${result.message}');
 
       switch (result.type) {
-        case ResultType.done:
+        case ResultEnum.done:
           MyLogger.d('已打开 ${targetPdfAttachmentItem.getTitle()}');
           zoteroDB.addRecentlyOpenedAttachments(targetPdfAttachmentItem);
           break;
-        case ResultType.noAppToOpen:
+        case ResultEnum.noAppToOpen:
           BrnToast.show('未找到可以打开PDF的应用，请安装PDF阅读器', context);
           break;
-        case ResultType.fileNotFound:
+        case ResultEnum.fileNotFound:
           BrnToast.show('文件不存在', context);
           break;
-        case ResultType.permissionDenied:
+        case ResultEnum.permissionDenied:
           BrnToast.show('没有权限打开文件', context);
           break;
-        case ResultType.error:
+        case ResultEnum.error:
           BrnToast.show('打开失败: ${result.message}', context);
           break;
       }

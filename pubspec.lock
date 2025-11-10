@@ -703,7 +703,7 @@ packages:
     source: hosted
     version: "2.1.0"
   open_filex:
-    dependency: "direct main"
+    dependency: transitive
     description:
       name: open_filex
       sha256: "9976da61b6a72302cf3b1efbce259200cd40232643a467aac7370addf94d6900"
