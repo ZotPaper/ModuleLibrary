@@ -17,7 +17,6 @@ import '../LibZoteroAttachDownloader/zotero_attach_downloader_helper.dart';
 import '../LibZoteroStorage/entity/Item.dart';
 import '../ModuleLibrary/viewmodels/zotero_database.dart';
 import '../ModuleLibrary/zotero_provider.dart';
-import 'package:url_launcher/url_launcher.dart';
 import 'package:bruno/bruno.dart';
 
 import '../utils/webdav_configuration.dart';
