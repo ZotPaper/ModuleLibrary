@@ -91,7 +91,7 @@ class AttachmentTransferLogger {
 
     logEvent(message: "附件上传失败: $uploadErrorLog", logLevel: LogLevel.error);
     DotTracker
-        .addBot("ATTACHMENT_UPLOAD_SUCCESS", description: "附件上传失败")
+        .addBot("ATTACHMENT_UPLOAD_FAIL", description: "附件上传失败")
         .addParam("detail", uploadErrorLog)
         .report();
   }
