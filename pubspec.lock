@@ -674,9 +674,11 @@ packages:
   module_base:
     dependency: "direct main"
     description:
-      path: "/Users/moyearzhou/StudioProjects/module_base"
-      relative: false
-    source: path
+      path: "."
+      ref: "v-0.1.0"
+      resolved-ref: d376fffb67504c373807d2fe58e965fab9eaf73f
+      url: "https://github.com/moyearzhou/ModuleBase.git"
+    source: git
     version: "1.0.0+1"
   nested:
     dependency: transitive
@@ -1294,9 +1296,11 @@ packages:
   webdav_client:
     dependency: transitive
     description:
-      path: "/Users/moyearzhou/StudioProjects/webdav_client2"
-      relative: false
-    source: path
+      path: "."
+      ref: HEAD
+      resolved-ref: d4fd817cb013b3aba3e333bae07de0abb5113ff9
+      url: "git@github.com:moyearzhou/webdav_client2.git"
+    source: git
     version: "1.2.2"
   webview_flutter:
     dependency: transitive
