@@ -2,6 +2,7 @@ import 'dart:collection';
 
 import 'package:bruno/bruno.dart';
 import 'package:flutter/material.dart';
+import 'package:module_base/view/appbar/neat_appbar.dart';
 import 'package:module_library/ModuleLibrary/viewmodels/zotero_database.dart';
 import 'package:module_library/ModuleLibrary/res/ResColor.dart';
 
@@ -129,30 +130,15 @@ class _CollectionSelectorState extends State<CollectionSelector>
   }
 
   PreferredSizeWidget _buildAppBar() {
-    return AppBar(
-      elevation: 0,
-      backgroundColor: Colors.white,
-      foregroundColor: ResColor.textMain,
-      title: Text(
-        '选择集合',
-        style: TextStyle(
-          color: ResColor.textMain,
-          fontSize: 18,
-          fontWeight: FontWeight.w600,
-        ),
-      ),
+    return simpleAppBar(
+      title: "选择集合",
       actions: [
         Container(
-          margin: const EdgeInsets.only(right: 16),
           child: TextButton(
             onPressed: _handleConfirm,
             style: TextButton.styleFrom(
-              backgroundColor: ResColor.selectedTextColor,
-              foregroundColor: Colors.white,
-              shape: RoundedRectangleBorder(
-                borderRadius: BorderRadius.circular(20),
-              ),
-              padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 8),
+              textStyle: const TextStyle(fontSize: 14),
+              foregroundColor: ResColor.selectedTextColor,
             ),
             child: const Text('确定'),
           ),

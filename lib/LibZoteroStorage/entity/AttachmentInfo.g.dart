@@ -12,7 +12,7 @@ AttachmentInfo _$AttachmentInfoFromJson(Map<String, dynamic> json) =>
       groupId: (json['groupId'] as num?)?.toInt() ?? NO_GROUP_ID,
       md5Key: json['md5Key'] as String? ?? "",
       mtime: (json['mtime'] as num).toInt(),
-      downloadedFrom: json['downloadedFrom'] as String? ?? UNSET,
+      downloadedFrom: json['downloadedFrom'] as String? ?? AttachmentInfo.UNSET,
     );
 
 Map<String, dynamic> _$AttachmentInfoToJson(AttachmentInfo instance) =>

@@ -1,6 +1,7 @@
 import 'package:flutter/cupertino.dart';
 import 'package:module_library/LibZoteroApi/Model/ZoteroSettingsResponse.dart';
 import 'package:module_library/LibZoteroApi/Model/zotero_items_response.dart';
+import 'package:module_library/LibZoteroApi/ZoteroAPIService.dart';
 import 'package:module_library/LibZoteroStorage/entity/Collection.dart';
 import 'package:module_library/LibZoteroStorage/entity/Creator.dart';
 import 'package:module_library/LibZoteroStorage/entity/Item.dart';
@@ -727,6 +728,16 @@ class ZoteroDataHttp {
       debugPrint("Moyear=== moveItemToTrash error: $e");
       return null;
     }
+  }
+
+  /// 更新条目信息
+  Future<dynamic> patchItem({
+    required Item item,
+    required Map<String, dynamic> json
+  }) async {
+    var lastModifiedVersion = item.getVersion();
+    String itemKey = item.itemKey;
+    return service.patchItem(userId, itemKey, json, lastModifiedVersion);
   }
 
 

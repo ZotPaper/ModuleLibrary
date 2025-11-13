@@ -1,6 +1,7 @@
 import 'package:flutter/cupertino.dart';
 import 'package:module_library/LibZoteroStorage/entity/Collection.dart';
 import 'package:module_library/ModuleLibrary/utils/my_logger.dart';
+import 'package:module_library/ModuleLibrary/zotero_provider.dart';
 
 import '../LibZoteroApi/Model/ZoteroSettingsResponse.dart';
 import '../LibZoteroStorage/entity/Item.dart';
@@ -16,7 +17,7 @@ class ZoteroSyncManager {
   static final ZoteroSyncManager _singleton = ZoteroSyncManager._internal();
   static ZoteroSyncManager get instance => _singleton;
 
-  late final ZoteroDataHttp zoteroHttp;
+  late ZoteroDataHttp zoteroHttp;
 
   final ZoteroDataSql zoteroDataSql = ZoteroDataSql();
 
@@ -47,8 +48,7 @@ class ZoteroSyncManager {
   void init(String userId, String apiKey) {
     _userId = userId;
     _apiKey = apiKey;
-
-    zoteroHttp = ZoteroDataHttp(userId: _userId, apiKey: _apiKey);
+    zoteroHttp = ZoteroProvider.getZoteroHttp();
   }
 
   // 判断是否已经配置了用户id和apiKey
@@ -65,7 +65,7 @@ class ZoteroSyncManager {
     }
 
     if (_isSyncing) {
-      debugPrint("SyncManager正在同步中，请稍后...");
+      MyLogger.d("SyncManager正在同步中，请稍后...");
       return;
     }
 
@@ -198,7 +198,7 @@ class ZoteroSyncManager {
         });
       },
       onError: (errorCode, msg) {
-        debugPrint("SyncManager加载回收站错误：$msg");
+        MyLogger.d("SyncManager加载回收站错误：$msg");
       },
     );
   }
@@ -225,25 +225,25 @@ class ZoteroSyncManager {
       // 设置本地版本号
       await db.setZoteroSettingVersion(newVersion);
     } catch (e, stack) {
-      debugPrint('SyncZoteroSettings error: $e\n$stack');
+      MyLogger.d('SyncZoteroSettings error: $e\n$stack');
     }
   }
 
 
   Future<void> _handleItemsOfTrash(List<Item> items) async {
-    debugPrint("Moyear===== SyncManager获取到回收站条目：${items.length}");
+    MyLogger.d("Moyear===== SyncManager获取到回收站条目：${items.length}");
 
     for (var item in items) {
       // 获取合集下的条目
       await zoteroDataSql.moveItemToTrash(item);
-      debugPrint("Moyear===== SyncManager将条目：${item.itemKey} 放到回收站");
+      MyLogger.d("Moyear===== SyncManager将条目：${item.itemKey} 放到回收站");
     }
 
   }
 
   /// 完成每一个同步都会调用一阶段
   void _finishSingleStep() {
-    // debugPrint("Moyear===== 完成一阶段 $_loadingCollectionsFinished $_loadingItemsFinished $_loadingTrashFinished");
+    // MyLogger.d("Moyear===== 完成一阶段 $_loadingCollectionsFinished $_loadingItemsFinished $_loadingTrashFinished");
 
     if (_loadingCollectionsFinished && _loadingItemsFinished && _loadingTrashFinished) {
       _loadLibraryStage2().then((res) {
@@ -264,7 +264,7 @@ class ZoteroSyncManager {
     final int libraryVersion = await zoteroDB.getLibraryVersion();
 
     if (deletedItemsCheckVersion == libraryVersion) {
-      debugPrint('Not checking deleted items because library hasn\'t changed. $libraryVersion');
+      MyLogger.d('Not checking deleted items because library hasn\'t changed. $libraryVersion');
       return; // nothing to check
     }
 
@@ -273,26 +273,26 @@ class ZoteroSyncManager {
         deletedItemsCheckVersion,
       );
 
-      debugPrint('Moyear=== SyncManager处理删除的条目 size ${deletedEntries?.items?.length} ${deletedEntries}');
+      MyLogger.d('Moyear=== SyncManager处理删除的条目 size ${deletedEntries?.items?.length} ${deletedEntries}');
 
       if (deletedEntries != null) {
         // 删除 item
         for (String itemKey in deletedEntries.items) {
-          debugPrint('Deleting item $itemKey');
+          MyLogger.d('Deleting item $itemKey');
           await zoteroDataSql.deleteItem(itemKey);
         }
 
         // 删除 collection
         for (String collectionKey in deletedEntries.collections) {
-          debugPrint('Deleting collection $collectionKey');
+          MyLogger.d('Deleting collection $collectionKey');
           await zoteroDataSql.deleteCollection(collectionKey);
         }
 
-        debugPrint('Setting deletedLibraryVersion to $libraryVersion from $deletedItemsCheckVersion');
+        MyLogger.d('Setting deletedLibraryVersion to $libraryVersion from $deletedItemsCheckVersion');
         await zoteroDB.setLastDeletedItemsCheckVersion(libraryVersion);
       }
     } catch (e, stack) {
-      debugPrint('Error while updating deleted entries: $e\n$stack');
+      MyLogger.d('Error while updating deleted entries: $e\n$stack');
       rethrow;
     }
   }

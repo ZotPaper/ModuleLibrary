@@ -2,6 +2,7 @@ import 'dart:collection';
 
 import 'package:flutter/cupertino.dart';
 import 'package:flutter/material.dart';
+import 'package:module_base/view/toast/neat_toast.dart';
 import 'package:module_library/LibZoteroStorage/entity/ItemTag.dart';
 import 'package:module_library/ModuleLibrary/page/tags_selector_page/tags_selector_page.dart';
 import 'package:module_library/ModuleSync/zotero_sync_manager.dart';
@@ -11,6 +12,7 @@ import '../../LibZoteroApi/Model/ZoteroSettingsResponse.dart';
 import '../../LibZoteroStorage/entity/Item.dart';
 import '../../ModuleLibrary/utils/color_utils.dart';
 import '../../ModuleLibrary/utils/my_logger.dart';
+import '../common_epmty_view.dart';
 
 class ItemDetailTagFragment extends StatefulWidget {
   final Item item;
@@ -61,8 +63,9 @@ class _ItemDetailTagFragmentState extends State<ItemDetailTagFragment> with Sing
             child: Text('标签列表', style: TextStyle(fontSize: 16)),
           ),
           const SizedBox(height: 4),
-          ...showedTags.map((tag) => _tagItem(tag)),
-          _addTagButton(),
+          if (showedTags.isNotEmpty) ...showedTags.map((tag) => _tagItem(tag))
+          else const CommonEmptyView(text: "该条目记录下无标签",)
+          // _addTagButton(),
         ],
     ));
   }
@@ -72,7 +75,10 @@ class _ItemDetailTagFragmentState extends State<ItemDetailTagFragment> with Sing
       color: Colors.grey[100],
       elevation: 0,
       child: InkWell(
-        onTap: () {},
+        onTap: () {
+          // context.toastNormal("功能待开发！！！");
+          context.toastNormal(tag.name);
+        },
         child: Container(
             height: 42,
             padding: const EdgeInsets.symmetric(horizontal: 12.0),
@@ -129,6 +135,8 @@ class _ItemDetailTagFragmentState extends State<ItemDetailTagFragment> with Sing
 
   Future<void> _navigateToAddTag() async {
     // var importantTags = await tagManger.getStyledTags();
+
+    context.toastNormal("添加标签，功能待开发！！！");
 
     Set<TagColor> styledTags = LinkedHashSet();
     Set<TagColor> unStyledTags = LinkedHashSet();

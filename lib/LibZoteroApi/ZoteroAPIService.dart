@@ -376,20 +376,13 @@ class ZoteroAPIService {
   }
 
   // 修补项目
-  Future<Response<dynamic>> patchItem(
+  Future<dynamic> patchItem(
       String user, String itemKey, Map<String, dynamic> json, int ifUnmodifiedSinceVersion) async {
-    try {
-      final headers = {
-        'If-Unmodified-Since-Version': ifUnmodifiedSinceVersion.toString()
-      };
-      final response = await _dio.patch('/users/$user/items/$itemKey',
-          data: json, options: Options(headers: headers));
-      return Response(
-        response.data, response.statusCode!,
-      );
-    } catch (e) {
-      throw Exception('请求发生错误: $e');
-    }
+    final headers = {
+      'If-Unmodified-Since-Version': ifUnmodifiedSinceVersion.toString()
+    };
+    return _dio.patch('/users/$user/items/$itemKey',
+        data: json, options: Options(headers: headers));
   }
 
   // 删除项目

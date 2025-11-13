@@ -1,5 +1,6 @@
 import 'package:flutter/cupertino.dart';
 import 'package:flutter/material.dart';
+import 'package:module_base/view/appbar/neat_appbar.dart';
 import 'package:module_library/ModuleItemDetail/page/item_detail_attachment_fragment.dart';
 import 'package:module_library/ModuleItemDetail/page/item_detail_basic_fragment.dart';
 import 'package:module_library/ModuleItemDetail/page/item_detail_note_fragment.dart';
@@ -46,7 +47,7 @@ class _ItemDetailsPageState extends State<ItemDetailsPage> with SingleTickerProv
   Widget build(BuildContext context) {
     return WillPopScope(
         child: Scaffold(
-          appBar: BrnAppBar(
+          appBar: simpleAppBar(
             title: '条目详情',
           ),
           body: NestedScrollView(
