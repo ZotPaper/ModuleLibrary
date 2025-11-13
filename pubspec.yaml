@@ -19,7 +19,7 @@ publish_to: 'none' # Remove this line if you wish to publish to pub.dev
 version: 1.0.0+1
 
 environment:
-  sdk: ^3.5.4
+  sdk: '>=3.4.0'
 
 # Dependencies specify other packages that your package needs in order to work.
 # To automatically upgrade your package dependencies to the latest versions
@@ -31,7 +31,7 @@ dependencies:
   flutter:
     sdk: flutter
 
-  sqflite: ^2.2.8+4
+  sqflite: ^2.3.3+1
 
   rxdart: ^0.27.7
 
@@ -55,11 +55,10 @@ dependencies:
 ##      url: git@github.com:moyearzhou/webdav_client2.git
 
   module_base:
-    path: /Users/moyearzhou/StudioProjects/module_base
-  #    git:
-  #      url: https://github.com/moyearzhou/ModuleBase.git
-
-  open_filex: ^4.5.0
+#    path: /Users/moyearzhou/StudioProjects/module_base
+    git:
+      url: https://github.com/moyearzhou/ModuleBase.git
+      ref: v-0.1.0
   
   # HTML渲染支持，用于显示笔记的富文本内容
   flutter_html: ^3.0.0-beta.2

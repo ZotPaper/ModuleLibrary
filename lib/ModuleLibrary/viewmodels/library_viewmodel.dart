@@ -4,6 +4,8 @@ import 'dart:io';
 import 'package:bruno/bruno.dart';
 import 'package:flutter/foundation.dart';
 import 'package:flutter/material.dart';
+import 'package:module_base/utils/web/web_url_launcher.dart';
+import 'package:module_base/view/toast/neat_toast.dart';
 import 'package:module_library/LibZoteroApi/Model/ZoteroSettingsResponse.dart';
 import 'package:module_library/LibZoteroAttachDownloader/model/upload_attachment.dart';
 import 'package:module_library/LibZoteroAttachDownloader/native/attachment_native_channel.dart';
@@ -40,11 +42,8 @@ import '../model/my_item_entity.dart';
 import '../share_pref.dart';
 import '../page/LibraryUI/drawer.dart';
 import 'package:rxdart/rxdart.dart';
-import 'package:url_launcher/url_launcher.dart';
 import '../store/library_settings.dart';
 import 'package:module_base/stores/hive_stores.dart';
-
-import '../widget/bottomsheet/item_operation_panel.dart';
 
 class LibraryViewModel with ChangeNotifier {
 
@@ -713,10 +712,9 @@ class LibraryViewModel with ChangeNotifier {
 
     debugPrint('Moyear=== viewItemOnline: $url');
 
-    final Uri uri = Uri.parse(url);
-    if (!await launchUrl(uri)) {
-      throw Exception('Could not launch $url');
-    }
+    WebUrlLauncher.launch(url, onError: (error) {
+      context.toastError(error.toString());
+    });
   }
 
   // 开始与服务器同步

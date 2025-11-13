@@ -11,9 +11,8 @@ class StorageProvider {
     } else if (Platform.isIOS) {
       return getApplicationDocumentsDirectory();
     } else {
-      return null;
+      // 增加鸿蒙适配
+      return await getExternalStorageDirectory();
     }
   }
-
-
 }
