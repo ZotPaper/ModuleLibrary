@@ -675,8 +675,8 @@ packages:
     dependency: "direct main"
     description:
       path: "."
-      ref: "v-0.1.0"
-      resolved-ref: d376fffb67504c373807d2fe58e965fab9eaf73f
+      ref: "feat/ohos"
+      resolved-ref: "4bf8619b734b2bfb30666b94282116b05834cbc7"
       url: "https://github.com/moyearzhou/ModuleBase.git"
     source: git
     version: "1.0.0+1"
