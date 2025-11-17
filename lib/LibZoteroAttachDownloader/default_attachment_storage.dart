@@ -1,12 +1,13 @@
 import 'dart:io';
 import 'package:crypto/crypto.dart';
-import 'package:module_library/LibZoteroStorage/database/dao/RecentlyOpenedAttachmentDao.dart';
+import 'package:module_base/stores/hive_stores.dart';
 import 'package:module_library/ModuleLibrary/utils/my_logger.dart';
 import 'package:path/path.dart' as path;
 
 import 'package:module_library/LibZoteroAttachDownloader/zotero_attachment_transfer.dart';
 import 'package:module_library/LibZoteroStorage/entity/Item.dart';
 import 'package:module_library/LibZoteroStorage/storage_provider.dart';
+import '../LibZoteroStorage/stores/attachments_settings.dart';
 
 class DefaultAttachmentStorage implements IAttachmentStorage {
   /// 附件存放的路径在sdcard/Android/data/应用包名/files/zotero/storage
@@ -16,13 +17,14 @@ class DefaultAttachmentStorage implements IAttachmentStorage {
   DefaultAttachmentStorage._();
   static final DefaultAttachmentStorage instance = DefaultAttachmentStorage._();
 
+  final AttachmentStore _setStore = Stores.get(Stores.KEY_ATTACHMENT) as AttachmentStore;
 
   static const String STORAGE_DIR = "zotero/storage";
   
   Directory? _storageDir;
 
   /// 是否使用外部阅读器打开PDF文件
-  bool _isOpenPdfExternalReader = false;
+  late bool _isOpenPdfExternalReader = _setStore.useExternalPdfReader.get();
   bool get isOpenPdfExternalReader => _isOpenPdfExternalReader;
 
   Function(bool openPdfExternalReader)? _onPdfReaderChangeCallback;
