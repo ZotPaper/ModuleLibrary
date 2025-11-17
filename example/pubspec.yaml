@@ -15,10 +15,10 @@ dependencies:
     path: ../
 
   module_base:
-    path: /Users/moyearzhou/StudioProjects/module_base
-  #    git:
-  #      url: https://github.com/moyearzhou/ModuleBase.git
-
+#    path: /Users/moyearzhou/StudioProjects/module_base
+    git:
+      url: https://github.com/moyearzhou/ModuleBase.git
+      ref: feat/ohos
 
 dev_dependencies:
   flutter_test:
