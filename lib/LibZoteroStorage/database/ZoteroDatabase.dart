@@ -1,13 +1,12 @@
 import 'package:sqflite/sqflite.dart';
 import 'package:path/path.dart';
 
-import '../entity/Collection.dart';
-import '../entity/GroupInfo.dart';
 class ZoteroDatabase {
   static final ZoteroDatabase _instance = ZoteroDatabase._internal();
   factory ZoteroDatabase() => _instance;
   ZoteroDatabase._internal();
   static const String _databaseName = 'zoteroDB.db';
+  static String get databaseName => _databaseName;
   static const int _databaseVersion = 1;
   static Database? _database;
   Future<Database> get database async {
@@ -142,5 +141,14 @@ class ZoteroDatabase {
     );
   }
 
+  void close() async {
+    // try {
+    //   // 关闭数据库
+    //   await _database?.close();
+    // } catch (e) {
+    //   MyLogger.e("关闭数据库错误：$e");
+    // }
+    _database = null;
+  }
 
 }

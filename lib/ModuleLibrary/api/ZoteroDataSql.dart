@@ -658,4 +658,8 @@ class ZoteroDataSql {
 
     return items;
   }
+
+  void closeDatabase() {
+    _database.close();
+  }
 }
