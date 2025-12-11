@@ -26,7 +26,7 @@ class ZoteroSyncManager {
   String _userId = "";
   String _apiKey = "";
 
-  ZoteroDB zoteroDB = ZoteroDB();
+  ZoteroDB zoteroDB = ZoteroProvider.getZoteroDB();
 
   var _loadingItemsFinished = false;
   var _loadingCollectionsFinished = false;
@@ -293,7 +293,7 @@ class ZoteroSyncManager {
       }
     } catch (e, stack) {
       MyLogger.d('Error while updating deleted entries: $e\n$stack');
-      rethrow;
+      // rethrow;
     }
   }
 
