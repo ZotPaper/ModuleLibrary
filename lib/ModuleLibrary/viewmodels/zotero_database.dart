@@ -24,9 +24,10 @@ import '../model/zotero_item_downloaded.dart';
 ///
 class ZoteroDB {
   // todo 单例模式
-  static final ZoteroDB _instance = ZoteroDB._internal();
+  static ZoteroDB _instance = ZoteroDB._internal();
   factory ZoteroDB() => _instance;
   ZoteroDB._internal() {
+    MyLogger.d("Moyear=== ZoteroDB创建对象");
     /// 加载上次保存的下载进度，避免重复加载
     _loadSavedDownloadProgress();
   }
@@ -614,5 +615,7 @@ class ZoteroDB {
     await _zoteroDataSql.attachmentInfoDao.updateAttachment(attachmentInfoObj);
   }
 
+  void dispose() {
+  }
 
 }

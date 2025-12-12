@@ -25,6 +25,11 @@ class MyRouter {
   static const String PAGE_LIBRARY = 'libraryPage';
   static const String PAGE_NOTE_EDIT = 'noteEditPage';
 
+  static const String PAGE_SYNCING = 'syncingPage';
+  static const String PAGE_SYNC_SETUP = 'syncSetupPage';
+
+
+
   bool _enableExceptionCatch = false;
 
   Function(BuildContext, String, Map<String, dynamic>?)? _onInterceptNavigatior;
