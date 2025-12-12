@@ -1,21 +1,40 @@
+import 'package:module_library/ModuleLibrary/utils/my_logger.dart';
 import 'package:sqflite/sqflite.dart';
 import 'package:path/path.dart';
 
 class ZoteroDatabase {
   static final ZoteroDatabase _instance = ZoteroDatabase._internal();
   factory ZoteroDatabase() => _instance;
-  ZoteroDatabase._internal();
+  ZoteroDatabase._internal() {
+    MyLogger.d("Moyear=== ZoteroDatabase创建对象");
+  }
   static const String _databaseName = 'zoteroDB.db';
   static String get databaseName => _databaseName;
   static const int _databaseVersion = 1;
   static Database? _database;
+  static Future<Database>? _initFuture;
+  
   Future<Database> get database async {
+    // 如果数据库已经初始化，直接返回
     if (_database != null) return _database!;
-    _database = await _initDB();
-    return _database!;
+    
+    // 如果正在初始化，等待初始化完成
+    if (_initFuture != null) {
+      return await _initFuture!;
+    }
+    
+    // 开始初始化，缓存Future避免重复初始化
+    _initFuture = _initDB();
+    try {
+      _database = await _initFuture!;
+      return _database!;
+    } finally {
+      _initFuture = null;
+    }
   }
 
   Future<Database> _initDB() async {
+    MyLogger.d("Moyear=== ZoteroDatabase初始化数据库_initDB");
     String path = join(await getDatabasesPath(), _databaseName);
     return await openDatabase(
       path,
@@ -148,6 +167,10 @@ class ZoteroDatabase {
     // } catch (e) {
     //   MyLogger.e("关闭数据库错误：$e");
     // }
+    _database = null;
+  }
+
+  static void dispose() {
     _database = null;
   }
 

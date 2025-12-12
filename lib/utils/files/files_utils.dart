@@ -20,12 +20,12 @@ class FilesUtils {
 
   /// 删除zotero数据库
   static Future deleteZoteroDatabase() async {
-    try {
-      // 先关闭数据库, 不然重新写入数据会有问题
-      ZoteroProvider.getZoteroDataSql().closeDatabase();
-    } catch (e) {
-      MyLogger.e("关闭数据库错误：$e");
-    }
+    // try {
+    //   // 先关闭数据库, 不然重新写入数据会有问题
+    //   ZoteroProvider.getZoteroDataSql().closeDatabase();
+    // } catch (e) {
+    //   MyLogger.e("关闭数据库错误：$e");
+    // }
 
     String path = join(await getDatabasesPath(), ZoteroDatabase.databaseName);
     await databaseFactory.deleteDatabase(path); // 使用工厂方法删除数据库文件

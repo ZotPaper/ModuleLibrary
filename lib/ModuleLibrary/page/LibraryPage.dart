@@ -121,6 +121,8 @@ class _LibraryPageState extends State<LibraryPage> with WidgetsBindingObserver, 
         _viewModel.checkModifiedAttachments();
       });
     });
+
+    MyLogger.d("Moyear=== 进入LibraryPage");
   }
 
 

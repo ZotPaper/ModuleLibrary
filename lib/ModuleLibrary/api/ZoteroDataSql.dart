@@ -30,6 +30,8 @@ class ZoteroDataSql {
   
   // 私有构造函数
   ZoteroDataSql._internal() {
+    MyLogger.d("Moyear=== ZoteroDataSql创建对象");
+
     // 初始化所有DAO
     groupInfoDao = GroupInfoDao(_database);
     collectionsDao = CollectionsDao(_database);
@@ -659,7 +661,7 @@ class ZoteroDataSql {
     return items;
   }
 
-  void closeDatabase() {
+  void dispose() {
     _database.close();
   }
 }
