@@ -65,12 +65,12 @@ class _LaunchPageState extends State<LaunchPage> with SingleTickerProviderStateM
   }
 
   void _jumpToSyncingPage() {
-    MyRouter.instance.pushReplacementNamed(context, "syncingPage");
+    MyRouter.instance.pushReplacementNamed(context, MyRouter.PAGE_SYNCING);
   }
 
   void _jumpToSyncSetupPage() {
     try {
-      MyRouter.instance.pushReplacementNamed(context, "syncSetupPage");
+      MyRouter.instance.pushReplacementNamed(context, MyRouter.PAGE_SYNC_SETUP);
     } catch (e) {
       MyLogger.e('Error: $e');
       // 测试账号登录
@@ -79,7 +79,7 @@ class _LaunchPageState extends State<LaunchPage> with SingleTickerProviderStateM
   }
 
   void _jumpToLibraryPage() {
-    MyRouter.instance.pushReplacementNamed(context, "libraryPage");
+    MyRouter.instance.pushReplacementNamed(context, MyRouter.PAGE_LIBRARY);
   }
 
   /// 测试账号登录
