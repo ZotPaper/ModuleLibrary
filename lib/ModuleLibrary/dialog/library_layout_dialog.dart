@@ -107,7 +107,7 @@ class _LibraryLayoutDialogState extends State<LibraryLayoutDialog> {
       child: Container(
         constraints: const BoxConstraints(maxWidth: _maxDialogWidth),
         decoration: BoxDecoration(
-          color: Theme.of(context).scaffoldBackgroundColor,
+          color: Colors.white,
           borderRadius: BorderRadius.circular(12),
           boxShadow: [
             BoxShadow(
