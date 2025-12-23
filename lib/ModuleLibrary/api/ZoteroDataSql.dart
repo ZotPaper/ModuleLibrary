@@ -44,7 +44,7 @@ class ZoteroDataSql {
     recentlyOpenedAttachmentDao = RecentlyOpenedAttachmentDao(_database);
   }
 
-  final ZoteroDatabase _database = ZoteroDatabase();
+  final ZoteroDatabase _database = ZoteroDatabase.instance;
   late GroupInfoDao groupInfoDao;
   late CollectionsDao collectionsDao;
   late ItemInfoDao itemInfoDao;
