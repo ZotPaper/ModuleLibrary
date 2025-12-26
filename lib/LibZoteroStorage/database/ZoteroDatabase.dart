@@ -1,10 +1,12 @@
+import 'dart:async';
+
 import 'package:module_library/ModuleLibrary/utils/my_logger.dart';
 import 'package:sqflite/sqflite.dart';
 import 'package:path/path.dart';
 
 class ZoteroDatabase {
-  static final ZoteroDatabase _instance = ZoteroDatabase._internal();
-  factory ZoteroDatabase() => _instance;
+  static final ZoteroDatabase instance = ZoteroDatabase._internal();
+  factory ZoteroDatabase() => instance;
   ZoteroDatabase._internal() {
     MyLogger.d("Moyear=== ZoteroDatabase创建对象");
   }
@@ -12,25 +14,11 @@ class ZoteroDatabase {
   static String get databaseName => _databaseName;
   static const int _databaseVersion = 1;
   static Database? _database;
-  static Future<Database>? _initFuture;
-  
+
   Future<Database> get database async {
-    // 如果数据库已经初始化，直接返回
     if (_database != null) return _database!;
-    
-    // 如果正在初始化，等待初始化完成
-    if (_initFuture != null) {
-      return await _initFuture!;
-    }
-    
-    // 开始初始化，缓存Future避免重复初始化
-    _initFuture = _initDB();
-    try {
-      _database = await _initFuture!;
-      return _database!;
-    } finally {
-      _initFuture = null;
-    }
+    _database = await _initDB();
+    return _database!;
   }
 
   Future<Database> _initDB() async {
@@ -40,6 +28,8 @@ class ZoteroDatabase {
       path,
       version: _databaseVersion,
       onCreate: (db, version) {
+        MyLogger.d("Moyear=== openDatabase onCreate[db: $db, version: $version]");
+
         return Future.wait([
           // 创建 GroupInfo 表
         db.execute(''' 
