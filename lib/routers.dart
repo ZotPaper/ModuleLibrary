@@ -94,7 +94,7 @@ Map<String, WidgetBuilder> libraryRouters() {
   return {
     'launchPage': (context) => const LaunchPage(),
     'libraryPage': (context) => const LibraryPage(),
-    'syncingPage': (context) => const SyncPageFragment(),
+    MyRouter.PAGE_SYNCING: (context) => const SyncPageFragment(),
     'tagsManagerPage': (context) => const TagsManagerPage(),
     'itemDetailPage': (context) {
       final arguments = ModalRoute.of(context)?.settings.arguments;

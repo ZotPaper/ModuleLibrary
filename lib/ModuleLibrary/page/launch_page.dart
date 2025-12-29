@@ -8,6 +8,7 @@ import 'package:module_library/utils/webdav_configuration.dart';
 import 'package:module_base/native/native_zotero_channel.dart';
 import '../../utils/local_zotero_credential.dart';
 import '../share_pref.dart';
+import '../utils/launch_intercept_helper.dart';
 import '../utils/my_logger.dart';
 
 class LaunchPage extends StatefulWidget {
@@ -34,11 +35,34 @@ class _LaunchPageState extends State<LaunchPage> with SingleTickerProviderStateM
   @override
   Widget build(BuildContext context) {
     return Scaffold(
-        body: Container()
+        body:  Center(
+          child: Column(
+            mainAxisAlignment: MainAxisAlignment.center,
+            crossAxisAlignment: CrossAxisAlignment.center,
+            children: [
+              ConstrainedBox(
+                  constraints: const BoxConstraints(maxHeight: 300, maxWidth: 300),
+                  child: Image.asset(
+                    "assets/intro_zotpaper.webp",
+                    package: "module_library",
+                    fit: BoxFit.contain,
+                  )
+              ),
+              const SizedBox(height: 60,),
+            ],
+          ),
+        )
     );
   }
 
   Future<void> _initializeApp() async {
+    // 检查是否有外部拦截
+    final shouldProceed = await LaunchInterceptHelper.instance.intercept();
+    if (!shouldProceed) {
+      // 外部调用了 onDeny，中断 LaunchPage 流程，由外部自行处理
+      return;
+    }
+
     try {
       await SharedPref.init();
       /// 判断是否本地保存了用户信息
