@@ -246,12 +246,15 @@ class _ItemDetailTagFragmentState extends State<TagsManagerPage> {
 
     return RefreshIndicator(
       onRefresh: _refreshTags,
-      child: Column(
-        children: [
-          _buildSearchBar(),
-          _buildTagCounter(),
-          Expanded(child: _buildTagsList()),
-        ],
+      child: Container(
+        color: Colors.white,
+        child: Column(
+          children: [
+            _buildSearchBar(),
+            _buildTagCounter(),
+            Expanded(child: _buildTagsList()),
+          ],
+        ),
       ),
     );
   }
