@@ -297,6 +297,8 @@ class _LibraryPageState extends State<LibraryPage> with WidgetsBindingObserver, 
       if (failedItemsWithErrors.isEmpty) {
         // 全部成功
         BrnToast.show('所有附件上传成功！', context);
+        // 这里再次检查是为了让顶部的那个修改弹窗消失
+        _viewModel.checkModifiedAttachments();
 
         var isZotero = ZoteroAttachDownloaderHelper.instance.transfer is ZoteroAttachmentTransfer;
 
