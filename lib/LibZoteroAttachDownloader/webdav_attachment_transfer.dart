@@ -232,7 +232,7 @@ class WebDAVAttachmentTransfer implements IAttachmentTransfer {
       final archive = ZipDecoder().decodeBytes(bytes);
 
       if (archive.files.isEmpty) {
-        throw ZipException('ZIP文件为空');
+        throw ZipException('文件不存在或已损坏');
       }
 
       // 获取目标附件目录
