@@ -568,7 +568,7 @@ class ZoteroDB {
       }
     }
 
-    return true;
+    return false;
   }
 
   String getMd5Key(Item item, {bool onlyWebdav = false}) {
