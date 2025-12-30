@@ -224,6 +224,7 @@ class WebDAVAttachmentTransfer implements IAttachmentTransfer {
   }
 
   /// 解压ZIP文件到最终位置
+  /// 遍历ZIP中的所有文件和目录并解压到目标目录
   Future<void> _extractZipFile(File zipFile, Item item) async {
     try {
       // 读取ZIP文件内容
@@ -234,38 +235,85 @@ class WebDAVAttachmentTransfer implements IAttachmentTransfer {
         throw ZipException('ZIP文件为空');
       }
 
-      // 获取第一个文件（Zotero附件通常只包含一个文件）
-      final archiveFile = archive.files.firstWhere(
-        (file) => file.isFile,
-        orElse: () => throw Exception('ZIP文件中没有找到有效的附件文件'),
-      );
-
-      final originalFilename = archiveFile.name;
-
-      // 创建最终的附件文件路径
+      // 获取目标附件目录
       final attachmentDir = p.dirname(
           (await attachmentStorageManager.getItemOutputStream(item)).path);
-      final finalFile = File(p.join(attachmentDir, originalFilename));
 
-      // 确保目录存在
-      await finalFile.parent.create(recursive: true);
+      // 确保根目录存在
+      await Directory(attachmentDir).create(recursive: true);
 
-      // 解压文件内容
-      final fileContent = archiveFile.content;
-      await finalFile.writeAsBytes(fileContent);
+      // 获取期望的主附件文件名（用于 attachmentExists 检查）
+      final expectedFilename = await attachmentStorageManager.getFilenameForItem(item);
+      final expectedExtension = p.extension(expectedFilename).toLowerCase();
 
-      // 验证解压后的文件
-      if (!await finalFile.exists()) {
-        throw ZipException('解压后的文件未能正确创建');
+      int extractedFileCount = 0;
+      int extractedDirCount = 0;
+      int totalSize = 0;
+
+      // 遍历所有条目（包括目录和文件）
+      for (final archiveEntry in archive.files) {
+        final originalPath = archiveEntry.name;
+
+        if (archiveEntry.isFile) {
+          // 处理文件
+          String targetPath = originalPath;
+
+          // 获取文件名（不含路径）
+          final originalFilename = p.basename(originalPath);
+          final originalExtension = p.extension(originalFilename).toLowerCase();
+
+          // 如果这是主附件文件（扩展名匹配且在根目录），使用期望的文件名
+          // 这样可以确保 attachmentExists 能够正确检测到文件
+          if (originalExtension == expectedExtension && !originalPath.contains('/')) {
+            targetPath = expectedFilename;
+            if (kDebugMode) {
+              MyLogger.d('主附件文件: $originalPath -> $targetPath');
+            }
+          }
+
+          final finalFile = File(p.join(attachmentDir, targetPath));
+
+          // 确保文件的父目录存在
+          await finalFile.parent.create(recursive: true);
+
+          // 解压文件内容
+          final fileContent = archiveEntry.content;
+          await finalFile.writeAsBytes(fileContent);
+
+          // 验证解压后的文件
+          if (!await finalFile.exists()) {
+            throw ZipException('解压后的文件未能正确创建: $targetPath');
+          }
+
+          final extractedSize = await finalFile.length();
+          if (extractedSize == 0 && archiveEntry.size > 0) {
+            throw ZipException('解压后的文件大小为0: $targetPath');
+          }
+
+          extractedFileCount++;
+          totalSize += extractedSize;
+
+          if (kDebugMode) {
+            MyLogger.d('解压文件: $targetPath ($extractedSize bytes)');
+          }
+        } else {
+          // 处理目录：创建目录结构
+          final targetDir = Directory(p.join(attachmentDir, originalPath));
+          await targetDir.create(recursive: true);
+          extractedDirCount++;
+
+          if (kDebugMode) {
+            MyLogger.d('创建目录: $originalPath');
+          }
+        }
       }
 
-      final extractedSize = await finalFile.length();
-      if (extractedSize == 0) {
-        throw ZipException('解压后的文件大小为0');
+      if (extractedFileCount == 0) {
+        throw ZipException('ZIP文件中没有找到有效的附件文件');
       }
 
       if (kDebugMode) {
-        MyLogger.d('成功解压附件: $originalFilename ($extractedSize bytes)');
+        MyLogger.d('成功解压附件: 共 $extractedFileCount 个文件, $extractedDirCount 个目录, 总大小 $totalSize bytes');
       }
     } catch (e) {
       rethrow;
