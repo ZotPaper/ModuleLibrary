@@ -218,9 +218,6 @@ class _LibraryPageState extends State<LibraryPage> with WidgetsBindingObserver, 
           });
 
           Navigator.of(dialogContext).pop();
-          
-          // 清除修改标记，用户选择不上传
-          // _viewModel.clearModifiedAttachmentsMarks(attachments);
         },
     );
   }
@@ -257,6 +254,8 @@ class _LibraryPageState extends State<LibraryPage> with WidgetsBindingObserver, 
           
           successCount++;
           MyLogger.d('附件上传成功: ${item.getTitle()}');
+
+          // todo 更新本地附件的md5码信息
 
           // 附件上传成功 日志与埋点上报
           ModuleLibraryLogHelper.attachmentTransfer.logUploadSuccess(item);

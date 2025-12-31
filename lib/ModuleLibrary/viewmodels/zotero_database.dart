@@ -586,20 +586,28 @@ class ZoteroDB {
       return null;
     }
 
-    final attachmentInfoEntry = attachmentInfo![item.itemKey];
-    if (attachmentInfoEntry == null) {
-      final md5Key = item.data['md5'];
-      if (md5Key != null) {
-        return md5Key;
-      }
-      MyLogger.d('No metadata available for ${item.itemKey}');
-      return null;
-    }
+    // todo 确定从这里获取md5有问题嘛
+    /// 获取附件条目md5的逻辑：
+    /// 1. 从内存中的attachmentInfo中获取附件条目的md5值（从AttachmentInfo表中读取，但是当前逻辑中该表永远没有值）,如果不为空直接返回;
+    /// 2. 如果前一步为空，则从item.data中获取md5值；
+    /// 3. 如果都为为空，则返回null
+    // final attachmentInfoEntry = attachmentInfo![item.itemKey];
+    // if (attachmentInfoEntry != null) {
+    //   return attachmentInfoEntry.md5Key;
+    // }
 
-    return attachmentInfoEntry.md5Key;
+    final md5Key = item.data['md5'];
+    if (md5Key != null) {
+      return md5Key;
+    }
+    MyLogger.d('No metadata available for ${item.itemKey}');
+    return null;
+
+    return null;
   }
 
   /// 更新附件元数据
+  /// 注意：上传附件成功后，必须要更新本地附件的元数据，否则可能造成zotero附件数据错乱
   Future<void> updateAttachmentMetadata({
     required String itemKey,
     required String md5Key,
@@ -607,21 +615,68 @@ class ZoteroDB {
     String downloadedFrom = AttachmentInfo.UNSET,
     int groupID = -1,
   }) async {
-    final attachmentInfoObj = AttachmentInfo(
-      itemKey: itemKey,
-      md5Key: md5Key,
-      mtime: mtime,
-      downloadedFrom: downloadedFrom,
-    );
+    // // todo 因为attachmentInfo这个表目前都没有存数据，所有下面的逻辑实际上是无效的
+    // final attachmentInfoObj = AttachmentInfo(
+    //   itemKey: itemKey,
+    //   md5Key: md5Key,
+    //   mtime: mtime,
+    //   downloadedFrom: downloadedFrom,
+    // );
+    // attachmentInfo?[itemKey] = attachmentInfoObj;
+    //
+    // // 写入数据库
+    // await _zoteroDataSql.attachmentInfoDao.updateAttachment(attachmentInfoObj);
 
     // 日志输出
     MyLogger.d('zotero: adding metadata for $itemKey, $md5Key - $downloadedFrom');
 
     // 更新附件信息
-    attachmentInfo?[itemKey] = attachmentInfoObj;
+    // todo 这里不仅仅更新attachmentInfo，而是要更新内存中保存的附件md5值以及数据库中的MD5值
 
-    // 写入数据库
-    await _zoteroDataSql.attachmentInfoDao.updateAttachment(attachmentInfoObj);
+    final attachmentItem = getItemByKey(itemKey);
+    if (attachmentItem == null) {
+      MyLogger.d("Moyear=== updateAttachmentMetadata失败：找不到attachmentItem[itemKey: $itemKey]");
+      return;
+    }
+
+    /// 更新附件的条目数据信息
+    /// 比如：附件的md5、mtime、version
+    /// 注意：这里面每次调用都会先查询之前的版本version，然后自动+1
+
+    /// todo 更新内存里面的md5值,mtime,version
+    attachmentItem.data['md5'] = md5Key;
+    attachmentItem.data['mtime'] = mtime.toString();
+
+    // todo 更新本地数据库ItemData的附件信息(md5、mtime、version)
+    var data = await _zoteroDataSql.itemDataDao.getItemDataForParent(itemKey);
+    for (var itemData in data) {
+      var needUpdate = false;
+      var newValue = "";
+
+      if (itemData.name == 'md5') {
+        needUpdate = true;
+        newValue = md5Key;
+      } else if (itemData.name == 'mtime') {
+        needUpdate = true;
+        newValue = mtime.toString();
+      } else if (itemData.name == 'version') {
+        needUpdate = true;
+        newValue = (int.parse(itemData.value) + 1).toString();
+      }
+
+      if (needUpdate) {
+        final newItemData = ItemData(
+          id: itemData.id,
+          parent: itemKey,
+          name: itemData.name,
+          value: newValue,
+          valueType: itemData.valueType,
+        );
+        await _zoteroDataSql.itemDataDao.updateItemData(newItemData);
+        MyLogger.d("Moyear=== 更新数据库中的ItemData[itemKey: $itemKey， name: ${itemData.name}，value: $newValue]");
+      }
+
+    }
   }
 
   void dispose() {
