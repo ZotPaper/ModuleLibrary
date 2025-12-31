@@ -546,35 +546,44 @@ class ZoteroDB {
   }
 
   Future<bool> isAttachmentModified(RecentlyOpenedAttachment attachment) async {
-    final item = getItemByKey(attachment.itemKey);
-    if (item != null) {
-      try {
-        final md5Key = getMd5Key(item);
-
-        if (md5Key != "" && !(await attachmentStorageManager.validateMd5ForItem(item, md5Key))) {
-          // 只过滤出本地存在的附件
-          var isExist = await attachmentStorageManager.attachmentExists(item);
-          if (isExist) {
-            return true;
-          } else {
-            MyLogger.d("AttachmentItem[itemKey: ${item.itemKey} name: ${item.getTitle()}] filtered for not existing, ");
-            return false;
-          }
-        } else {
-         return false;
-        }
-      } catch (e) {
-        MyLogger.e("zotero: validateMd5 got error $e");
-      }
+    final attachmentItem = getItemByKey(attachment.itemKey);
+    if (attachmentItem == null) {
+      return false;
     }
 
-    return false;
+    var isExist = await attachmentStorageManager.attachmentExists(attachmentItem);
+    if (!isExist) {
+      return false;
+    }
+
+    /// 本地附件是否发生改变的检查逻辑
+    /// 1. 获取数据库里面记录的附件md5值
+    /// 2. 计算本地的当前附件的md5值
+    /// 3. 如果两个值都为有效md5,且不相等，则认为附件被修改
+    /// 4. todo 确定一下：如果数据库里面没有记录的md5值，但是本地附件md5有效，该如何处理
+    var isModified = false;
+
+    final md5KeyInDB = getMd5KeyInDB(attachmentItem) ?? "";
+    String? calculatedMd5;
+    try {
+      calculatedMd5 = await attachmentStorageManager.calculateAttachItemMD5(attachmentItem);
+    } catch (e) {
+      MyLogger.e("zotero: validateMd5 got error $e");
+    }
+
+    MyLogger.d("Moyear=== MD5InDB: ${md5KeyInDB} calculatedMD5: $calculatedMd5");
+
+    if (md5KeyInDB.isNotEmpty && calculatedMd5?.isNotEmpty == true && md5KeyInDB != calculatedMd5) {
+      isModified = true;
+    }
+    return isModified;
   }
 
-  String getMd5Key(Item item, {bool onlyWebdav = false}) {
+  /// 获取数据库里面记录的附件md5值
+  String? getMd5KeyInDB(Item item, {bool onlyWebdav = false}) {
     if (attachmentInfo == null) {
-      debugPrint('error attachment metadata isn\'t loaded');
-      return '';
+      MyLogger.d('error attachment metadata isn\'t loaded');
+      return null;
     }
 
     final attachmentInfoEntry = attachmentInfo![item.itemKey];
@@ -583,8 +592,8 @@ class ZoteroDB {
       if (md5Key != null) {
         return md5Key;
       }
-      debugPrint('No metadata available for ${item.itemKey}');
-      return '';
+      MyLogger.d('No metadata available for ${item.itemKey}');
+      return null;
     }
 
     return attachmentInfoEntry.md5Key;
