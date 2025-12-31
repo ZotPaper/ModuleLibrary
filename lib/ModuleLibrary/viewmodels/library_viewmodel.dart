@@ -1180,9 +1180,19 @@ class LibraryViewModel with ChangeNotifier {
     }
   }
 
+  bool _isCheckingModifiedAttachments = false;
+
   // 检查已下载的附件是否被修改
   Future<void> checkModifiedAttachments() async {
+    if (_isCheckingModifiedAttachments) {
+      MyLogger.d('Moyear=== 正在检查附件是否被修改，请稍后...');
+      return;
+    }
+
     MyLogger.d('Moyear=== 检查打开过的附件是否被修改');
+
+    /// 是否正在检查附件是否被修改
+    _isCheckingModifiedAttachments = true;
 
     final recentlyOpenedAttachments = await zoteroDB.getRecentlyOpenedAttachments();
     MyLogger.d('Moyear=== 开过的附件数量：${recentlyOpenedAttachments.length}');
@@ -1199,21 +1209,21 @@ class LibraryViewModel with ChangeNotifier {
 
     MyLogger.d('Moyear=== 修改的附件数量：${modifiedAttachments.length}');
 
+    List<Item> modifiedItems = [];
     if (modifiedAttachments.isNotEmpty) {
       // 获取修改的附件详细信息
-      List<Item> modifiedItems = [];
       for (var attachment in modifiedAttachments) {
         final item = zoteroDB.getItemByKey(attachment.itemKey);
         if (item != null) {
           modifiedItems.add(item);
         }
       }
-
-      if (modifiedItems.isNotEmpty && onModifiedAttachmentsFound != null) {
-        // 通过回调通知UI层显示对话框
-        onModifiedAttachmentsFound!(modifiedItems, modifiedAttachments);
-      }
     }
+
+    // 回调检测到的修改的附件
+    // 这里即使没有检测到要修改的附件，也需要将结果回调出去，通知UI层关闭提示栏
+    onModifiedAttachmentsFound?.call(modifiedItems, modifiedAttachments);
+    _isCheckingModifiedAttachments = false;
   }
 
   // 添加回调函数类型定义
@@ -1223,50 +1233,6 @@ class LibraryViewModel with ChangeNotifier {
   void setOnModifiedAttachmentsFoundCallback(Function(List<Item>, List<RecentlyOpenedAttachment>)? callback) {
     onModifiedAttachmentsFound = callback;
   }
-
-  // /// 开始上传修改的附件（纯数据处理，不涉及UI）
-  // Future<UploadResult> uploadModifiedAttachments(List<Item> modifiedItems, List<RecentlyOpenedAttachment> attachments) async {
-  //   try {
-  //     int successCount = 0;
-  //     int totalCount = modifiedItems.length;
-  //     List<String> failedItems = [];
-  //
-  //     for (int i = 0; i < modifiedItems.length; i++) {
-  //       final item = modifiedItems[i];
-  //       try {
-  //         await _uploadAttachment(item);
-  //         successCount++;
-  //         MyLogger.d('附件上传成功: ${item.getTitle()}');
-  //
-  //         ModuleLibraryLogHelper.attachmentTransfer.logUploadSuccess(item);
-  //
-  //         // 从最近打开的附件列表中移除，这样下次就不会再检测到修改
-  //         await zoteroDB.removeRecentlyOpenedAttachment(item.itemKey);
-  //       } catch (e) {
-  //         MyLogger.e('附件上传失败: ${item.getTitle()}, 错误: $e');
-  //         failedItems.add(item.getTitle());
-  //       }
-  //     }
-  //
-  //     // // 清除修改标记
-  //     // await _clearModifiedAttachmentsMarks(attachments);
-  //
-  //     return UploadResult(
-  //       successCount: successCount,
-  //       totalCount: totalCount,
-  //       failedItems: failedItems,
-  //     );
-  //
-  //   } catch (e) {
-  //     MyLogger.e('上传附件时发生错误: $e');
-  //     return UploadResult(
-  //       successCount: 0,
-  //       totalCount: modifiedItems.length,
-  //       failedItems: modifiedItems.map((item) => item.getTitle()).toList(),
-  //       error: e.toString(),
-  //     );
-  //   }
-  // }
 
   /// 上传单个附件（公开方法，供UI层调用）
   Future<void> uploadSingleAttachment(Item item) async {
