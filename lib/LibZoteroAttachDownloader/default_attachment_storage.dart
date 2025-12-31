@@ -256,6 +256,16 @@ class DefaultAttachmentStorage implements IAttachmentStorage {
     return calculatedMd5 == md5key;
   }
 
+  /// 获取附件条目的MD5
+  /// 如果传入的不是附件条目，则返回null
+  Future<String?> calculateAttachItemMD5(Item attachment) async {
+    if (attachment.itemType != Item.ATTACHMENT_TYPE) {
+      return null;
+    }
+    final calculatedMd5 = await calculateMd5(attachment);
+    return calculatedMd5;
+  }
+
   void setOpenPDFWithExternalApp(bool enable) {
     _isOpenPdfExternalReader = enable;
     _onPdfReaderChangeCallback?.call(enable);

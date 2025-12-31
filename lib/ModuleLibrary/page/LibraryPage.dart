@@ -74,9 +74,6 @@ class _LibraryPageState extends State<LibraryPage> with WidgetsBindingObserver, 
     final bool isTablet = DeviceUtils.shouldShowFixedDrawer(context);
     return isTablet ? _tabletRefreshController : _phoneRefreshController;
   }
-  
-  // 对话框显示标志位，防止重复显示
-  bool _isModifiedAttachmentsDialogShowing = false;
 
   StreamSubscription? _subscription;
 
@@ -113,7 +110,7 @@ class _LibraryPageState extends State<LibraryPage> with WidgetsBindingObserver, 
 
     // 监听检查附件变更事件
     _subscription = eventBus.on<EventCheckAttachmentModification>().listen((event) {
-      MyLogger.d("Moyear=== 收到监听检查附件变更事件");
+      MyLogger.d("Moyear=== eventbus checkModifiedAttachments()");
 
       // 延迟执行操作
       Future.delayed(const Duration(seconds: 1), () {
@@ -154,7 +151,12 @@ class _LibraryPageState extends State<LibraryPage> with WidgetsBindingObserver, 
     setState(() {
       _modifiedItems = modifiedItems;
       _modifiedAttachments = attachments;
-      _showModifiedBanner = true;
+
+      MyLogger.d("Moyear=== modifiedItems数量：${_modifiedItems?.length} RecentlyOpenedAttachment数量：${_modifiedAttachments?.length}");
+
+      // 判断是否显示提示栏
+      final shouldShow = _modifiedItems?.isNotEmpty == true && _modifiedItems?.isNotEmpty == true;
+      _showModifiedBanner = shouldShow;
     });
   }
 
@@ -179,14 +181,6 @@ class _LibraryPageState extends State<LibraryPage> with WidgetsBindingObserver, 
   /// 显示修改的附件对话框
   void _showModifiedAttachmentsDialog(List<Item> modifiedItems, List<RecentlyOpenedAttachment> attachments) {
     MyLogger.d("Moyear=== 显示修改的附件对话框");
-    // 检查对话框是否已经在显示中，避免重复显示
-    // if (_isModifiedAttachmentsDialogShowing) {
-    //   MyLogger.d('Moyear=== 修改附件对话框已经在显示中，跳过重复显示');
-    //   return;
-    // }
-    
-    // 设置标志位，表示对话框正在显示
-    _isModifiedAttachmentsDialogShowing = true;
     
     final strModified = modifiedItems.map((item) => "\<font color = '#8ac6d1'\>${ item.getTitle()}</font>" ).join(', ');
 
@@ -204,9 +198,6 @@ class _LibraryPageState extends State<LibraryPage> with WidgetsBindingObserver, 
         ),),
         showIcon: true,
         onConfirm: (BuildContext dialogContext) {
-          // 重置标志位，允许下次显示对话框
-          _isModifiedAttachmentsDialogShowing = false;
-          
           // 隐藏提示栏
           setState(() {
             _showModifiedBanner = false;
@@ -216,20 +207,17 @@ class _LibraryPageState extends State<LibraryPage> with WidgetsBindingObserver, 
 
           // 开始上传修改的附件（会显示进度对话框）
           _startUploadModifiedAttachments(modifiedItems, attachments);
+
+          // 关闭附件改变提示栏
+          _dismissModifiedBanner();
         },
         onCancel: (BuildContext dialogContext) {
-          // 重置标志位，允许下次显示对话框
-          _isModifiedAttachmentsDialogShowing = false;
-          
           // 隐藏提示栏并清除修改标记
           setState(() {
             _showModifiedBanner = false;
           });
 
           Navigator.of(dialogContext).pop();
-          
-          // 清除修改标记，用户选择不上传
-          // _viewModel.clearModifiedAttachmentsMarks(attachments);
         },
     );
   }
@@ -267,6 +255,8 @@ class _LibraryPageState extends State<LibraryPage> with WidgetsBindingObserver, 
           successCount++;
           MyLogger.d('附件上传成功: ${item.getTitle()}');
 
+          // todo 更新本地附件的md5码信息
+
           // 附件上传成功 日志与埋点上报
           ModuleLibraryLogHelper.attachmentTransfer.logUploadSuccess(item);
           
@@ -298,7 +288,7 @@ class _LibraryPageState extends State<LibraryPage> with WidgetsBindingObserver, 
         // 全部成功
         BrnToast.show('所有附件上传成功！', context);
         // 这里再次检查是为了让顶部的那个修改弹窗消失
-        _viewModel.checkModifiedAttachments();
+        // _viewModel.checkModifiedAttachments();
 
         var isZotero = ZoteroAttachDownloaderHelper.instance.transfer is ZoteroAttachmentTransfer;
 
@@ -370,7 +360,7 @@ class _LibraryPageState extends State<LibraryPage> with WidgetsBindingObserver, 
   @override
   void didChangeAppLifecycleState(AppLifecycleState state) {
     if (state == AppLifecycleState.resumed) {
-      MyLogger.d("Moyear=== 应用从后台返回前台时检查修改的附件");
+      MyLogger.d("Moyear=== didChangeAppLifecycleState resume checkModifiedAttachments()");
       // 应用从后台返回前台时检查修改的附件
       _viewModel.checkModifiedAttachments();
     }
@@ -381,7 +371,7 @@ class _LibraryPageState extends State<LibraryPage> with WidgetsBindingObserver, 
     // 每次从其他页面返回时检查修改的附件
     super.didPopNext();
     _viewModel.checkModifiedAttachments();
-    MyLogger.d("Moyear=== 从其他页面返回时检查修改的附件");
+    MyLogger.d("Moyear=== didPopNext checkModifiedAttachments()");
   }
 
   @override
