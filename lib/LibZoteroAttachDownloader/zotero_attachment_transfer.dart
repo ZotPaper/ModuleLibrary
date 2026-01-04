@@ -7,6 +7,8 @@ import 'package:module_library/ModuleLibrary/utils/my_logger.dart';
 import '../LibZoteroStorage/entity/Item.dart';
 import 'package:pretty_dio_logger/pretty_dio_logger.dart';
 
+import 'bean/network/general_result.dart';
+
 // 定义异常类
 class AlreadyUploadedException implements Exception {
   final String message;
@@ -120,7 +122,7 @@ abstract class IAttachmentTransfer {
   String getTransferType();
   IAttachmentStorage getAttachmentStorage();
   Stream<DownloadProgress> downloadItemRx(Item item, {int groupId = -1});
-  Future<void> updateAttachment(Item attachment);
+  Future<CustomResult> updateAttachment(Item attachment);
 }
 
 class ZoteroAttachmentTransfer implements IAttachmentTransfer {
@@ -232,7 +234,7 @@ class ZoteroAttachmentTransfer implements IAttachmentTransfer {
   }
 
   @override
-  Future<void> updateAttachment(Item attachment) async {
+  Future<CustomResult> updateAttachment(Item attachment) async {
     final attachmentUri = await attachmentStorageManager.getAttachmentUri(attachment);
     var oldMd5 = attachment.getMd5Key();
     if (oldMd5.isEmpty) {
@@ -262,6 +264,8 @@ class ZoteroAttachmentTransfer implements IAttachmentTransfer {
     } catch (e) {
       rethrow;
     }
+
+    return CustomResult.success(null);
   }
 
   Future<ZoteroUploadAuthorizationPojo> _getUploadAuthorization(

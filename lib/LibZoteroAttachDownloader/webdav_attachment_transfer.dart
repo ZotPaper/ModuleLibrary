@@ -1,9 +1,8 @@
 import 'dart:async';
 import 'dart:io';
-import 'dart:math' as math;
 import 'package:archive/archive.dart';
 import 'package:flutter/foundation.dart';
-import 'package:module_base/utils/log/app_log_event.dart';
+import 'package:module_library/LibZoteroAttachDownloader/bean/attachment/metadata_result.dart';
 import 'package:module_library/LibZoteroAttachDownloader/bean/exception/zotero_upload_exception.dart';
 import 'package:module_library/LibZoteroAttachDownloader/zotero_attachment_transfer.dart';
 import 'package:module_library/LibZoteroStorage/entity/Item.dart';
@@ -13,6 +12,8 @@ import 'package:path/path.dart' as p;
 
 import 'bean/exception/zotero_download_exception.dart';
 import 'package:dio/dio.dart';
+
+import 'bean/network/general_result.dart';
 
 /// WebDAV属性文件内容
 class WebdavProp {
@@ -321,32 +322,24 @@ class WebDAVAttachmentTransfer implements IAttachmentTransfer {
   }
 
   @override
-  Future<void> updateAttachment(Item attachment) async {
-    try {
-      final itemKey = attachment.itemKey.toUpperCase();
+  Future<CustomResult> updateAttachment(Item attachment) async {
+    final itemKey = attachment.itemKey;
+    // todo 上传附件前，先检查附件的元数据信息
+    final metaPropPath = '$_baseAddress/${itemKey}.prop';
 
-      // 1. 创建ZIP文件
-      final zipFile = await _createZipFile(attachment);
+    final hash = await attachmentStorageManager.calculateMd5(attachment);
+    final mtime = int.tryParse(attachment.data['mtime'] ?? '0') ?? 0;
 
-      // 2. 创建.prop文件
-      final propFile = await _createPropFile(attachment);
+    final checkMetaRes = await checkMetadata(attachment.itemKey, mtime, hash, metaPropPath);
 
-      // 3. 上传临时文件到WebDAV
-      await _uploadFiles(itemKey, zipFile, propFile);
-
-      // 4. 删除和重命名文件
-      await _finalizeUpload(itemKey);
-
-      // 5. 清理临时文件
-      await zipFile.delete();
-      await propFile.delete();
-    } catch (e) {
-      if (e is UploadException) {
-        rethrow;
-      } else {
-        throw UploadException(message: 'Upload failed: $e', errorType: ErrorType.unknown);
-      }
+    if (checkMetaRes is CustomResultError) {
+      return checkMetaRes;
     }
+    // todo 根据元数据结果执行不同的操作
+
+    _doUpload(attachment);
+
+    return CustomResult.success(null);
   }
 
   /// 创建ZIP文件
@@ -503,8 +496,113 @@ class WebDAVAttachmentTransfer implements IAttachmentTransfer {
     return attachmentStorageManager;
   }
 
+
+  /// 检查附件元数据
+  Future<CustomResult<MetadataResult>> checkMetadata(
+      String key,
+      int mtime,
+      String hash,
+      String url) async {
+    final metadataResult = await metadata(key, url);
+
+    if (metadataResult is CustomResultError) {
+      return CustomResult.error(metadataResult.value.toString(), httpCode: metadataResult.httpCode);
+    }
+
+    final metadataResultValue = (metadataResult as CustomResultSuccess).value;
+
+    if (metadataResultValue == null) {
+      return CustomResultSuccess(New(url));
+    }
+
+    final remoteMtime = metadataResultValue[0];
+    final remoteHash = String.fromCharCodes(metadataResultValue[1]);
+
+    if (hash == remoteHash) {
+      if (mtime == remoteMtime) {
+        return CustomResultSuccess(const Unchanged());
+      } else {
+        return CustomResultSuccess(MtimeChanged(remoteMtime));
+      }
+    } else {
+      return CustomResultSuccess(Changed(url));
+    }
+  }
+
+  /// 获取指定文件的元数据
+  ///
+  /// [key] - 文件的唯一标识符
+  /// [url] - WebDAV 服务器的基础 URL
+  ///
+  /// 返回包含远程文件的 mtime 和 hash 的 [CustomResult] 对象，如果文件不存在则返回 null
+  Future<CustomResult<List<dynamic>?>> metadata(
+      String key,
+      String url,
+      ) async {
+    MyLogger.i('WebDavController: fetch metadata for $key from $url');
+
+    try {
+      // 获取meta元数据信息
+      final networkResultBytes = await client.read(url);
+      final propContents = String.fromCharCodes(networkResultBytes);
+      MyLogger.d('WebDAVTransfer: $key item prop file contents: $propContents');
+      final parsedResult = parseMtimeAndHash(propContents);
+
+      if (parsedResult != null) {
+        // parsedResult[0] 是 mtime (int), parsedResult[1] 是 hash (String)
+        return CustomResult.success(parsedResult);
+      } else {
+        MyLogger.e('WebDAVTransfer: $key item prop invalid. input = $propContents');
+        return CustomResult.error('Invalid prop file content for $key');
+      }
+    } catch (e) {
+      MyLogger.e('WebDAVTransfer: $key item prop file error: $e');
+      return CustomResult.error('Network error: $e');
+    }
+  }
+
+  /// 解析mtime和hash的辅助方法
+  List<dynamic>? parseMtimeAndHash(String propContents) {
+    try {
+      final mtime = WebdavProp._extractMtime(propContents);
+      final hash = WebdavProp._extractHash(propContents);
+      return [mtime, hash.codeUnits]; // hash转换为字节列表
+    } catch (e) {
+      MyLogger.e('Failed to parse prop file: $e');
+      return null;
+    }
+  }
+
   @override
   String getTransferType() {
     return "WebDAV";
+  }
+
+  Future<void> _doUpload(Item attachment) async {
+    final itemKey = attachment.itemKey;
+    try {
+      // 1. 创建ZIP文件
+      final zipFile = await _createZipFile(attachment);
+
+      // 2. 创建.prop文件
+      final propFile = await _createPropFile(attachment);
+
+      // 3. 上传临时文件到WebDAV
+      await _uploadFiles(itemKey, zipFile, propFile);
+
+      // 4. 删除和重命名文件
+      await _finalizeUpload(itemKey);
+
+      // 5. 清理临时文件
+      await zipFile.delete();
+      await propFile.delete();
+    } catch (e) {
+      if (e is UploadException) {
+        rethrow;
+      } else {
+        throw UploadException(message: 'Upload failed: $e', errorType: ErrorType.unknown);
+      }
+    }
+
   }
 }
