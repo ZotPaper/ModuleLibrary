@@ -283,7 +283,8 @@ class _LibraryPageState extends State<LibraryPage> with WidgetsBindingObserver, 
 
       // 显示结果
       if (!mounted) return;
-      
+
+      var needRefresh = false;
       if (failedItemsWithErrors.isEmpty) {
         // 全部成功
         BrnToast.show('所有附件上传成功！', context);
@@ -299,6 +300,7 @@ class _LibraryPageState extends State<LibraryPage> with WidgetsBindingObserver, 
             .addParam("service", isZotero ? "Zotero" : "WEBDAV")
             .report();
 
+        needRefresh = true;
       } else if (successCount > 0) {
         // 部分成功 - 显示详细错误信息
         AttachmentTransferDialogManager.showUploadErrorInfo(
@@ -307,6 +309,7 @@ class _LibraryPageState extends State<LibraryPage> with WidgetsBindingObserver, 
           totalCount: totalCount,
           failedItems: failedItemsWithErrors,
         );
+        needRefresh = true;
       } else {
         // 全部失败 - 显示详细错误信息
         AttachmentTransferDialogManager.showUploadErrorInfo(
@@ -316,10 +319,10 @@ class _LibraryPageState extends State<LibraryPage> with WidgetsBindingObserver, 
           failedItems: failedItemsWithErrors,
         );
       }
-
-      // 上传附件后，无论成功或者失败都会自动执行与服务器同步操作
-      _currentRefreshController.requestRefresh();
-
+      if (needRefresh) {
+        // 有上传成功的附件，会自动执行与服务器同步操作
+        _currentRefreshController.requestRefresh();
+      }
     } catch (e) {
       MyLogger.e('上传附件时发生错误: $e');
       // 清除所有上传状态
