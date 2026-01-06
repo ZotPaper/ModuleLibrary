@@ -337,7 +337,7 @@ class WebDAVAttachmentTransfer implements IAttachmentTransfer {
     }
     // todo 根据元数据结果执行不同的操作
 
-    _doUpload(attachment);
+    await _doUpload(attachment);
 
     return CustomResult.success(null);
   }
@@ -432,14 +432,35 @@ class WebDAVAttachmentTransfer implements IAttachmentTransfer {
     return propFile;
   }
 
-  /// 上传文件到WebDAV
-  Future<void> _uploadFiles(String itemKey, File zipFile, File propFile) async {
-    final newZipPath = '$_baseAddress/${itemKey}_NEW.zip';
+  /// 上传prop属性文件到WebDAV
+  Future<void> _uploadPropFile(String itemKey, File propFile) async {
     final newPropPath = '$_baseAddress/${itemKey}_NEW.prop';
 
     // 删除可能存在的旧的_NEW文件
     try {
       await client.remove(newPropPath);
+    } catch (e) {
+      // 忽略错误，文件可能不存在
+    }
+
+    MyLogger.d("准备上传新的文件到webdav: ${propFile.path} -> $newPropPath");
+
+    // 上传新文件
+    final propBytes = await propFile.readAsBytes();
+
+    try {
+      await client.write(newPropPath, Uint8List.fromList(propBytes));
+    } catch (e) {
+      MyLogger.e("上传新的文件[${newPropPath}]到webdav发生错误：$e");
+    }
+  }
+
+
+  Future<void> _uploadZipFile(String itemKey, File zipFile) async {
+    final newZipPath = '$_baseAddress/${itemKey}_NEW.zip';
+
+    // 删除可能存在的旧的_NEW文件
+    try {
       await client.remove(newZipPath);
     } catch (e) {
       // 忽略错误，文件可能不存在
@@ -448,14 +469,7 @@ class WebDAVAttachmentTransfer implements IAttachmentTransfer {
     MyLogger.d("准备上传新的文件到webdav: ${zipFile.path} -> $newZipPath");
 
     // 上传新文件
-    final propBytes = await propFile.readAsBytes();
     final zipBytes = await zipFile.readAsBytes();
-
-    try {
-      await client.write(newPropPath, Uint8List.fromList(propBytes));
-    } catch (e) {
-      MyLogger.e("上传新的文件[${newPropPath}]到webdav发生错误：$e");
-    }
 
     try {
       await client.write(newZipPath, Uint8List.fromList(zipBytes));
@@ -463,6 +477,7 @@ class WebDAVAttachmentTransfer implements IAttachmentTransfer {
       MyLogger.e("上传新的文件[${newZipPath}]到webdav发生错误：$e");
     }
   }
+
 
   /// 完成上传：删除旧文件并重命名新文件
   Future<void> _finalizeUpload(String itemKey) async {
@@ -474,7 +489,9 @@ class WebDAVAttachmentTransfer implements IAttachmentTransfer {
     // 删除旧文件
     try {
       await client.remove(propPath);
+      MyLogger.d("delete old prop file in webdav: $propPath");
       await client.remove(zipPath);
+      MyLogger.d("delete old zip file in webdav: $zipPath");
     } catch (e) {
       // 如果旧文件不存在，忽略错误
     }
@@ -581,14 +598,17 @@ class WebDAVAttachmentTransfer implements IAttachmentTransfer {
   Future<void> _doUpload(Item attachment) async {
     final itemKey = attachment.itemKey;
     try {
+      // todo 这里的操作要保持原子性？？
+
       // 1. 创建ZIP文件
       final zipFile = await _createZipFile(attachment);
 
       // 2. 创建.prop文件
       final propFile = await _createPropFile(attachment);
 
-      // 3. 上传临时文件到WebDAV
-      await _uploadFiles(itemKey, zipFile, propFile);
+      // 3. 上传临时文件（到WebDAV
+      await _uploadPropFile(itemKey, propFile);
+      await _uploadZipFile(itemKey, zipFile);
 
       // 4. 删除和重命名文件
       await _finalizeUpload(itemKey);

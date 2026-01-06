@@ -7,7 +7,6 @@ import 'package:flutter/material.dart';
 import 'package:module_base/utils/web/web_url_launcher.dart';
 import 'package:module_base/view/toast/neat_toast.dart';
 import 'package:module_library/LibZoteroApi/Model/ZoteroSettingsResponse.dart';
-import 'package:module_library/LibZoteroAttachDownloader/model/upload_attachment.dart';
 import 'package:module_library/LibZoteroAttachDownloader/native/attachment_native_channel.dart';
 import 'package:module_library/LibZoteroAttachDownloader/webdav_attachment_transfer.dart';
 import 'package:module_library/LibZoteroAttachDownloader/zotero_attach_downloader_helper.dart';
@@ -88,9 +87,6 @@ class LibraryViewModel with ChangeNotifier {
   // 下载状态跟踪
   final Map<String, AttachmentDownloadInfo> _downloadStates = {};
   
-  // 上传状态跟踪
-  final Map<String, AttachmentUploadInfo> _uploadStates = {};
-  
   // 文件存在状态缓存
   final Map<String, bool> _fileExistsCache = {};
   
@@ -113,57 +109,6 @@ class LibraryViewModel with ChangeNotifier {
     return getActiveDownloads().isNotEmpty;
   }
 
-  /// 获取所有正在进行的上传任务（包含失败状态，以便用户看到错误）
-  List<AttachmentUploadInfo> getActiveUploads() {
-    return _uploadStates.values
-        .where((info) => 
-            info.status == UploadStatus.uploading ||
-            info.status == UploadStatus.failed)
-        .toList();
-  }
-
-  /// 检查是否有正在进行的上传
-  bool hasActiveUploads() {
-    return getActiveUploads().isNotEmpty;
-  }
-
-  /// 更新上传状态
-  void _updateUploadState(AttachmentUploadInfo uploadInfo) {
-    _uploadStates[uploadInfo.itemKey] = uploadInfo;
-    MyLogger.d('更新上传状态: ${uploadInfo.itemKey} - ${uploadInfo.status}');
-    notifyListeners(); // 通知UI更新
-  }
-
-  /// 移除上传状态
-  void _removeUploadState(String itemKey) {
-    _uploadStates.remove(itemKey);
-    MyLogger.d('移除上传状态: $itemKey');
-    notifyListeners();
-  }
-
-  /// 更新上传进度（公开方法，供UI层调用）
-  void updateUploadProgress({
-    required Item item,
-    required int currentIndex,
-    required int totalCount,
-    UploadStatus status = UploadStatus.uploading,
-    String? errorMessage,
-  }) {
-    final uploadInfo = AttachmentUploadInfo(
-      itemKey: item.itemKey,
-      filename: item.getTitle(),
-      currentIndex: currentIndex,
-      totalCount: totalCount,
-      status: status,
-      errorMessage: errorMessage,
-    );
-    _updateUploadState(uploadInfo);
-  }
-
-  /// 移除上传进度（公开方法，供UI层调用）
-  void removeUploadProgress(String itemKey) {
-    _removeUploadState(itemKey);
-  }
   
   /// 获取缓存的文件存在状态
   bool? getCachedFileExists(String itemKey) {
@@ -1232,47 +1177,6 @@ class LibraryViewModel with ChangeNotifier {
   /// 设置修改附件发现回调
   void setOnModifiedAttachmentsFoundCallback(Function(List<Item>, List<RecentlyOpenedAttachment>)? callback) {
     onModifiedAttachmentsFound = callback;
-  }
-
-  /// 上传单个附件（公开方法，供UI层调用）
-  Future<void> uploadSingleAttachment(Item item) async {
-    await _uploadAttachment(item);
-  }
-
-  /// 上传单个附件（内部实现）
-  Future<void> _uploadAttachment(Item item) async {
-    try {
-      // 确保下载助手已初始化
-      await ensureDownloadHelperInitialized();
-      
-      final downloadHelper = ZoteroAttachDownloaderHelper.instance;
-
-      // 使用下载助手的上传功能
-      await downloadHelper.uploadAttachment(item);
-      
-      // 更新附件的修改时间标记
-      await zoteroDB.updateAttachmentAfterUpload(item);
-      
-    } catch (e) {
-      rethrow;
-    }
-  }
-
-  /// 清除修改的附件标记
-  Future<void> _clearModifiedAttachmentsMarks(List<RecentlyOpenedAttachment> attachments) async {
-    for (var attachment in attachments) {
-      try {
-        // 从最近打开的附件列表中移除，这样下次就不会再检测到修改
-        await zoteroDB.removeRecentlyOpenedAttachment(attachment.itemKey);
-      } catch (e) {
-        MyLogger.e('清除附件修改标记失败: ${attachment.itemKey}, 错误: $e');
-      }
-    }
-  }
-
-  /// 仅清除修改标记，不上传
-  Future<void> clearModifiedAttachmentsMarks(List<RecentlyOpenedAttachment> attachments) async {
-    // await _clearModifiedAttachmentsMarks(attachments);
   }
 
   void onItemTap(BuildContext context, Item item) {
