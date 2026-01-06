@@ -6,33 +6,43 @@ import 'package:dio/dio.dart';
 
 import '../../../LibZoteroAttachDownloader/dialog/attachment_transfer_dialog_manager.dart';
 import '../../../LibZoteroAttachDownloader/model/status.dart';
+import '../../../LibZoteroAttachDownloader/model/transfer_info.dart';
 import '../../../LibZoteroAttachDownloader/zotero_attach_downloader_helper.dart';
 import '../../../LibZoteroAttachDownloader/zotero_attachment_transfer.dart';
 import '../../../LibZoteroStorage/database/dao/RecentlyOpenedAttachmentDao.dart';
 import '../../../LibZoteroStorage/entity/Item.dart';
 import '../../../utils/log/module_library_log_helper.dart';
 import '../../utils/my_logger.dart';
-import '../../viewmodels/library_viewmodel.dart';
+import '../../viewmodels/zotero_database.dart';
 import '../../widget/modified_attachments_banner.dart';
+import '../../zotero_provider.dart';
 
 /// 附件上传提醒管理类
 /// 负责管理修改附件的检测、提示栏显示、对话框显示以及上传逻辑
+/// 同时管理上传状态跟踪，供全局上传指示器使用
 class AttachmentUploadReminder extends ChangeNotifier {
   // 修改的附件信息
   List<Item>? _modifiedItems;
   List<RecentlyOpenedAttachment>? _modifiedAttachments;
   bool _showModifiedBanner = false;
 
-  // ViewModel 引用
-  final LibraryViewModel _viewModel;
+  // 数据库访问
+  final ZoteroDB _zoteroDB = ZoteroProvider.getZoteroDB();
+
+  // 上传状态跟踪
+  final Map<String, AttachmentUploadInfo> _uploadStates = {};
 
   // 刷新回调
-  final VoidCallback? onNeedRefresh;
+  VoidCallback? _onNeedRefresh;
 
   AttachmentUploadReminder({
-    required LibraryViewModel viewModel,
-    this.onNeedRefresh,
-  }) : _viewModel = viewModel;
+    VoidCallback? onNeedRefresh,
+  }) : _onNeedRefresh = onNeedRefresh;
+
+  /// 设置刷新回调
+  void setOnNeedRefreshCallback(VoidCallback callback) {
+    _onNeedRefresh = callback;
+  }
 
   /// 获取是否显示提示栏
   bool get showModifiedBanner => _showModifiedBanner;
@@ -45,6 +55,90 @@ class AttachmentUploadReminder extends ChangeNotifier {
 
   /// 获取修改的附件列表
   List<RecentlyOpenedAttachment>? get modifiedAttachments => _modifiedAttachments;
+
+  // ============ 上传状态管理 ============
+
+  /// 获取所有正在进行的上传任务（包含失败状态，以便用户看到错误）
+  List<AttachmentUploadInfo> getActiveUploads() {
+    return _uploadStates.values
+        .where((info) =>
+            info.status == UploadStatus.uploading ||
+            info.status == UploadStatus.failed)
+        .toList();
+  }
+
+  /// 检查是否有正在进行的上传
+  bool hasActiveUploads() {
+    return getActiveUploads().isNotEmpty;
+  }
+
+  /// 更新上传状态
+  void _updateUploadState(AttachmentUploadInfo uploadInfo) {
+    _uploadStates[uploadInfo.itemKey] = uploadInfo;
+    MyLogger.d('更新上传状态: ${uploadInfo.itemKey} - ${uploadInfo.status}');
+    notifyListeners(); // 通知UI更新
+  }
+
+  /// 移除上传状态
+  void _removeUploadState(String itemKey) {
+    _uploadStates.remove(itemKey);
+    MyLogger.d('移除上传状态: $itemKey');
+    notifyListeners();
+  }
+
+  /// 更新上传进度
+  void updateUploadProgress({
+    required Item item,
+    required int currentIndex,
+    required int totalCount,
+    UploadStatus status = UploadStatus.uploading,
+    String? errorMessage,
+  }) {
+    final uploadInfo = AttachmentUploadInfo(
+      itemKey: item.itemKey,
+      filename: item.getTitle(),
+      currentIndex: currentIndex,
+      totalCount: totalCount,
+      status: status,
+      errorMessage: errorMessage,
+    );
+    _updateUploadState(uploadInfo);
+  }
+
+  /// 移除上传进度
+  void removeUploadProgress(String itemKey) {
+    _removeUploadState(itemKey);
+  }
+
+  // ============ 上传功能 ============
+
+  /// 上传单个附件
+  Future<void> uploadSingleAttachment(Item item) async {
+    await _uploadAttachment(item);
+  }
+
+  /// 上传单个附件（内部实现）
+  Future<void> _uploadAttachment(Item item) async {
+    try {
+      final downloadHelper = ZoteroAttachDownloaderHelper.instance;
+
+      // 使用下载助手的上传功能
+      await downloadHelper.uploadAttachment(item);
+
+      // 更新附件的修改时间标记
+      await _zoteroDB.updateAttachmentAfterUpload(item);
+
+    } catch (e) {
+      rethrow;
+    }
+  }
+
+  /// 仅清除修改标记，不上传
+  Future<void> clearModifiedAttachmentsMarks(List<RecentlyOpenedAttachment> attachments) async {
+    // todo 待实现：在数据库层面标记附件 无需上传
+  }
+
+  // ============ 提示栏和对话框 ============
 
   /// 当发现修改的附件时的回调处理
   void onModifiedAttachmentsFound(
@@ -71,14 +165,13 @@ class AttachmentUploadReminder extends ChangeNotifier {
 
     // 清除修改标记
     if (_modifiedAttachments != null) {
-      _viewModel.clearModifiedAttachmentsMarks(_modifiedAttachments!);
+      clearModifiedAttachmentsMarks(_modifiedAttachments!);
     }
   }
 
   /// 构建修改附件提示栏 Widget
   Widget buildModifiedBanner({
     required BuildContext context,
-    // VoidCallback? onTap,
   }) {
     if (!_showModifiedBanner) {
       return const SizedBox.shrink();
@@ -156,21 +249,21 @@ class AttachmentUploadReminder extends ChangeNotifier {
         try {
           MyLogger.d('开始上传附件 ${i + 1}/$totalCount: ${item.getTitle()}');
 
-          // 更新上传状态到ViewModel（会自动通知全局指示器更新）
-          _viewModel.updateUploadProgress(
+          // 更新上传状态（会自动通知全局指示器更新）
+          updateUploadProgress(
             item: item,
             currentIndex: i + 1,
             totalCount: totalCount,
           );
 
           // 上传单个附件
-          await _viewModel.uploadSingleAttachment(item);
+          await uploadSingleAttachment(item);
 
           // 从最近打开的附件列表中移除
-          await _viewModel.zoteroDB.removeRecentlyOpenedAttachment(item.itemKey);
+          await _zoteroDB.removeRecentlyOpenedAttachment(item.itemKey);
 
           // 上传完成后移除该附件的上传状态
-          _viewModel.removeUploadProgress(item.itemKey);
+          removeUploadProgress(item.itemKey);
 
           successCount++;
           MyLogger.d('附件上传成功: ${item.getTitle()}');
@@ -184,7 +277,7 @@ class AttachmentUploadReminder extends ChangeNotifier {
           failedItemsWithErrors[item.getTitle()] = errorMsg;
 
           // 更新为失败状态，显示在全局指示器中
-          _viewModel.updateUploadProgress(
+          updateUploadProgress(
             item: item,
             currentIndex: i + 1,
             totalCount: totalCount,
@@ -194,7 +287,7 @@ class AttachmentUploadReminder extends ChangeNotifier {
 
           // 延迟移除失败状态，让用户有时间看到
           Future.delayed(const Duration(seconds: 3), () {
-            _viewModel.removeUploadProgress(item.itemKey);
+            removeUploadProgress(item.itemKey);
           });
         }
       }
@@ -238,13 +331,13 @@ class AttachmentUploadReminder extends ChangeNotifier {
       
       if (needRefresh) {
         // 有上传成功的附件，执行刷新回调（同步操作）
-        onNeedRefresh?.call();
+        _onNeedRefresh?.call();
       }
     } catch (e) {
       MyLogger.e('上传附件时发生错误: $e');
       // 清除所有上传状态
       for (var item in modifiedItems) {
-        _viewModel.removeUploadProgress(item.itemKey);
+        removeUploadProgress(item.itemKey);
       }
       if (context.mounted) {
         final errorMsg = _parseUploadError(e);

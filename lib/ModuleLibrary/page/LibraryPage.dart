@@ -4,20 +4,10 @@ import 'package:flutter/cupertino.dart';
 import 'package:flutter/material.dart';
 import 'package:flutter/services.dart';
 import 'package:module_base/my_eventbus.dart';
-import 'package:module_base/utils/logger.dart';
-import 'package:module_base/utils/tracking/dot_tracker.dart';
-import 'package:module_base/view/dialog/neat_dialog.dart';
-import 'package:module_library/LibZoteroApi/Model/ZoteroSettingsResponse.dart';
-import 'package:module_library/LibZoteroAttachDownloader/dialog/attachment_transfer_dialog_manager.dart';
 import 'package:module_library/LibZoteroAttachDownloader/event/event_check_attachment_modification.dart';
-import 'package:module_library/LibZoteroAttachDownloader/model/status.dart';
-import 'package:module_library/LibZoteroAttachDownloader/zotero_attachment_transfer.dart';
 import 'package:module_library/LibZoteroStorage/entity/Collection.dart';
 import 'package:module_library/LibZoteroStorage/entity/Item.dart';
-import 'package:module_library/LibZoteroAttachDownloader/zotero_attach_downloader_helper.dart';
-import 'package:module_library/LibZoteroStorage/database/dao/RecentlyOpenedAttachmentDao.dart';
 
-import 'package:module_library/ModuleItemDetail/page/item_details_page.dart';
 import 'package:module_library/ModuleLibrary/model/list_entry.dart';
 import 'package:module_library/ModuleLibrary/model/page_type.dart';
 import 'package:module_library/ModuleLibrary/page/sync_page/sync_page.dart';
@@ -25,29 +15,21 @@ import 'package:module_library/ModuleLibrary/res/ResColor.dart';
 import 'package:module_library/ModuleLibrary/utils/sheet_item_helper.dart';
 import 'package:module_library/ModuleLibrary/utils/my_logger.dart';
 import 'package:module_library/ModuleLibrary/viewmodels/library_viewmodel.dart';
-import 'package:module_library/ModuleTagManager/item_tagmanager.dart';
 import 'package:module_library/routers.dart' show MyRouter, globalRouteObserver;
 import 'package:provider/provider.dart';
 import 'package:pull_to_refresh/pull_to_refresh.dart';
 
-import '../../utils/log/module_library_log_helper.dart';
 import '../dialog/library_layout_dialog.dart';
 import '../dialog/upload/attachment_upload_reminder.dart';
-import '../utils/color_utils.dart';
 import '../utils/device_utils.dart';
 import '../widget/global_download_indicator.dart';
-import '../widget/attachment_indicator.dart';
 import '../widget/item_entry_widget.dart';
 import '../widget/collection_entry_widget.dart';
-import '../widget/item_type_icon.dart';
 import '../widget/bottomsheet/item_operation_panel.dart';
 import '../widget/global_upload_indicator.dart';
 import 'LibraryUI/appBar.dart';
 import 'LibraryUI/drawer.dart';
-import 'package:flutter_svg/flutter_svg.dart';
 import 'package:bruno/bruno.dart';
-import 'package:flutter/foundation.dart';
-import 'package:dio/dio.dart';
 
 class LibraryPage extends StatefulWidget {
   const LibraryPage({super.key});
@@ -78,6 +60,9 @@ class _LibraryPageState extends State<LibraryPage> with WidgetsBindingObserver, 
 
   // 附件上传提醒管理器
   late AttachmentUploadReminder _uploadReminder;
+  
+  // 是否已初始化上传提醒管理器
+  bool _uploadReminderInitialized = false;
 
   @override
   void initState() {
@@ -86,6 +71,9 @@ class _LibraryPageState extends State<LibraryPage> with WidgetsBindingObserver, 
 
     _phoneRefreshController = RefreshController(initialRefresh: false);
     _tabletRefreshController = RefreshController(initialRefresh: false);
+    
+    // 初始化上传提醒管理器（在 initState 中创建，确保只创建一次）
+    _uploadReminder = AttachmentUploadReminder();
 
     ///initState 中添加监听，记得销毁
     textController.addListener((){
@@ -127,21 +115,23 @@ class _LibraryPageState extends State<LibraryPage> with WidgetsBindingObserver, 
     // 在这里通过 Provider 获取 ViewModel
     _viewModel = Provider.of<LibraryViewModel>(context, listen: false);
 
-    // 初始化上传提醒管理器
-    _uploadReminder = AttachmentUploadReminder(
-      viewModel: _viewModel,
-      onNeedRefresh: () {
+    // 只在第一次时设置回调（避免重复设置）
+    if (!_uploadReminderInitialized) {
+      _uploadReminderInitialized = true;
+      
+      // 设置刷新回调
+      _uploadReminder.setOnNeedRefreshCallback(() {
         // 有上传成功的附件，会自动执行与服务器同步操作
         _currentRefreshController.requestRefresh();
-      },
-    );
+      });
 
-    // 设置修改附件发现回调
-    _viewModel.setOnModifiedAttachmentsFoundCallback((modifiedItems, attachments) {
-      _uploadReminder.onModifiedAttachmentsFound(modifiedItems, attachments);
-      // 通知UI更新
-      setState(() {});
-    });
+      // 设置修改附件发现回调
+      _viewModel.setOnModifiedAttachmentsFoundCallback((modifiedItems, attachments) {
+        _uploadReminder.onModifiedAttachmentsFound(modifiedItems, attachments);
+        // 通知UI更新
+        setState(() {});
+      });
+    }
 
     // 第一次进入页面时初始化数据
     if (!_viewModel.initialized) {
@@ -332,7 +322,7 @@ class _LibraryPageState extends State<LibraryPage> with WidgetsBindingObserver, 
   /// 构建全局上传进度指示器
   Widget _buildGlobalUploadIndicator() {
     return GlobalUploadIndicator(
-      viewModel: _viewModel,
+      uploadReminder: _uploadReminder,
     );
   }
 
