@@ -1,7 +1,6 @@
 import 'package:flutter/material.dart';
-import 'package:module_library/LibZoteroAttachDownloader/zotero_attach_downloader_helper.dart';
 import 'package:module_library/ModuleLibrary/res/ResColor.dart';
-import 'package:module_library/ModuleLibrary/viewmodels/library_viewmodel.dart';
+import 'package:module_library/ModuleLibrary/dialog/upload/attachment_upload_reminder.dart';
 
 import '../../LibZoteroAttachDownloader/model/status.dart';
 import '../../LibZoteroAttachDownloader/model/transfer_info.dart';
@@ -15,19 +14,19 @@ import '../../LibZoteroAttachDownloader/model/transfer_info.dart';
 /// - 最多显示3个上传任务，超过时显示总数
 /// - 上传完成后自动隐藏
 class GlobalUploadIndicator extends StatelessWidget {
-  final LibraryViewModel viewModel;
+  final AttachmentUploadReminder uploadReminder;
 
   const GlobalUploadIndicator({
     super.key,
-    required this.viewModel,
+    required this.uploadReminder,
   });
 
   @override
   Widget build(BuildContext context) {
     return ListenableBuilder(
-      listenable: viewModel,
+      listenable: uploadReminder,
       builder: (context, child) {
-        final activeUploads = viewModel.getActiveUploads();
+        final activeUploads = uploadReminder.getActiveUploads();
         
         if (activeUploads.isEmpty) {
           return const SizedBox.shrink();
@@ -191,4 +190,3 @@ class GlobalUploadIndicator extends StatelessWidget {
     );
   }
 }
-
