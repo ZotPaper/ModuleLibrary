@@ -661,7 +661,7 @@ class ZoteroDB {
         newValue = mtime.toString();
       } else if (itemData.name == 'version') {
         needUpdate = true;
-        newValue = (int.parse(itemData.value) + 1).toString();
+        newValue = itemData.value;
       }
 
       if (needUpdate) {

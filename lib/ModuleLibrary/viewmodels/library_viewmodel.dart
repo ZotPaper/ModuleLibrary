@@ -1258,20 +1258,9 @@ class LibraryViewModel with ChangeNotifier {
     }
   }
 
-  /// 清除修改的附件标记
-  Future<void> _clearModifiedAttachmentsMarks(List<RecentlyOpenedAttachment> attachments) async {
-    for (var attachment in attachments) {
-      try {
-        // 从最近打开的附件列表中移除，这样下次就不会再检测到修改
-        await zoteroDB.removeRecentlyOpenedAttachment(attachment.itemKey);
-      } catch (e) {
-        MyLogger.e('清除附件修改标记失败: ${attachment.itemKey}, 错误: $e');
-      }
-    }
-  }
-
   /// 仅清除修改标记，不上传
   Future<void> clearModifiedAttachmentsMarks(List<RecentlyOpenedAttachment> attachments) async {
+    // todo 待实现：在数据库层面标记附件 无需上传
     // await _clearModifiedAttachmentsMarks(attachments);
   }
 
