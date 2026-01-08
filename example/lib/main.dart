@@ -4,6 +4,7 @@ import 'package:module_base/stores/hive_stores.dart';
 import 'package:module_base/utils/device/crash_reporter.dart';
 import 'package:module_base/utils/log/app_log_event.dart';
 import 'package:module_base/utils/tracking/dot_tracker.dart';
+import 'package:module_library/LibZoteroApi/ZoteroAPI.dart';
 import 'package:module_library/LibZoteroStorage/stores/attachments_settings.dart';
 import 'package:module_library/ModuleLibrary/page/launch_page.dart';
 import 'package:module_library/ModuleLibrary/page/sync_page/sync_viewmodel.dart';
@@ -12,6 +13,7 @@ import 'package:module_library/ModuleLibrary/store/library_settings.dart';
 import 'package:module_library/ModuleLibrary/utils/my_logger.dart';
 import 'package:module_library/ModuleLibrary/viewmodels/library_viewmodel.dart';
 import 'package:module_library/routers.dart';
+import 'package:module_library/utils/local_zotero_credential.dart';
 import 'package:provider/provider.dart';
 import 'package:supabase_flutter/supabase_flutter.dart';
 
@@ -39,8 +41,15 @@ Future<void> init() async {
 
   CrashReporter.init();
 
+  // 添加DotTracker公共参数参数
+  final zoteroId = await LocalZoteroCredential.getUserId();
+  DotTracker.addCommonParam('user_info', {
+    "zotero_id": zoteroId,
+  });
+
+
   DotTracker
-      .addBot("APP_INIT", description: "初始化APP")
+      .addDot("APP_INIT", description: "初始化APP")
       .report();
 }
 
