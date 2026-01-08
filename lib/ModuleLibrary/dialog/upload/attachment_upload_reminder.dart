@@ -304,7 +304,7 @@ class AttachmentUploadReminder extends ChangeNotifier {
 
         // 埋点上报
         DotTracker
-            .addBot("UPLOAD_ALL_MODIFIED_SUCCESS", description: "所有附件上传成功")
+            .addDot("UPLOAD_ALL_MODIFIED_SUCCESS", description: "所有附件上传成功")
             .addParam("total", modifiedItems.length)
             .addParam("service", isZotero ? "Zotero" : "WEBDAV")
             .report();

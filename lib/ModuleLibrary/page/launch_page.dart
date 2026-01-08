@@ -122,13 +122,13 @@ class _LaunchPageState extends State<LaunchPage> with SingleTickerProviderStateM
       _jumpToSyncingPage();
     });
 
-    // // webdav信息
-    // String webdavAddress = "https://miya.teracloud.jp/dav/";
-    // String username = "moyearzhou";
-    // String password = "4Efgzy73eTr96DPS";
-    //
-    // WebdavConfiguration.setWebdavConfiguration(webdavAddress, username, password);
-    // WebdavConfiguration.setUseWebdav(true);
+    // webdav信息
+    String webdavAddress = "https://dav.jianguoyun.com/dav/";
+    String username = "tyl@mails.ccnu.edu.cn";
+    String password = "a48hpgf38qkpdhq8";
+
+    WebdavConfiguration.setWebdavConfiguration(webdavAddress, username, password);
+    WebdavConfiguration.setUseWebdav(true);
 
     // ModuleLibrary默认使用外部pdf阅读器
     DefaultAttachmentStorage.instance.setOpenPDFWithExternalApp(true);

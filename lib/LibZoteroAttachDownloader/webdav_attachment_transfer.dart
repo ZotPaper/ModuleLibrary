@@ -10,6 +10,7 @@ import 'package:module_library/ModuleLibrary/utils/my_logger.dart';
 import 'package:webdav_client/webdav_client.dart' as WebDAV;
 import 'package:path/path.dart' as p;
 
+import '../ModuleLibrary/utils/my_fun_tracer.dart';
 import 'bean/exception/zotero_download_exception.dart';
 import 'package:dio/dio.dart';
 
@@ -486,26 +487,45 @@ class WebDAVAttachmentTransfer implements IAttachmentTransfer {
     final newZipPath = '$_baseAddress/${itemKey}_NEW.zip';
     final newPropPath = '$_baseAddress/${itemKey}_NEW.prop';
 
-    // 删除旧文件
+    // 处理prop文件
     try {
       await client.remove(propPath);
       MyLogger.d("delete old prop file in webdav: $propPath");
+    } catch (e) {
+      // 如果旧文件不存在，忽略错误
+    }
+    // 重命名文件（通过复制和删除实现）
+    final keyRenameProp = "rename_$itemKey.prop";
+    MyFunTracer.beginTrace(customKey: keyRenameProp);
+
+    // 方式二：通过重命名
+    final originalPropPath = getRealPath(newPropPath);
+    final targetPropPath = getRealPath(propPath);
+
+    MyLogger.d("rename prop file in webdav: $originalPropPath -> $targetPropPath");
+    await client.rename(originalPropPath, targetPropPath, true);
+
+    MyFunTracer.endTrace(customKey: keyRenameProp);
+
+    // 处理ZIP文件
+    try {
       await client.remove(zipPath);
       MyLogger.d("delete old zip file in webdav: $zipPath");
     } catch (e) {
       // 如果旧文件不存在，忽略错误
     }
+    // 重命名新文件
+    final keyRenameZip = "rename_$itemKey.zip";
+    MyFunTracer.beginTrace(customKey: keyRenameZip);
 
-    // 重命名新文件（通过复制和删除实现）
-    final newPropBytes = await client.read(newPropPath);
-    final newZipBytes = await client.read(newZipPath);
+    // 方式二：通过重命名
+    final originalPath = getRealPath(newZipPath);
+    final targetPath = getRealPath(zipPath);
 
-    await client.write(propPath, Uint8List.fromList(newPropBytes));
-    await client.write(zipPath, Uint8List.fromList(newZipBytes));
+    MyLogger.d("rename zip file in webdav: $originalPath -> $targetPath");
+    await client.rename(originalPath, targetPath, true);
+    MyFunTracer.endTrace(customKey: keyRenameZip);
 
-    // 删除临时文件
-    await client.remove(newPropPath);
-    await client.remove(newZipPath);
   }
 
   @override
@@ -624,5 +644,35 @@ class WebDAVAttachmentTransfer implements IAttachmentTransfer {
       }
     }
 
+  }
+
+  /// 获取真实路径
+  /// 注意：路径前面以/开头
+  String getRealPath(String httpPath) {
+    // MyLogger.d("input httpPath: $httpPath");
+    var realPath = httpPath;
+    if (!httpPath.startsWith('http://') && !httpPath.startsWith('https://')) {
+     return realPath;
+    }
+
+    // 这里的真实路径是真正的webdav地址，不带zotero相关的,且结尾不带/，如：https://dav.jianguoyun.com/dav
+    var actualWebdavAddress = webdavAddress;
+    if (webdavAddress.endsWith('/zotero')) {
+      actualWebdavAddress = webdavAddress.substring(0, webdavAddress.length - 7);
+    } else if (webdavAddress.endsWith('/zotero/')) {
+      actualWebdavAddress = webdavAddress.substring(0, webdavAddress.length - 8);
+    }
+    // MyLogger.d("actualWebdavAddress: $actualWebdavAddress");
+
+    if (httpPath.startsWith(actualWebdavAddress)) {
+      realPath = httpPath.substring(actualWebdavAddress.length);
+      // MyLogger.d("realPath: $realPath");
+      return realPath;
+    } else {
+      MyLogger.e("httpPath is not start with baseAddress: $actualWebdavAddress");
+    }
+
+    // MyLogger.d("output realPath: $realPath");
+    return realPath;
   }
 }
