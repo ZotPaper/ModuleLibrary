@@ -1,5 +1,6 @@
 import 'package:module_library/ModuleLibrary/api/ZoteroDataSql.dart';
 import 'package:module_library/ModuleLibrary/viewmodels/zotero_database.dart';
+import '../LibZoteroStorage/database/ZoteroDatabase.dart';
 import 'api/ZoteroDataHttp.dart';
 
 class ZoteroProvider {
@@ -26,4 +27,12 @@ class ZoteroProvider {
     return _zoteroHttp!;
   }
 
+  static void clearZoteroProvider() {
+    // 释放数据库
+    ZoteroDatabase.dispose();
+
+    _zoteroDB = null;
+    _zoteroDataSql = null;
+    _zoteroHttp = null;
+  }
 }

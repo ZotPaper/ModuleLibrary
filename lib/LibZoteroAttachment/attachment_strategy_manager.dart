@@ -146,10 +146,11 @@ class AttachmentStrategyManager {
 
     // 埋点上报
     DotTracker
-        .addBot("VIEW_PDF_ATTACHMENT", description: "查看pdf附件")
+        .addDot("VIEW_PDF_ATTACHMENT", description: "查看pdf附件")
         .addParam("attachment_name", targetPdfAttachmentItem.getTitle())
         .addParam("attachment_size", fileSizeStr)
         .addParam("pdf_reader", useExternalPdfReader ? 'external' : "foxit")
+        .addParam("itemKey", targetPdfAttachmentItem.itemKey)
         .report();
   }
 

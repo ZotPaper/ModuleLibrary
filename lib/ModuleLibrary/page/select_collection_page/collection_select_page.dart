@@ -5,6 +5,7 @@ import 'package:flutter/material.dart';
 import 'package:module_base/view/appbar/neat_appbar.dart';
 import 'package:module_library/ModuleLibrary/viewmodels/zotero_database.dart';
 import 'package:module_library/ModuleLibrary/res/ResColor.dart';
+import 'package:module_library/ModuleLibrary/zotero_provider.dart';
 
 import '../../../LibZoteroStorage/entity/Collection.dart';
 
@@ -26,7 +27,7 @@ class _CollectionSelectorState extends State<CollectionSelector>
     with TickerProviderStateMixin {
   final List<CollectionSelection> collections = [];
   final List<CollectionSelection> filteredCollections = [];
-  final ZoteroDB zoteroDB = ZoteroDB();
+  final ZoteroDB zoteroDB = ZoteroProvider.getZoteroDB();
   final HashSet<String> selectedCollections = HashSet();
   final TextEditingController _searchController = TextEditingController();
   

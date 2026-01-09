@@ -8,7 +8,9 @@ import 'package:module_library/utils/webdav_configuration.dart';
 import 'package:module_base/native/native_zotero_channel.dart';
 import '../../utils/local_zotero_credential.dart';
 import '../share_pref.dart';
+import '../utils/launch_intercept_helper.dart';
 import '../utils/my_logger.dart';
+import 'package:flutter_dotenv/flutter_dotenv.dart';
 
 class LaunchPage extends StatefulWidget {
   const LaunchPage({super.key});
@@ -34,12 +36,36 @@ class _LaunchPageState extends State<LaunchPage> with SingleTickerProviderStateM
   @override
   Widget build(BuildContext context) {
     return Scaffold(
-        body: Container()
+        body:  Center(
+          child: Column(
+            mainAxisAlignment: MainAxisAlignment.center,
+            crossAxisAlignment: CrossAxisAlignment.center,
+            children: [
+              ConstrainedBox(
+                  constraints: const BoxConstraints(maxHeight: 300, maxWidth: 300),
+                  child: Image.asset(
+                    "assets/intro_zotpaper.webp",
+                    package: "module_library",
+                    fit: BoxFit.contain,
+                  )
+              ),
+              const SizedBox(height: 60,),
+            ],
+          ),
+        )
     );
   }
 
   Future<void> _initializeApp() async {
+    // 检查是否有外部拦截
+    final shouldProceed = await LaunchInterceptHelper.instance.intercept();
+    if (!shouldProceed) {
+      // 外部调用了 onDeny，中断 LaunchPage 流程，由外部自行处理
+      return;
+    }
+
     try {
+      // todo 后续优化SharedPref的储存逻辑
       await SharedPref.init();
       /// 判断是否本地保存了用户信息
       final isUserLoggedIn = await LocalZoteroCredential.isLoggedIn();
@@ -65,12 +91,12 @@ class _LaunchPageState extends State<LaunchPage> with SingleTickerProviderStateM
   }
 
   void _jumpToSyncingPage() {
-    MyRouter.instance.pushReplacementNamed(context, "syncingPage");
+    MyRouter.instance.pushReplacementNamed(context, MyRouter.PAGE_SYNCING);
   }
 
   void _jumpToSyncSetupPage() {
     try {
-      MyRouter.instance.pushReplacementNamed(context, "syncSetupPage");
+      MyRouter.instance.pushReplacementNamed(context, MyRouter.PAGE_SYNC_SETUP);
     } catch (e) {
       MyLogger.e('Error: $e');
       // 测试账号登录
@@ -79,32 +105,45 @@ class _LaunchPageState extends State<LaunchPage> with SingleTickerProviderStateM
   }
 
   void _jumpToLibraryPage() {
-    MyRouter.instance.pushReplacementNamed(context, "libraryPage");
+    MyRouter.instance.pushReplacementNamed(context, MyRouter.PAGE_LIBRARY);
   }
 
   /// 测试账号登录
   void testAccountLogin() {
     if (!BuildMode.isDebug) return;
     // 是否是debug模式
-    String userId = "16074844";
-    String apiKey = "znrrHVJZMhSd8I9TWUxZjAFC";
 
-    // String userId = "8120462";
-    // String apiKey = "H95AVvqDvU72LC4qj9Azc5do";
+    String userId = "";
+    String apiKey = "";
+    String userName = "";
 
-    String userName = "testUserName";
+    // webdav信息
+    String webdavAddress = "";
+    String webdavUserName = "";
+    String webdavPwd = "";
+    bool webdavEnable = true;
+
+    try {
+      userId = dotenv.get('ZOTERO_USER_ID');
+      apiKey = dotenv.get('ZOTERO_APIKEY');
+      userName = dotenv.get('ZOTERO_USERNAME');
+
+      webdavEnable = dotenv.get('WEBDAV_ENABLE') == "true";
+      webdavAddress = dotenv.get('WEBDAV_URL');
+      webdavUserName = dotenv.get('WEBDAV_USERNAME');
+      webdavPwd = dotenv.get('WEBDAV_PASSWORD');
+    } catch (e) {
+      MyLogger.e("初始化Supabase失败：${e.toString()}");
+      rethrow;
+    }
 
     LocalZoteroCredential.saveCredential(apiKey, userId, userName).then((onValue){
       _jumpToSyncingPage();
     });
 
-    // // webdav信息
-    // String webdavAddress = "https://miya.teracloud.jp/dav/";
-    // String username = "moyearzhou";
-    // String password = "4Efgzy73eTr96DPS";
-    //
-    // WebdavConfiguration.setWebdavConfiguration(webdavAddress, username, password);
-    // WebdavConfiguration.setUseWebdav(true);
+
+    WebdavConfiguration.setWebdavConfiguration(webdavAddress, webdavUserName, webdavPwd);
+    WebdavConfiguration.setUseWebdav(webdavEnable);
 
     // ModuleLibrary默认使用外部pdf阅读器
     DefaultAttachmentStorage.instance.setOpenPDFWithExternalApp(true);
@@ -139,14 +178,19 @@ class _LaunchPageState extends State<LaunchPage> with SingleTickerProviderStateM
 
       LocalZoteroCredential.saveCredential(apiKey, userId, userName).then((onValue){
         // 数据迁移埋点上报
-        DotTracker
-            .addDot("APP_MIGRATION_V002", description: "v0.0.2升级，账户重新同步")
-            .report();
+        _reportMigrationV002Event();
 
         _jumpToSyncingPage();
         MyLogger.d("跳转到同步页面...");
       });
       return true;
     }
+  }
+
+  /// 上报从v-0.0.2升级事件
+  void _reportMigrationV002Event() {
+    DotTracker
+        .addDot("APP_MIGRATION_V002", description: "v0.0.2升级，账户重新同步")
+        .report();
   }
 }

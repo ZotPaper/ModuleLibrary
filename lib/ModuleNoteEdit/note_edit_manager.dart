@@ -15,7 +15,8 @@ class NoteEditManager {
   void editNote(BuildContext context, Note note) {
     // 埋点上报
     DotTracker
-        .addBot("VIEW_NOTE", description: "查看笔记")
+        .addDot("VIEW_NOTE", description: "查看笔记")
+        .addParam("itemKey", note.key)
         .report();
 
     MyRouter.instance.pushNamed(context, MyRouter.PAGE_NOTE_EDIT, arguments: {

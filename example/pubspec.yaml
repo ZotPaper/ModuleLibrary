@@ -14,24 +14,29 @@ dependencies:
   module_library:
     path: ../
 
-  module_base:
-    path: /Users/moyearzhou/StudioProjects/module_base
-  #    git:
-  #      url: https://github.com/moyearzhou/ModuleBase.git
-
+#  module_base:
+##    path: /Users/moyearzhou/StudioProjects/module_base
+#    git:
+#      url: https://github.com/moyearzhou/ModuleBase.git
+#      ref: feat/ohos
 
 dev_dependencies:
   flutter_test:
     sdk: flutter
   build_runner: ^2.3.3
 
+#dependency_overrides:
+#  module_base:
+#    path: /Users/moyearzhou/StudioProjects/module_base
 
 # For information on the generic Dart part of this file, see the
 # following page: https://dart.dev/tools/pub/pubspec
 
 # The following section is specific to Flutter packages.
 flutter:
-#  assets:
+  assets:
+    - dev.env  # 仅 Debug 模式需要
+    - production.env # 生产环境配置
 #    - assets/
 #    - assets/items/
   # The following line ensures that the Material Icons font is

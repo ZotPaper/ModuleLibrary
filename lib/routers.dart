@@ -25,6 +25,11 @@ class MyRouter {
   static const String PAGE_LIBRARY = 'libraryPage';
   static const String PAGE_NOTE_EDIT = 'noteEditPage';
 
+  static const String PAGE_SYNCING = 'syncingPage';
+  static const String PAGE_SYNC_SETUP = 'syncSetupPage';
+
+
+
   bool _enableExceptionCatch = false;
 
   Function(BuildContext, String, Map<String, dynamic>?)? _onInterceptNavigatior;
@@ -89,7 +94,7 @@ Map<String, WidgetBuilder> libraryRouters() {
   return {
     'launchPage': (context) => const LaunchPage(),
     'libraryPage': (context) => const LibraryPage(),
-    'syncingPage': (context) => const SyncPageFragment(),
+    MyRouter.PAGE_SYNCING: (context) => const SyncPageFragment(),
     'tagsManagerPage': (context) => const TagsManagerPage(),
     'itemDetailPage': (context) {
       final arguments = ModalRoute.of(context)?.settings.arguments;

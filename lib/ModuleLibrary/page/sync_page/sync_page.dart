@@ -29,6 +29,8 @@ class _SyncPageFragmentState extends State<SyncPageFragment>
     _viewModel = Provider.of<SyncViewModel>(context, listen: false);
     _controller = AnimationController(vsync: this);
 
+    MyLogger.d("Moyear=== 进入SyncPageFragment");
+
     _viewModel.init();
     // 监听进度
     _viewModel.onProgressCallback = _onUpdateProgress;
