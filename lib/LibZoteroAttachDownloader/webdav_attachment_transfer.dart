@@ -125,7 +125,9 @@ class WebDAVAttachmentTransfer implements IAttachmentTransfer {
     try {
       final itemKey = item.itemKey.toUpperCase();
       final webpathProp = '$_baseAddress/$itemKey.prop';
-      final webpathZip = '$_baseAddress/$itemKey.zip';
+      // final webpathZip = '$_baseAddress/$itemKey.zip';
+
+      final webpathZip = await _getWebPathZipUrl(itemKey);
 
       // 先验证_baseAddress是不是一个有效的地址
       if (!_isValidUrl(_baseAddress!)) {
@@ -135,18 +137,22 @@ class WebDAVAttachmentTransfer implements IAttachmentTransfer {
       // 1. 下载.prop文件获取元数据
       WebdavProp prop;
       try {
-        final propBytes = await client.read(webpathProp);
-        final propContent = String.fromCharCodes(propBytes);
-        prop = WebdavProp.fromString(propContent);
-      } catch (e) {
-        var errorMsg = e.toString();
-        if (e is DioException) {
-          errorMsg = '[${e.response?.statusCode}] ${e.message}';
-        }
+        prop = await _fetchWebdavProp(webpathProp);
+      } catch (error) {
+        // 这里是为了解决之前的上传bug导致删除了itemKey.prop文件，导致下载失败。解决：尝试下载itemKey_NEW.prop文件
+        final newPropPath = '$_baseAddress/${itemKey}_NEW.prop';
+        try {
+          prop = await _fetchWebdavProp(newPropPath);
+        } catch (e) {
+          var errorMsg = e.toString();
+          if (e is DioException) {
+            errorMsg = '[${e.response?.statusCode}] ${e.message}';
+          }
 
-        throw DownloadException(
-            errorType: DownloadErrorType.notFound,
-            message: 'Failed to download .prop file: $errorMsg');
+          throw DownloadException(
+              errorType: DownloadErrorType.notFound,
+              message: 'Failed to download .prop file: $errorMsg url: $newPropPath');
+        }
       }
 
       // 2. 获取ZIP文件大小（用于进度计算）
@@ -324,18 +330,20 @@ class WebDAVAttachmentTransfer implements IAttachmentTransfer {
 
   @override
   Future<CustomResult> updateAttachment(Item attachment) async {
-    final itemKey = attachment.itemKey;
-    // todo 上传附件前，先检查附件的元数据信息
-    final metaPropPath = '$_baseAddress/${itemKey}.prop';
+    // 先暂时下线检查元数据功能，因为：之前的bug导致_baseAddress/${itemKey}.prop的文件被删了不存在，从而导致上传失败
 
-    final hash = await attachmentStorageManager.calculateMd5(attachment);
-    final mtime = int.tryParse(attachment.data['mtime'] ?? '0') ?? 0;
+    // final itemKey = attachment.itemKey;
+    // 上传附件前，先检查附件的元数据信息
+    // final metaPropPath = '$_baseAddress/${itemKey}.prop';
+    //
+    // final hash = await attachmentStorageManager.calculateMd5(attachment);
+    // final mtime = int.tryParse(attachment.data['mtime'] ?? '0') ?? 0;
 
-    final checkMetaRes = await checkMetadata(attachment.itemKey, mtime, hash, metaPropPath);
-
-    if (checkMetaRes is CustomResultError) {
-      return checkMetaRes;
-    }
+    // final checkMetaRes = await checkMetadata(attachment.itemKey, mtime, hash, metaPropPath);
+    //
+    // if (checkMetaRes is CustomResultError) {
+    //   return checkMetaRes;
+    // }
     // todo 根据元数据结果执行不同的操作
 
     await _doUpload(attachment);
@@ -674,5 +682,41 @@ class WebDAVAttachmentTransfer implements IAttachmentTransfer {
 
     // MyLogger.d("output realPath: $realPath");
     return realPath;
+  }
+
+  /// 从webpathProp的画获取.prop文件
+  /// 这里可能会抛出异常
+  Future<WebdavProp> _fetchWebdavProp(String webpathProp) async {
+    WebdavProp prop;
+    final propBytes = await client.read(webpathProp);
+    final propContent = String.fromCharCodes(propBytes);
+    prop = WebdavProp.fromString(propContent);
+    return prop;
+  }
+
+  /// 获取条目附件zip文件的url
+  /// 这里是因为：旧版bug导致itemKey.zip 文件被删除了不存在, 而需使用itemKey_NEW.zip
+  Future<String> _getWebPathZipUrl(String itemKey) async {
+    var webpathZip = '$_baseAddress/$itemKey.zip';
+    var isExist = false;
+    try {
+      isExist = await client.isExists(webpathZip);
+      MyLogger.d("$webpathZip is exist: $isExist");
+
+      if (!isExist) {
+        var newPath = '$_baseAddress/${itemKey}_NEW.zip';
+        final isNewExist = await client.isExists(newPath);
+        MyLogger.d("$newPath is exist: $isNewExist");
+
+        if (isNewExist) {
+          webpathZip = newPath;
+        }
+      }
+    } catch (e) {
+      MyLogger.e("fetch zip error: $e");
+    }
+    MyLogger.d("webpathZip: $webpathZip");
+    return webpathZip;
+
   }
 }

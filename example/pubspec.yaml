@@ -34,7 +34,9 @@ dev_dependencies:
 
 # The following section is specific to Flutter packages.
 flutter:
-#  assets:
+  assets:
+    - dev.env  # 仅 Debug 模式需要
+    - production.env # 生产环境配置
 #    - assets/
 #    - assets/items/
   # The following line ensures that the Material Icons font is
