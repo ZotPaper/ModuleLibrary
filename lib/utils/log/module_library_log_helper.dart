@@ -39,7 +39,7 @@ class AttachmentTransferLogger {
 
     logEvent(message: "附件下载成功：$downloadSuccessLog", logLevel: LogLevel.info);
     DotTracker
-        .addBot("ATTACHMENT_DOWNLOAD_SUCCESS", description: "附件下载成功")
+        .addDot("ATTACHMENT_DOWNLOAD_SUCCESS", description: "附件下载成功")
         .addParam("detail", downloadSuccessLog)
         .report();
   }
@@ -67,8 +67,9 @@ class AttachmentTransferLogger {
 
     logEvent(message: "附件下载失败：$downloadErrorLog", logLevel: LogLevel.error);
     DotTracker
-        .addBot("ATTACHMENT_DOWNLOAD_FAIL", description: "附件下载失败")
+        .addDot("ATTACHMENT_DOWNLOAD_FAIL", description: "附件下载失败")
         .addParam("detail", downloadErrorLog)
+        .addParam("itemKey", item.itemKey)
         .report();
   }
 
@@ -91,8 +92,9 @@ class AttachmentTransferLogger {
 
     logEvent(message: "附件上传失败: $uploadErrorLog", logLevel: LogLevel.error);
     DotTracker
-        .addBot("ATTACHMENT_UPLOAD_FAIL", description: "附件上传失败")
+        .addDot("ATTACHMENT_UPLOAD_FAIL", description: "附件上传失败")
         .addParam("detail", uploadErrorLog)
+        .addParam("itemKey", item.itemKey)
         .report();
   }
 
@@ -116,7 +118,7 @@ class AttachmentTransferLogger {
 
     logEvent(message: "附件上传成功：$uploadSuccessLog", logLevel: LogLevel.info);
     DotTracker
-        .addBot("ATTACHMENT_UPLOAD_SUCCESS", description: "附件上传成功")
+        .addDot("ATTACHMENT_UPLOAD_SUCCESS", description: "附件上传成功")
         .addParam("detail", uploadSuccessLog)
         .report();
   }

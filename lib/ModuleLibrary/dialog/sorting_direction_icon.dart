@@ -20,7 +20,7 @@ class _SortingDirectionIconState extends State<SortingDirectionIcon> {
 
   @override
   Widget build(BuildContext context) {
-    defaultColor = Theme.of(context).textTheme.bodyMedium?.color ?? Colors.grey;
+    defaultColor = ResColor.textMain.withOpacity(0.8);
 
     return SizedBox(
       height: 50,

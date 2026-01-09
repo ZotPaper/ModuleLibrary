@@ -1,9 +1,8 @@
 import 'dart:async';
 import 'dart:io';
-import 'dart:math' as math;
 import 'package:archive/archive.dart';
 import 'package:flutter/foundation.dart';
-import 'package:module_base/utils/log/app_log_event.dart';
+import 'package:module_library/LibZoteroAttachDownloader/bean/attachment/metadata_result.dart';
 import 'package:module_library/LibZoteroAttachDownloader/bean/exception/zotero_upload_exception.dart';
 import 'package:module_library/LibZoteroAttachDownloader/zotero_attachment_transfer.dart';
 import 'package:module_library/LibZoteroStorage/entity/Item.dart';
@@ -11,8 +10,11 @@ import 'package:module_library/ModuleLibrary/utils/my_logger.dart';
 import 'package:webdav_client/webdav_client.dart' as WebDAV;
 import 'package:path/path.dart' as p;
 
+import '../ModuleLibrary/utils/my_fun_tracer.dart';
 import 'bean/exception/zotero_download_exception.dart';
 import 'package:dio/dio.dart';
+
+import 'bean/network/general_result.dart';
 
 /// WebDAV属性文件内容
 class WebdavProp {
@@ -123,7 +125,9 @@ class WebDAVAttachmentTransfer implements IAttachmentTransfer {
     try {
       final itemKey = item.itemKey.toUpperCase();
       final webpathProp = '$_baseAddress/$itemKey.prop';
-      final webpathZip = '$_baseAddress/$itemKey.zip';
+      // final webpathZip = '$_baseAddress/$itemKey.zip';
+
+      final webpathZip = await _getWebPathZipUrl(itemKey);
 
       // 先验证_baseAddress是不是一个有效的地址
       if (!_isValidUrl(_baseAddress!)) {
@@ -133,18 +137,22 @@ class WebDAVAttachmentTransfer implements IAttachmentTransfer {
       // 1. 下载.prop文件获取元数据
       WebdavProp prop;
       try {
-        final propBytes = await client.read(webpathProp);
-        final propContent = String.fromCharCodes(propBytes);
-        prop = WebdavProp.fromString(propContent);
-      } catch (e) {
-        var errorMsg = e.toString();
-        if (e is DioException) {
-          errorMsg = '[${e.response?.statusCode}] ${e.message}';
-        }
+        prop = await _fetchWebdavProp(webpathProp);
+      } catch (error) {
+        // 这里是为了解决之前的上传bug导致删除了itemKey.prop文件，导致下载失败。解决：尝试下载itemKey_NEW.prop文件
+        final newPropPath = '$_baseAddress/${itemKey}_NEW.prop';
+        try {
+          prop = await _fetchWebdavProp(newPropPath);
+        } catch (e) {
+          var errorMsg = e.toString();
+          if (e is DioException) {
+            errorMsg = '[${e.response?.statusCode}] ${e.message}';
+          }
 
-        throw DownloadException(
-            errorType: DownloadErrorType.notFound,
-            message: 'Failed to download .prop file: $errorMsg');
+          throw DownloadException(
+              errorType: DownloadErrorType.notFound,
+              message: 'Failed to download .prop file: $errorMsg url: $newPropPath');
+        }
       }
 
       // 2. 获取ZIP文件大小（用于进度计算）
@@ -224,6 +232,7 @@ class WebDAVAttachmentTransfer implements IAttachmentTransfer {
   }
 
   /// 解压ZIP文件到最终位置
+  /// 遍历ZIP中的所有文件和目录并解压到目标目录
   Future<void> _extractZipFile(File zipFile, Item item) async {
     try {
       // 读取ZIP文件内容
@@ -231,41 +240,88 @@ class WebDAVAttachmentTransfer implements IAttachmentTransfer {
       final archive = ZipDecoder().decodeBytes(bytes);
 
       if (archive.files.isEmpty) {
-        throw ZipException('ZIP文件为空');
+        throw ZipException('文件不存在或已损坏');
       }
 
-      // 获取第一个文件（Zotero附件通常只包含一个文件）
-      final archiveFile = archive.files.firstWhere(
-        (file) => file.isFile,
-        orElse: () => throw Exception('ZIP文件中没有找到有效的附件文件'),
-      );
-
-      final originalFilename = archiveFile.name;
-
-      // 创建最终的附件文件路径
+      // 获取目标附件目录
       final attachmentDir = p.dirname(
           (await attachmentStorageManager.getItemOutputStream(item)).path);
-      final finalFile = File(p.join(attachmentDir, originalFilename));
 
-      // 确保目录存在
-      await finalFile.parent.create(recursive: true);
+      // 确保根目录存在
+      await Directory(attachmentDir).create(recursive: true);
 
-      // 解压文件内容
-      final fileContent = archiveFile.content;
-      await finalFile.writeAsBytes(fileContent);
+      // 获取期望的主附件文件名（用于 attachmentExists 检查）
+      final expectedFilename = await attachmentStorageManager.getFilenameForItem(item);
+      final expectedExtension = p.extension(expectedFilename).toLowerCase();
 
-      // 验证解压后的文件
-      if (!await finalFile.exists()) {
-        throw ZipException('解压后的文件未能正确创建');
+      int extractedFileCount = 0;
+      int extractedDirCount = 0;
+      int totalSize = 0;
+
+      // 遍历所有条目（包括目录和文件）
+      for (final archiveEntry in archive.files) {
+        final originalPath = archiveEntry.name;
+
+        if (archiveEntry.isFile) {
+          // 处理文件
+          String targetPath = originalPath;
+
+          // 获取文件名（不含路径）
+          final originalFilename = p.basename(originalPath);
+          final originalExtension = p.extension(originalFilename).toLowerCase();
+
+          // 如果这是主附件文件（扩展名匹配且在根目录），使用期望的文件名
+          // 这样可以确保 attachmentExists 能够正确检测到文件
+          if (originalExtension == expectedExtension && !originalPath.contains('/')) {
+            targetPath = expectedFilename;
+            if (kDebugMode) {
+              MyLogger.d('主附件文件: $originalPath -> $targetPath');
+            }
+          }
+
+          final finalFile = File(p.join(attachmentDir, targetPath));
+
+          // 确保文件的父目录存在
+          await finalFile.parent.create(recursive: true);
+
+          // 解压文件内容
+          final fileContent = archiveEntry.content;
+          await finalFile.writeAsBytes(fileContent);
+
+          // 验证解压后的文件
+          if (!await finalFile.exists()) {
+            throw ZipException('解压后的文件未能正确创建: $targetPath');
+          }
+
+          final extractedSize = await finalFile.length();
+          if (extractedSize == 0 && archiveEntry.size > 0) {
+            throw ZipException('解压后的文件大小为0: $targetPath');
+          }
+
+          extractedFileCount++;
+          totalSize += extractedSize;
+
+          if (kDebugMode) {
+            MyLogger.d('解压文件: $targetPath ($extractedSize bytes)');
+          }
+        } else {
+          // 处理目录：创建目录结构
+          final targetDir = Directory(p.join(attachmentDir, originalPath));
+          await targetDir.create(recursive: true);
+          extractedDirCount++;
+
+          if (kDebugMode) {
+            MyLogger.d('创建目录: $originalPath');
+          }
+        }
       }
 
-      final extractedSize = await finalFile.length();
-      if (extractedSize == 0) {
-        throw ZipException('解压后的文件大小为0');
+      if (extractedFileCount == 0) {
+        throw ZipException('ZIP文件中没有找到有效的附件文件');
       }
 
       if (kDebugMode) {
-        MyLogger.d('成功解压附件: $originalFilename ($extractedSize bytes)');
+        MyLogger.d('成功解压附件: 共 $extractedFileCount 个文件, $extractedDirCount 个目录, 总大小 $totalSize bytes');
       }
     } catch (e) {
       rethrow;
@@ -273,32 +329,26 @@ class WebDAVAttachmentTransfer implements IAttachmentTransfer {
   }
 
   @override
-  Future<void> updateAttachment(Item attachment) async {
-    try {
-      final itemKey = attachment.itemKey.toUpperCase();
+  Future<CustomResult> updateAttachment(Item attachment) async {
+    // 先暂时下线检查元数据功能，因为：之前的bug导致_baseAddress/${itemKey}.prop的文件被删了不存在，从而导致上传失败
 
-      // 1. 创建ZIP文件
-      final zipFile = await _createZipFile(attachment);
+    // final itemKey = attachment.itemKey;
+    // 上传附件前，先检查附件的元数据信息
+    // final metaPropPath = '$_baseAddress/${itemKey}.prop';
+    //
+    // final hash = await attachmentStorageManager.calculateMd5(attachment);
+    // final mtime = int.tryParse(attachment.data['mtime'] ?? '0') ?? 0;
 
-      // 2. 创建.prop文件
-      final propFile = await _createPropFile(attachment);
+    // final checkMetaRes = await checkMetadata(attachment.itemKey, mtime, hash, metaPropPath);
+    //
+    // if (checkMetaRes is CustomResultError) {
+    //   return checkMetaRes;
+    // }
+    // todo 根据元数据结果执行不同的操作
 
-      // 3. 上传临时文件到WebDAV
-      await _uploadFiles(itemKey, zipFile, propFile);
+    await _doUpload(attachment);
 
-      // 4. 删除和重命名文件
-      await _finalizeUpload(itemKey);
-
-      // 5. 清理临时文件
-      await zipFile.delete();
-      await propFile.delete();
-    } catch (e) {
-      if (e is UploadException) {
-        rethrow;
-      } else {
-        throw UploadException(message: 'Upload failed: $e', errorType: ErrorType.unknown);
-      }
-    }
+    return CustomResult.success(null);
   }
 
   /// 创建ZIP文件
@@ -391,14 +441,35 @@ class WebDAVAttachmentTransfer implements IAttachmentTransfer {
     return propFile;
   }
 
-  /// 上传文件到WebDAV
-  Future<void> _uploadFiles(String itemKey, File zipFile, File propFile) async {
-    final newZipPath = '$_baseAddress/${itemKey}_NEW.zip';
+  /// 上传prop属性文件到WebDAV
+  Future<void> _uploadPropFile(String itemKey, File propFile) async {
     final newPropPath = '$_baseAddress/${itemKey}_NEW.prop';
 
     // 删除可能存在的旧的_NEW文件
     try {
       await client.remove(newPropPath);
+    } catch (e) {
+      // 忽略错误，文件可能不存在
+    }
+
+    MyLogger.d("准备上传新的文件到webdav: ${propFile.path} -> $newPropPath");
+
+    // 上传新文件
+    final propBytes = await propFile.readAsBytes();
+
+    try {
+      await client.write(newPropPath, Uint8List.fromList(propBytes));
+    } catch (e) {
+      MyLogger.e("上传新的文件[${newPropPath}]到webdav发生错误：$e");
+    }
+  }
+
+
+  Future<void> _uploadZipFile(String itemKey, File zipFile) async {
+    final newZipPath = '$_baseAddress/${itemKey}_NEW.zip';
+
+    // 删除可能存在的旧的_NEW文件
+    try {
       await client.remove(newZipPath);
     } catch (e) {
       // 忽略错误，文件可能不存在
@@ -407,14 +478,7 @@ class WebDAVAttachmentTransfer implements IAttachmentTransfer {
     MyLogger.d("准备上传新的文件到webdav: ${zipFile.path} -> $newZipPath");
 
     // 上传新文件
-    final propBytes = await propFile.readAsBytes();
     final zipBytes = await zipFile.readAsBytes();
-
-    try {
-      await client.write(newPropPath, Uint8List.fromList(propBytes));
-    } catch (e) {
-      MyLogger.e("上传新的文件[${newPropPath}]到webdav发生错误：$e");
-    }
 
     try {
       await client.write(newZipPath, Uint8List.fromList(zipBytes));
@@ -423,6 +487,7 @@ class WebDAVAttachmentTransfer implements IAttachmentTransfer {
     }
   }
 
+
   /// 完成上传：删除旧文件并重命名新文件
   Future<void> _finalizeUpload(String itemKey) async {
     final zipPath = '$_baseAddress/$itemKey.zip';
@@ -430,24 +495,45 @@ class WebDAVAttachmentTransfer implements IAttachmentTransfer {
     final newZipPath = '$_baseAddress/${itemKey}_NEW.zip';
     final newPropPath = '$_baseAddress/${itemKey}_NEW.prop';
 
-    // 删除旧文件
+    // 处理prop文件
     try {
       await client.remove(propPath);
-      await client.remove(zipPath);
+      MyLogger.d("delete old prop file in webdav: $propPath");
     } catch (e) {
       // 如果旧文件不存在，忽略错误
     }
+    // 重命名文件（通过复制和删除实现）
+    final keyRenameProp = "rename_$itemKey.prop";
+    MyFunTracer.beginTrace(customKey: keyRenameProp);
 
-    // 重命名新文件（通过复制和删除实现）
-    final newPropBytes = await client.read(newPropPath);
-    final newZipBytes = await client.read(newZipPath);
+    // 方式二：通过重命名
+    final originalPropPath = getRealPath(newPropPath);
+    final targetPropPath = getRealPath(propPath);
 
-    await client.write(propPath, Uint8List.fromList(newPropBytes));
-    await client.write(zipPath, Uint8List.fromList(newZipBytes));
+    MyLogger.d("rename prop file in webdav: $originalPropPath -> $targetPropPath");
+    await client.rename(originalPropPath, targetPropPath, true);
 
-    // 删除临时文件
-    await client.remove(newPropPath);
-    await client.remove(newZipPath);
+    MyFunTracer.endTrace(customKey: keyRenameProp);
+
+    // 处理ZIP文件
+    try {
+      await client.remove(zipPath);
+      MyLogger.d("delete old zip file in webdav: $zipPath");
+    } catch (e) {
+      // 如果旧文件不存在，忽略错误
+    }
+    // 重命名新文件
+    final keyRenameZip = "rename_$itemKey.zip";
+    MyFunTracer.beginTrace(customKey: keyRenameZip);
+
+    // 方式二：通过重命名
+    final originalPath = getRealPath(newZipPath);
+    final targetPath = getRealPath(zipPath);
+
+    MyLogger.d("rename zip file in webdav: $originalPath -> $targetPath");
+    await client.rename(originalPath, targetPath, true);
+    MyFunTracer.endTrace(customKey: keyRenameZip);
+
   }
 
   @override
@@ -455,8 +541,182 @@ class WebDAVAttachmentTransfer implements IAttachmentTransfer {
     return attachmentStorageManager;
   }
 
+
+  /// 检查附件元数据
+  Future<CustomResult<MetadataResult>> checkMetadata(
+      String key,
+      int mtime,
+      String hash,
+      String url) async {
+    final metadataResult = await metadata(key, url);
+
+    if (metadataResult is CustomResultError) {
+      return CustomResult.error(metadataResult.value.toString(), httpCode: metadataResult.httpCode);
+    }
+
+    final metadataResultValue = (metadataResult as CustomResultSuccess).value;
+
+    if (metadataResultValue == null) {
+      return CustomResultSuccess(New(url));
+    }
+
+    final remoteMtime = metadataResultValue[0];
+    final remoteHash = String.fromCharCodes(metadataResultValue[1]);
+
+    if (hash == remoteHash) {
+      if (mtime == remoteMtime) {
+        return CustomResultSuccess(const Unchanged());
+      } else {
+        return CustomResultSuccess(MtimeChanged(remoteMtime));
+      }
+    } else {
+      return CustomResultSuccess(Changed(url));
+    }
+  }
+
+  /// 获取指定文件的元数据
+  ///
+  /// [key] - 文件的唯一标识符
+  /// [url] - WebDAV 服务器的基础 URL
+  ///
+  /// 返回包含远程文件的 mtime 和 hash 的 [CustomResult] 对象，如果文件不存在则返回 null
+  Future<CustomResult<List<dynamic>?>> metadata(
+      String key,
+      String url,
+      ) async {
+    MyLogger.i('WebDavController: fetch metadata for $key from $url');
+
+    try {
+      // 获取meta元数据信息
+      final networkResultBytes = await client.read(url);
+      final propContents = String.fromCharCodes(networkResultBytes);
+      MyLogger.d('WebDAVTransfer: $key item prop file contents: $propContents');
+      final parsedResult = parseMtimeAndHash(propContents);
+
+      if (parsedResult != null) {
+        // parsedResult[0] 是 mtime (int), parsedResult[1] 是 hash (String)
+        return CustomResult.success(parsedResult);
+      } else {
+        MyLogger.e('WebDAVTransfer: $key item prop invalid. input = $propContents');
+        return CustomResult.error('Invalid prop file content for $key');
+      }
+    } catch (e) {
+      MyLogger.e('WebDAVTransfer: $key item prop file error: $e');
+      return CustomResult.error('Network error: $e');
+    }
+  }
+
+  /// 解析mtime和hash的辅助方法
+  List<dynamic>? parseMtimeAndHash(String propContents) {
+    try {
+      final mtime = WebdavProp._extractMtime(propContents);
+      final hash = WebdavProp._extractHash(propContents);
+      return [mtime, hash.codeUnits]; // hash转换为字节列表
+    } catch (e) {
+      MyLogger.e('Failed to parse prop file: $e');
+      return null;
+    }
+  }
+
   @override
   String getTransferType() {
     return "WebDAV";
+  }
+
+  Future<void> _doUpload(Item attachment) async {
+    final itemKey = attachment.itemKey;
+    try {
+      // todo 这里的操作要保持原子性？？
+
+      // 1. 创建ZIP文件
+      final zipFile = await _createZipFile(attachment);
+
+      // 2. 创建.prop文件
+      final propFile = await _createPropFile(attachment);
+
+      // 3. 上传临时文件（到WebDAV
+      await _uploadPropFile(itemKey, propFile);
+      await _uploadZipFile(itemKey, zipFile);
+
+      // 4. 删除和重命名文件
+      await _finalizeUpload(itemKey);
+
+      // 5. 清理临时文件
+      await zipFile.delete();
+      await propFile.delete();
+    } catch (e) {
+      if (e is UploadException) {
+        rethrow;
+      } else {
+        throw UploadException(message: 'Upload failed: $e', errorType: ErrorType.unknown);
+      }
+    }
+
+  }
+
+  /// 获取真实路径
+  /// 注意：路径前面以/开头
+  String getRealPath(String httpPath) {
+    // MyLogger.d("input httpPath: $httpPath");
+    var realPath = httpPath;
+    if (!httpPath.startsWith('http://') && !httpPath.startsWith('https://')) {
+     return realPath;
+    }
+
+    // 这里的真实路径是真正的webdav地址，不带zotero相关的,且结尾不带/，如：https://dav.jianguoyun.com/dav
+    var actualWebdavAddress = webdavAddress;
+    if (webdavAddress.endsWith('/zotero')) {
+      actualWebdavAddress = webdavAddress.substring(0, webdavAddress.length - 7);
+    } else if (webdavAddress.endsWith('/zotero/')) {
+      actualWebdavAddress = webdavAddress.substring(0, webdavAddress.length - 8);
+    }
+    // MyLogger.d("actualWebdavAddress: $actualWebdavAddress");
+
+    if (httpPath.startsWith(actualWebdavAddress)) {
+      realPath = httpPath.substring(actualWebdavAddress.length);
+      // MyLogger.d("realPath: $realPath");
+      return realPath;
+    } else {
+      MyLogger.e("httpPath is not start with baseAddress: $actualWebdavAddress");
+    }
+
+    // MyLogger.d("output realPath: $realPath");
+    return realPath;
+  }
+
+  /// 从webpathProp的画获取.prop文件
+  /// 这里可能会抛出异常
+  Future<WebdavProp> _fetchWebdavProp(String webpathProp) async {
+    WebdavProp prop;
+    final propBytes = await client.read(webpathProp);
+    final propContent = String.fromCharCodes(propBytes);
+    prop = WebdavProp.fromString(propContent);
+    return prop;
+  }
+
+  /// 获取条目附件zip文件的url
+  /// 这里是因为：旧版bug导致itemKey.zip 文件被删除了不存在, 而需使用itemKey_NEW.zip
+  Future<String> _getWebPathZipUrl(String itemKey) async {
+    var webpathZip = '$_baseAddress/$itemKey.zip';
+    var isExist = false;
+    try {
+      isExist = await client.isExists(webpathZip);
+      MyLogger.d("$webpathZip is exist: $isExist");
+
+      if (!isExist) {
+        var newPath = '$_baseAddress/${itemKey}_NEW.zip';
+        final isNewExist = await client.isExists(newPath);
+        MyLogger.d("$newPath is exist: $isNewExist");
+
+        if (isNewExist) {
+          webpathZip = newPath;
+        }
+      }
+    } catch (e) {
+      MyLogger.e("fetch zip error: $e");
+    }
+    MyLogger.d("webpathZip: $webpathZip");
+    return webpathZip;
+
   }
 }

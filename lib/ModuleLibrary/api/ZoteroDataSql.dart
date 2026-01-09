@@ -30,6 +30,8 @@ class ZoteroDataSql {
   
   // 私有构造函数
   ZoteroDataSql._internal() {
+    MyLogger.d("Moyear=== ZoteroDataSql创建对象");
+
     // 初始化所有DAO
     groupInfoDao = GroupInfoDao(_database);
     collectionsDao = CollectionsDao(_database);
@@ -42,7 +44,7 @@ class ZoteroDataSql {
     recentlyOpenedAttachmentDao = RecentlyOpenedAttachmentDao(_database);
   }
 
-  final ZoteroDatabase _database = ZoteroDatabase();
+  final ZoteroDatabase _database = ZoteroDatabase.instance;
   late GroupInfoDao groupInfoDao;
   late CollectionsDao collectionsDao;
   late ItemInfoDao itemInfoDao;
@@ -657,5 +659,9 @@ class ZoteroDataSql {
     onComplete?.call(items);
 
     return items;
+  }
+
+  void dispose() {
+    _database.close();
   }
 }

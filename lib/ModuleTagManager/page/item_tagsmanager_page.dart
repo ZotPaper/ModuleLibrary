@@ -8,6 +8,7 @@ import 'package:module_library/LibZoteroApi/Model/ZoteroSettingsResponse.dart';
 import 'package:module_library/ModuleLibrary/utils/color_utils.dart';
 import 'package:module_library/ModuleLibrary/utils/my_logger.dart';
 import 'package:module_library/ModuleLibrary/viewmodels/zotero_database.dart';
+import 'package:module_library/ModuleLibrary/zotero_provider.dart';
 import 'package:module_library/ModuleTagManager/item_tagmanager.dart';
 import '../../LibZoteroStorage/entity/Item.dart';
 import '../../LibZoteroStorage/entity/ItemTag.dart';
@@ -40,7 +41,7 @@ class _ItemDetailTagFragmentState extends State<TagsManagerPage> {
   final focusNode = FocusNode();
 
   final TagManager _tagManager = TagManager();
-  final ZoteroDB _zoteroDB = ZoteroDB();
+  final ZoteroDB _zoteroDB = ZoteroProvider.getZoteroDB();
 
   @override
   void initState() {
@@ -245,12 +246,15 @@ class _ItemDetailTagFragmentState extends State<TagsManagerPage> {
 
     return RefreshIndicator(
       onRefresh: _refreshTags,
-      child: Column(
-        children: [
-          _buildSearchBar(),
-          _buildTagCounter(),
-          Expanded(child: _buildTagsList()),
-        ],
+      child: Container(
+        color: Colors.white,
+        child: Column(
+          children: [
+            _buildSearchBar(),
+            _buildTagCounter(),
+            Expanded(child: _buildTagsList()),
+          ],
+        ),
       ),
     );
   }

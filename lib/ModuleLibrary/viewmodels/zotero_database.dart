@@ -23,10 +23,11 @@ import '../model/zotero_item_downloaded.dart';
 /// 这是存放从本地数据库加载到内存的数据存放类（全局单例类）
 ///
 class ZoteroDB {
-  // todo 单例模式
-  static final ZoteroDB _instance = ZoteroDB._internal();
+  // 单例模式
+  static ZoteroDB _instance = ZoteroDB._internal();
   factory ZoteroDB() => _instance;
   ZoteroDB._internal() {
+    MyLogger.d("Moyear=== ZoteroDB创建对象");
     /// 加载上次保存的下载进度，避免重复加载
     _loadSavedDownloadProgress();
   }
@@ -545,51 +546,65 @@ class ZoteroDB {
   }
 
   Future<bool> isAttachmentModified(RecentlyOpenedAttachment attachment) async {
-    final item = getItemByKey(attachment.itemKey);
-    if (item != null) {
-      try {
-        final md5Key = getMd5Key(item);
-
-        if (md5Key != "" && !(await attachmentStorageManager.validateMd5ForItem(item, md5Key))) {
-          // 只过滤出本地存在的附件
-          var isExist = await attachmentStorageManager.attachmentExists(item);
-          if (isExist) {
-            return true;
-          } else {
-            MyLogger.d("AttachmentItem[itemKey: ${item.itemKey} name: ${item.getTitle()}] filtered for not existing, ");
-            return false;
-          }
-        } else {
-         return false;
-        }
-      } catch (e) {
-        MyLogger.e("zotero: validateMd5 got error $e");
-      }
+    final attachmentItem = getItemByKey(attachment.itemKey);
+    if (attachmentItem == null) {
+      return false;
     }
 
-    return true;
+    var isExist = await attachmentStorageManager.attachmentExists(attachmentItem);
+    if (!isExist) {
+      return false;
+    }
+
+    /// 本地附件是否发生改变的检查逻辑
+    /// 1. 获取数据库里面记录的附件md5值
+    /// 2. 计算本地的当前附件的md5值
+    /// 3. 如果两个值都为有效md5,且不相等，则认为附件被修改
+    /// 4. todo 确定一下：如果数据库里面没有记录的md5值，但是本地附件md5有效，该如何处理
+    var isModified = false;
+
+    final md5KeyInDB = getMd5KeyInDB(attachmentItem) ?? "";
+    String? calculatedMd5;
+    try {
+      calculatedMd5 = await attachmentStorageManager.calculateAttachItemMD5(attachmentItem);
+    } catch (e) {
+      MyLogger.e("zotero: validateMd5 got error $e");
+    }
+
+    MyLogger.d("Moyear=== MD5InDB: ${md5KeyInDB} calculatedMD5: $calculatedMd5");
+
+    if (md5KeyInDB.isNotEmpty && calculatedMd5?.isNotEmpty == true && md5KeyInDB != calculatedMd5) {
+      isModified = true;
+    }
+    return isModified;
   }
 
-  String getMd5Key(Item item, {bool onlyWebdav = false}) {
+  /// 获取数据库里面记录的附件md5值
+  String? getMd5KeyInDB(Item item, {bool onlyWebdav = false}) {
     if (attachmentInfo == null) {
-      debugPrint('error attachment metadata isn\'t loaded');
-      return '';
+      MyLogger.d('error attachment metadata isn\'t loaded');
+      return null;
     }
 
+    /// 获取附件条目md5的逻辑：
+    /// 1. 从内存中的attachmentInfo中获取附件条目的md5值（AttachmentInfo表默认没有值，附件上传后会将其信息写入）,如果不为空直接返回;
+    /// 2. 如果前一步为空，则从item.data中获取md5值；
+    /// 3. 如果都为为空，则返回null
     final attachmentInfoEntry = attachmentInfo![item.itemKey];
-    if (attachmentInfoEntry == null) {
-      final md5Key = item.data['md5'];
-      if (md5Key != null) {
-        return md5Key;
-      }
-      debugPrint('No metadata available for ${item.itemKey}');
-      return '';
+    if (attachmentInfoEntry != null) {
+      return attachmentInfoEntry.md5Key;
     }
 
-    return attachmentInfoEntry.md5Key;
+    final md5Key = item.data['md5'];
+    if (md5Key != null) {
+      return md5Key;
+    }
+    MyLogger.d('No metadata available for ${item.itemKey}');
+    return null;
   }
 
   /// 更新附件元数据
+  /// 注意：上传附件成功后，必须要更新本地附件的元数据，否则可能造成zotero附件数据错乱
   Future<void> updateAttachmentMetadata({
     required String itemKey,
     required String md5Key,
@@ -597,22 +612,75 @@ class ZoteroDB {
     String downloadedFrom = AttachmentInfo.UNSET,
     int groupID = -1,
   }) async {
+    // 日志输出
+    MyLogger.d('zotero: adding metadata for $itemKey, $md5Key - $downloadedFrom');
+
+    // todo 更新ttachmentInfo这个表的数据
     final attachmentInfoObj = AttachmentInfo(
       itemKey: itemKey,
       md5Key: md5Key,
       mtime: mtime,
       downloadedFrom: downloadedFrom,
     );
-
-    // 日志输出
-    MyLogger.d('zotero: adding metadata for $itemKey, $md5Key - $downloadedFrom');
-
-    // 更新附件信息
     attachmentInfo?[itemKey] = attachmentInfoObj;
 
     // 写入数据库
     await _zoteroDataSql.attachmentInfoDao.updateAttachment(attachmentInfoObj);
+
+    // 更新附件信息
+    // todo 这里不仅仅更新attachmentInfo，而是要更新内存中保存的附件md5值以及数据库中的MD5值
+
+    final attachmentItem = getItemByKey(itemKey);
+    if (attachmentItem == null) {
+      MyLogger.d("updateAttachmentMetadata失败：找不到attachmentItem[itemKey: $itemKey]");
+      return;
+    }
+
+    MyLogger.d("updateAttachmentMetadata before[itemKey: $itemKey， md5: ${attachmentItem.data['md5']}，version: ${attachmentItem.data['version']}  mtime: ${attachmentItem.data['mtime']}]");
+
+    /// 更新附件的条目数据信息
+    /// 比如：附件的md5、mtime、version
+    /// 注意：这里面每次调用都会先查询之前的版本version，然后自动+1
+
+    /// todo 更新内存里面的md5值,mtime,version
+    attachmentItem.data['md5'] = md5Key;
+    attachmentItem.data['mtime'] = mtime.toString();
+    attachmentItem.data['version'] = mtime.toString();
+
+    // todo 更新本地数据库ItemData的附件信息(md5、mtime、version)
+    var data = await _zoteroDataSql.itemDataDao.getItemDataForParent(itemKey);
+    for (var itemData in data) {
+      var needUpdate = false;
+      var newValue = "";
+
+      if (itemData.name == 'md5') {
+        needUpdate = true;
+        newValue = md5Key;
+      } else if (itemData.name == 'mtime') {
+        needUpdate = true;
+        newValue = mtime.toString();
+      } else if (itemData.name == 'version') {
+        needUpdate = true;
+        newValue = itemData.value;
+      }
+
+      if (needUpdate) {
+        final newItemData = ItemData(
+          id: itemData.id,
+          parent: itemKey,
+          name: itemData.name,
+          value: newValue,
+          valueType: itemData.valueType,
+        );
+        await _zoteroDataSql.itemDataDao.updateItemData(newItemData);
+        MyLogger.d("updateItemData [itemKey: $itemKey, name: ${itemData.name}, value: $newValue]");
+      }
+    }
+    MyLogger.d("updateAttachmentMetadata after[itemKey: $itemKey， md5: ${attachmentItem.data['md5']}，version: ${attachmentItem.data['version']}  mtime: ${attachmentItem.data['mtime']}]");
+
   }
 
+  void dispose() {
+  }
 
 }

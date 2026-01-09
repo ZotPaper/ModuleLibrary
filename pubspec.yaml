@@ -58,7 +58,7 @@ dependencies:
 #    path: /Users/moyearzhou/StudioProjects/module_base
     git:
       url: https://github.com/moyearzhou/ModuleBase.git
-      ref: v-0.1.0
+      ref: feat/ohos
   
   # HTML渲染支持，用于显示笔记的富文本内容
   flutter_html: ^3.0.0-beta.2
@@ -68,6 +68,9 @@ dev_dependencies:
     sdk: flutter
   build_runner: ^2.3.3
 
+#dependency_overrides:
+#  module_base:
+#    path: /Users/moyearzhou/StudioProjects/module_base
 
 # For information on the generic Dart part of this file, see the
 # following page: https://dart.dev/tools/pub/pubspec

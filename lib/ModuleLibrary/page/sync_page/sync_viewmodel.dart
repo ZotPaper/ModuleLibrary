@@ -41,7 +41,7 @@ class SyncViewModel with ChangeNotifier {
 
       // 完整同步埋点
       DotTracker
-          .addBot("FIRST_COMPLETE_SYNC", description: "初次启动时完整同步数据")
+          .addDot("FIRST_COMPLETE_SYNC", description: "初次启动时完整同步数据")
           .report();
 
       // 初次启动，从网络获取数据并保存到数据库
@@ -58,7 +58,7 @@ class SyncViewModel with ChangeNotifier {
 
         // 完整同步埋点
         DotTracker
-            .addBot("FIRST_COMPLETE_SYNC_FINISH", description: "初次完整同步完成")
+            .addDot("FIRST_COMPLETE_SYNC_FINISH", description: "初次完整同步完成")
             .addParam("totalItemCount", total)
             .report();
       },

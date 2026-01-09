@@ -1,6 +1,7 @@
 import 'dart:async';
 import 'package:module_base/utils/log/app_log_event.dart';
 import 'package:module_library/LibZoteroAttachDownloader/bean/exception/zotero_upload_exception.dart';
+import 'package:module_library/LibZoteroAttachDownloader/bean/network/general_result.dart';
 import 'package:module_library/LibZoteroAttachDownloader/default_attachment_storage.dart';
 import 'package:module_library/LibZoteroAttachDownloader/webdav_attachment_transfer.dart';
 import 'package:module_library/ModuleLibrary/utils/my_logger.dart';
@@ -420,36 +421,20 @@ class ZoteroAttachDownloaderHelper {
       }
 
       // 使用传输对象上传附件
-      await transfer.updateAttachment(item);
+      final uploadRes = await transfer.updateAttachment(item);
+      if (uploadRes is! CustomResultSuccess) {
+        throw const UploadException(
+          message: '附件上传失败',
+          errorType: ErrorType.unknown,
+        );
+      }
 
       if (transfer is WebDAVAttachmentTransfer) {
         //附件上传成功后，需要调用zotero api修补zotero服务器的数据
-        final newMd5Key = await defaultStorageManager.calculateMd5(item);
-        final mtime = int.tryParse(item.data['mtime'] ?? '0') ?? 0;
-
-        var res = await ZoteroProvider.getZoteroHttp().patchItem(
-          item: item,
-          json: {
-            "md5": newMd5Key,
-            "mtime": mtime,
-          },
-        );
-
-        MyLogger.d("Moyear==== pathItem[${item.itemKey}] result: $res");
-
-        // 更新本地数据库中的附件信息
-        await ZoteroProvider.getZoteroDB().updateAttachmentMetadata(
-          itemKey: itemKey,
-          md5Key: newMd5Key,
-          mtime: mtime,
-          downloadedFrom: AttachmentInfo.WEBDAV,
-        );
-
-        MyLogger.d("Moyear==== updateAttachmentMetadata[${item.itemKey}] result: $res");
+        await _doZoteroAttachmentDataPatch(item);
       }
 
       MyLogger.d('附件上传成功: ${item.getTitle()}');
-      
     } catch (e) {
       MyLogger.e('附件上传失败: ${item.getTitle()}, 错误: $e');
 
@@ -480,6 +465,33 @@ class ZoteroAttachDownloaderHelper {
     _downloadStates.clear();
     _onProgressUpdate = null;
     _onDownloadComplete = null;
+  }
+
+  /// webdav上传成功后，需要调用zotero api修补zotero服务器的数据
+  Future<void> _doZoteroAttachmentDataPatch(Item attachment) async {
+    final newMd5Key = await defaultStorageManager.calculateMd5(attachment);
+    final mtime = int.tryParse(attachment.data['mtime'] ?? '0') ?? 0;
+
+    var res = await ZoteroProvider.getZoteroHttp().patchItem(
+      item: attachment,
+      json: {
+        "md5": newMd5Key,
+        "mtime": mtime,
+      },
+    );
+
+    MyLogger.d("Moyear==== pathItem[${attachment.itemKey}] result: $res");
+
+    // 更新本地数据库中的附件信息
+    await ZoteroProvider.getZoteroDB().updateAttachmentMetadata(
+      itemKey: attachment.itemKey,
+      md5Key: newMd5Key,
+      mtime: mtime,
+      downloadedFrom: AttachmentInfo.WEBDAV,
+    );
+
+    MyLogger.d("Moyear==== updateAttachmentMetadata[${attachment.itemKey}] result: $res");
+
   }
 }
 

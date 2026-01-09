@@ -23,7 +23,7 @@ class AttachmentTransferDialogManager {
 
     // 埋点上报
     DotTracker
-        .addBot("SHOW_UPLOAD_ERROR_RESULT", description: "显示上传结果对话框")
+        .addDot("SHOW_UPLOAD_ERROR_RESULT", description: "显示上传结果对话框")
         .addParam("successCount", successCount)
         .addParam("failedCount", failedCount)
         .report();
